@@ -15,7 +15,9 @@
     "react": "^19",
     "react-dom": "^19",
     "three": "^0.176.0",
-    "zustand": "^5.0.0"
+    "zustand": "^5.0.0",
+    "lucide-react": "^1.48.0",
+    "recharts": "^3.10.1"
   },
   "devDependencies": {
     "@types/node": "^20",

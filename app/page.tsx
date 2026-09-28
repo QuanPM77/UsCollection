@@ -49,12 +49,20 @@ export default function LandingPage() {
         <span className="font-display text-2xl font-bold text-pink-text">
           BeadStudio
         </span>
-        <Link
-          href="/customizer"
-          className="text-sm font-medium text-pink-deep hover:text-pink-text transition-colors"
-        >
-          Thiết kế ngay
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link
+            href="/admin"
+            className="text-xs font-medium text-stone-500 hover:text-pink-deep transition-colors"
+          >
+            Quản trị (Admin)
+          </Link>
+          <Link
+            href="/customizer"
+            className="text-sm font-medium text-pink-deep hover:text-pink-text transition-colors"
+          >
+            Thiết kế ngay
+          </Link>
+        </div>
       </nav>
 
       {/* Hero */}
