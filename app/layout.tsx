@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "BeadStudio — Vòng tay thủ công 3D",
+  title: "UsStory — Vòng tay thủ công 3D",
   description:
-    "Thiết kế vòng tay hạt cá nhân hóa trong 3D. Chọn từng hạt, xem ngay, đặt hàng qua MoMo.",
+    "Thiết kế vòng tay hạt cá nhân hóa trong 3D. Chọn từng hạt, xem ngay, đặt hàng qua PayOS.",
   keywords: ["vòng tay", "hạt", "thủ công", "3D", "rose quartz"],
   openGraph: {
-    title: "BeadStudio",
+    title: "UsStory",
     description: "Vòng tay hạt thủ công — Thiết kế 3D",
     type: "website",
   },

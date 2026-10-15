@@ -1,0 +1,289 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                  String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email               String                   @unique
+  passwordHash        String?                  @map("password_hash")
+  emailVerifiedAt     DateTime?                @map("email_verified_at") @db.Timestamptz(6)
+  fullName            String?                  @map("full_name")
+  phone               String?
+  avatarUrl           String?                  @map("avatar_url")
+  role                Role                     @default(customer)
+  status              Status                   @default(active)
+  lastLoginAt         DateTime?                @map("last_login_at") @db.Timestamptz(6)
+  createdAt           DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  verifyTokens        EmailVerificationToken[]
+  inventory_movements inventory_movements[]
+  orders              Order[]
+  resetTokens         PasswordResetToken[]
+  addresses           UserAddress[]
+
+  @@map("users")
+}
+
+model UserAddress {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  recipientName String   @map("recipient_name")
+  phone         String
+  addressLine   String   @map("address_line")
+  province      String?
+  isDefault     Boolean  @default(false) @map("is_default")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId], map: "idx_user_addresses_user_id")
+  @@map("user_addresses")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId], map: "idx_password_reset_user_id")
+  @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId], map: "idx_email_verification_user_id")
+  @@map("email_verification_tokens")
+}
+
+model RateLimit {
+  key     String   @id
+  count   Int      @default(0)
+  resetAt DateTime @map("reset_at") @db.Timestamptz(6)
+
+  @@map("rate_limits")
+}
+
+model Order {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderCode           BigInt                @unique @map("order_code")
+  user_id             String?               @db.Uuid
+  customerName        String                @map("customer_name")
+  customerPhone       String                @map("customer_phone")
+  customerAddress     String                @map("customer_address")
+  braceletConfig      Json                  @map("bracelet_config")
+  totalPrice          Int                   @map("total_price")
+  paymentStatus       String                @default("pending") @map("payment_status")
+  order_status        order_status          @default(new)
+  payment_method      payment_method        @default(payos)
+  paymentLinkId       String?               @map("payment_link_id")
+  note                String?
+  createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  inventory_movements inventory_movements[]
+  order_items         order_items[]
+  users               User?                 @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+
+  @@index([createdAt(sort: Desc)], map: "idx_orders_created_at")
+  @@index([order_status], map: "idx_orders_order_status")
+  @@index([paymentStatus], map: "idx_orders_payment_status")
+  @@index([user_id], map: "idx_orders_user_id")
+  @@map("orders")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model bead_product_details {
+  product_id             String                   @id @db.Uuid
+  material               bead_material
+  color                  String
+  metalness              Float                    @default(0)
+  roughness              Float                    @default(0.5)
+  products               products                 @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  bracelet_product_beads bracelet_product_beads[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model bracelet_product_beads {
+  bracelet_product_id      String                   @db.Uuid
+  bead_product_id          String                   @db.Uuid
+  quantity                 Int
+  bead_product_details     bead_product_details     @relation(fields: [bead_product_id], references: [product_id], onUpdate: NoAction)
+  bracelet_product_details bracelet_product_details @relation(fields: [bracelet_product_id], references: [product_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([bracelet_product_id, bead_product_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model bracelet_product_details {
+  product_id             String                   @id @db.Uuid
+  wrist_circumference    Int
+  image_url              String?
+  bracelet_product_beads bracelet_product_beads[]
+  products               products                 @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model inventory_movements {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product_id     String   @db.Uuid
+  changed_by     String?  @db.Uuid
+  quantity_delta Int
+  reason         String
+  order_id       String?  @db.Uuid
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  users          User?    @relation(fields: [changed_by], references: [id], onUpdate: NoAction)
+  orders         Order?   @relation(fields: [order_id], references: [id], onUpdate: NoAction)
+  products       products @relation(fields: [product_id], references: [id], onUpdate: NoAction)
+
+  @@index([created_at(sort: Desc)], map: "idx_inventory_created_at")
+  @@index([product_id], map: "idx_inventory_product_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model order_items {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id     String    @db.Uuid
+  product_id   String?   @db.Uuid
+  product_name String
+  sku          String?
+  product_type String
+  quantity     Int
+  unit_price   Int
+  line_total   Int
+  details      Json?
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  orders       Order     @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  products     products? @relation(fields: [product_id], references: [id], onUpdate: NoAction)
+
+  @@index([order_id], map: "idx_order_items_order_id")
+  @@index([product_id], map: "idx_order_items_product_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model products {
+  id                       String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sku                      String                    @unique
+  type                     product_type
+  name                     String
+  description              String?
+  price                    Int
+  stock                    Int                       @default(0)
+  status                   product_status            @default(draft)
+  created_at               DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime                  @default(now()) @db.Timestamptz(6)
+  bead_product_details     bead_product_details?
+  bracelet_product_details bracelet_product_details?
+  inventory_movements      inventory_movements[]
+  order_items              order_items[]
+
+  @@index([name], map: "idx_products_name")
+  @@index([status], map: "idx_products_status")
+  @@index([type], map: "idx_products_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model store_settings {
+  id                  Int      @id @default(1) @db.SmallInt
+  store_name          String   @default("UsStory")
+  store_description   String   @default("")
+  contact_phone       String   @default("")
+  contact_email       String   @default("")
+  address             String   @default("")
+  low_stock_threshold Int      @default(5)
+  currency            String   @default("VND")
+  order_auto_confirm  Boolean  @default(false)
+  updated_at          DateTime @default(now()) @db.Timestamptz(6)
+}
+
+enum Role {
+  customer
+  manager
+  admin
+
+  @@map("user_role")
+}
+
+enum Status {
+  active
+  locked
+
+  @@map("user_status")
+}
+
+enum bead_material {
+  glass
+  crystal
+  wood
+  stone
+  pearl
+}
+
+enum fulfillment_status {
+  pending
+  processing
+  completed
+  cancelled
+}
+
+enum order_status {
+  new
+  confirmed
+  processing
+  shipping
+  completed
+  cancelled
+}
+
+enum payment_log_status {
+  initiated
+  success
+  failed
+}
+
+enum payment_method {
+  payos
+  bank_transfer
+  cod
+}
+
+enum payment_status {
+  pending
+  paid
+  failed
+}
+
+enum product_status {
+  active
+  inactive
+  draft
+}
+
+enum product_type {
+  bead
+  bracelet
+}
+
+enum template_status {
+  draft
+  published
+}

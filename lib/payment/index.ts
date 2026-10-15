@@ -1,2 +1,2 @@
 export { PaymentContext } from "./PaymentStrategy";
-export { MoMoStrategy, MoMoMockStrategy } from "./MoMoStrategy";
+export { PayOSStrategy } from "./PayOSStrategy";

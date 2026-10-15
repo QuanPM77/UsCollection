@@ -12,7 +12,7 @@ export interface StoreSettings {
 }
 
 export const DEFAULT_SETTINGS: StoreSettings = {
-  storeName: 'UsCollection - BeadStudio',
+  storeName: 'UsStory',
   storeDescription: 'Cửa hàng vòng tay thủ công handmade',
   contactPhone: '0901 234 567',
   contactEmail: 'contact@uscollection.vn',

@@ -29,7 +29,7 @@ export interface CustomerInfo {
   email?: string;
 }
 
-export type PaymentMethod = 'momo' | 'bank_transfer' | 'cod';
+export type PaymentMethod = 'payos' | 'bank_transfer' | 'cod';
 export type PaymentStatus = 'pending' | 'paid' | 'failed';
 
 export interface Order {

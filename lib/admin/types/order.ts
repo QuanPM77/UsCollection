@@ -33,7 +33,7 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
 };
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  momo: 'MoMo',
+  payos: 'PayOS',
   bank_transfer: 'Chuyển khoản',
   cod: 'Thanh toán khi nhận',
 };

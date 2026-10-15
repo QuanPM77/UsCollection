@@ -1,4 +1,6 @@
 import Link from "next/link";
+import MainMenu from "@/components/MainMenu";
+import { auth, signOut } from "@/auth";
 
 const FEATURES = [
   {
@@ -18,8 +20,8 @@ const FEATURES = [
   },
   {
     icon: "✦",
-    title: "Thanh toán MoMo tiện lợi",
-    desc: "Đặt hàng nhanh, không cần tài khoản, giao hàng tận nơi",
+    title: "Thanh toán PayOS tiện lợi",
+    desc: "Quét QR thanh toán nhanh chóng, không cần tài khoản, giao hàng tận nơi",
   },
 ];
 
@@ -41,32 +43,34 @@ const TESTIMONIALS = [
   },
 ];
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const session = await auth();
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-light via-cream to-white">
       {/* Nav */}
-      <nav className="px-6 py-5 flex items-center justify-between max-w-6xl mx-auto">
+      <nav className="flex w-full items-center gap-4 px-4 py-5 sm:px-8 lg:px-12">
+        <MainMenu />
         <span className="font-display text-2xl font-bold text-pink-text">
-          BeadStudio
+          UsStory
         </span>
-        <div className="flex items-center gap-4">
-          <Link
-            href="/admin"
-            className="text-xs font-medium text-stone-500 hover:text-pink-deep transition-colors"
-          >
-            Quản trị (Admin)
-          </Link>
-          <Link
-            href="/customizer"
-            className="text-sm font-medium text-pink-deep hover:text-pink-text transition-colors"
-          >
-            Thiết kế ngay
-          </Link>
+        <div className="ml-auto flex items-center gap-3">
+          {session ? (
+            <form action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
+              <button className="rounded-xl border border-pink-mid/40 bg-white/80 px-4 py-2.5 text-sm font-semibold text-pink-deep transition hover:bg-pink-light">
+                Đăng xuất
+              </button>
+            </form>
+          ) : (
+            <Link href="/login" className="rounded-xl border border-pink-mid/40 bg-white/80 px-4 py-2.5 text-sm font-semibold text-pink-deep transition hover:bg-pink-light">
+              Đăng nhập
+            </Link>
+          )}
         </div>
       </nav>
 
       {/* Hero */}
-      <section className="max-w-6xl mx-auto px-6 pt-16 pb-24 grid lg:grid-cols-2 gap-12 items-center">
+      <section className="grid w-full items-center gap-12 px-4 pb-24 pt-16 sm:px-8 lg:grid-cols-2 lg:px-12">
         <div className="flex flex-col gap-6">
           <div className="inline-flex w-fit items-center gap-2 bg-pink-blush/60 text-pink-text text-xs font-medium px-3 py-1.5 rounded-full">
             <span className="w-1.5 h-1.5 rounded-full bg-pink-deep" />
@@ -79,7 +83,7 @@ export default function LandingPage() {
             <span className="text-pink-deep">riêng của bạn</span>
           </h1>
 
-          <p className="text-pink-text/70 text-lg leading-relaxed max-w-md">
+          <p className="max-w-xl text-lg leading-relaxed text-pink-text/70">
             Chọn từng hạt, xem ngay trong 3D, đặt hàng trong vài phút.
             Mỗi chiếc vòng là một câu chuyện riêng.
           </p>
@@ -113,7 +117,7 @@ export default function LandingPage() {
           </div>
 
           <p className="text-xs text-pink-text/40">
-            Miễn phí thiết kế • Giao hàng toàn quốc • Thanh toán MoMo
+            Miễn phí thiết kế • Giao hàng toàn quốc • Thanh toán PayOS
           </p>
         </div>
 
@@ -138,9 +142,9 @@ export default function LandingPage() {
 
       {/* Features */}
       <section id="features" className="bg-white/50 py-20">
-        <div className="max-w-6xl mx-auto px-6">
+        <div className="w-full px-4 sm:px-8 lg:px-12">
           <h2 className="font-display text-3xl font-bold text-pink-text text-center mb-12">
-            Tại sao chọn BeadStudio?
+            Tại sao chọn UsStory?
           </h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {FEATURES.map((f) => (
@@ -158,7 +162,7 @@ export default function LandingPage() {
       </section>
 
       {/* Testimonials */}
-      <section className="py-20 max-w-6xl mx-auto px-6">
+      <section className="w-full px-4 py-20 sm:px-8 lg:px-12">
         <h2 className="font-display text-3xl font-bold text-pink-text text-center mb-12">
           Khách hàng nói gì?
         </h2>
@@ -182,7 +186,7 @@ export default function LandingPage() {
 
       {/* CTA Banner */}
       <section className="bg-gradient-to-r from-pink-mid to-pink-deep py-16">
-        <div className="max-w-2xl mx-auto px-6 text-center">
+        <div className="w-full px-4 text-center sm:px-8 lg:px-12">
           <h2 className="font-display text-3xl font-bold text-white mb-4">
             Sẵn sàng tạo vòng tay của bạn?
           </h2>
@@ -205,7 +209,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="py-8 text-center text-xs text-pink-text/40">
-        © 2026 BeadStudio. Handcrafted with love.
+        © 2026 UsStory. Handcrafted with love.
       </footer>
     </div>
   );

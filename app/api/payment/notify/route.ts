@@ -1,35 +1,31 @@
-/**
- * POST /api/payment/notify
- *
- * MoMo IPN (Instant Payment Notification) webhook.
- * MoMo calls this URL after payment to confirm status.
- *
- * TODO: Verify HMAC signature, update DynamoDB order status.
- */
-
 import { NextRequest, NextResponse } from "next/server";
+import { PayOS } from "@payos/node";
+import { prisma } from "@/lib/prisma";
+
+const payos = new PayOS({
+  clientId: process.env.PAYOS_CLIENT_ID,
+  apiKey: process.env.PAYOS_API_KEY,
+  checksumKey: process.env.PAYOS_CHECKSUM_KEY,
+});
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    console.log("[MoMo IPN]", body);
-
-    const { orderId, resultCode, amount, transId } = body;
-
-    // TODO: Verify HMAC signature from MoMo
-    // TODO: Update DynamoDB: orders/{orderId}.paymentStatus
-
-    if (resultCode === 0) {
-      console.log(`[MoMo IPN] Order ${orderId} paid. transId=${transId}, amount=${amount}`);
-      // Mark order as paid in DB
-    } else {
-      console.log(`[MoMo IPN] Order ${orderId} payment failed. code=${resultCode}`);
+    const webhook = await req.json();
+    const data = await payos.webhooks.verify(webhook);
+    const order = await prisma.order.findUnique({ where: { orderCode: BigInt(data.orderCode) } });
+    if (!order || order.totalPrice !== data.amount) {
+      return NextResponse.json({ message: "Order not found or amount mismatch" }, { status: 400 });
     }
 
-    // MoMo requires HTTP 200 to acknowledge receipt
-    return NextResponse.json({ message: "OK" }, { status: 200 });
-  } catch (err) {
-    console.error("[MoMo IPN Error]", err);
-    return NextResponse.json({ message: "Error" }, { status: 500 });
+    if (data.code === "00") {
+      await prisma.order.updateMany({
+        where: { id: order.id, paymentStatus: "pending" },
+        data: { paymentStatus: "paid" },
+      });
+    }
+    return NextResponse.json({ message: "OK" });
+  } catch (error) {
+    console.error("[PayOS Webhook] Invalid webhook or processing error", error);
+    return NextResponse.json({ message: "Invalid webhook" }, { status: 400 });
   }
 }

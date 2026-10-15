@@ -46,11 +46,8 @@ export interface GuestOrder {
 // ─── Payment Strategy ─────────────────────────────────────────────────────────
 
 export interface PaymentPayload {
-  orderId: string;
-  amount: number;
-  orderInfo: string;
-  returnUrl: string;
-  notifyUrl: string;
+  customer: { name: string; phone: string; address: string };
+  braceletConfig: BraceletConfig;
 }
 
 export interface PaymentResult {

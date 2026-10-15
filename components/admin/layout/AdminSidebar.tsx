@@ -55,7 +55,7 @@ export function AdminSidebar({ open, onClose }: SidebarProps) {
           <Link href="/admin" className="flex items-center gap-2.5">
             <span className="text-xl">💎</span>
             <div>
-              <span className="font-bold text-gray-900 text-sm">UsCollection</span>
+              <span className="font-bold text-gray-900 text-sm">UsStory</span>
               <span className="block text-[10px] text-gray-400 -mt-0.5 font-medium tracking-wide">ADMIN</span>
             </div>
           </Link>
