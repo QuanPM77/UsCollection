@@ -1,0 +1,114 @@
+[
+  {
+    "id": "os-101",
+    "order_id": "ord-01",
+    "slot_index": 0,
+    "bead_type_id": "rose-quartz",
+    "unit_price": 15000
+  },
+  {
+    "id": "os-102",
+    "order_id": "ord-01",
+    "slot_index": 1,
+    "bead_type_id": "amethyst",
+    "unit_price": 18000
+  },
+  {
+    "id": "os-103",
+    "order_id": "ord-01",
+    "slot_index": 2,
+    "bead_type_id": "gold-bead",
+    "unit_price": 30000
+  },
+  {
+    "id": "os-201",
+    "order_id": "ord-02",
+    "slot_index": 0,
+    "bead_type_id": "obsidian",
+    "unit_price": 14000
+  },
+  {
+    "id": "os-202",
+    "order_id": "ord-02",
+    "slot_index": 1,
+    "bead_type_id": "moonstone",
+    "unit_price": 20000
+  },
+  {
+    "id": "os-203",
+    "order_id": "ord-02",
+    "slot_index": 2,
+    "bead_type_id": "gold-bead",
+    "unit_price": 30000
+  },
+  {
+    "id": "os-301",
+    "order_id": "ord-03",
+    "slot_index": 0,
+    "bead_type_id": "rose-quartz",
+    "unit_price": 15000
+  },
+  {
+    "id": "os-302",
+    "order_id": "ord-03",
+    "slot_index": 1,
+    "bead_type_id": "pearl-white",
+    "unit_price": 22000
+  },
+  {
+    "id": "os-303",
+    "order_id": "ord-03",
+    "slot_index": 2,
+    "bead_type_id": "gold-bead",
+    "unit_price": 30000
+  },
+  {
+    "id": "os-304",
+    "order_id": "ord-03",
+    "slot_index": 3,
+    "bead_type_id": "rose-quartz",
+    "unit_price": 15000
+  },
+  {
+    "id": "os-401",
+    "order_id": "ord-04",
+    "slot_index": 0,
+    "bead_type_id": "sandalwood",
+    "unit_price": 10000
+  },
+  {
+    "id": "os-402",
+    "order_id": "ord-04",
+    "slot_index": 1,
+    "bead_type_id": "turquoise",
+    "unit_price": 16000
+  },
+  {
+    "id": "os-403",
+    "order_id": "ord-04",
+    "slot_index": 2,
+    "bead_type_id": "lavender-jade",
+    "unit_price": 26000
+  },
+  {
+    "id": "os-501",
+    "order_id": "ord-05",
+    "slot_index": 0,
+    "bead_type_id": "obsidian",
+    "unit_price": 14000
+  },
+  {
+    "id": "os-502",
+    "order_id": "ord-05",
+    "slot_index": 1,
+    "bead_type_id": "sandalwood",
+    "unit_price": 10000
+  },
+  {
+    "id": "os-503",
+    "order_id": "ord-05",
+    "slot_index": 2,
+    "bead_type_id": "lavender-jade",
+    "unit_price": 25000
+  }
+]

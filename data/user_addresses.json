@@ -1,0 +1,22 @@
+[
+  {
+    "id": "addr-01",
+    "user_id": "usr-customer-01",
+    "recipient_name": "Lê Thị Thảo",
+    "phone": "0901234567",
+    "address_line": "123 Đường Lê Lợi, Phường Bến Thành, Quận 1",
+    "province": "TP. Hồ Chí Minh",
+    "is_default": true,
+    "created_at": "2026-05-10T00:00:00.000Z"
+  },
+  {
+    "id": "addr-02",
+    "user_id": "usr-customer-02",
+    "recipient_name": "Trần Minh",
+    "phone": "0912345678",
+    "address_line": "456 Đường Nguyễn Huệ, Quận 3",
+    "province": "TP. Hồ Chí Minh",
+    "is_default": true,
+    "created_at": "2026-06-01T00:00:00.000Z"
+  }
+]

@@ -1,0 +1,46 @@
+[
+  {
+    "id": "vong-hong-ngoc",
+    "ten": "Vòng Tay Hồng Ngọc Thanh Lịch",
+    "moTa": "Sự kết hợp giữa Rose Quartz và Ngọc Trai Trắng mang lại vẻ đẹp ngọt ngào, tinh tế.",
+    "chuViCoTay": 160,
+    "danhSachCharm": [
+      "rose-quartz",
+      "pearl-white",
+      "rose-quartz",
+      "gold-bead",
+      "rose-quartz",
+      "pearl-white"
+    ],
+    "tongTien": 115000
+  },
+  {
+    "id": "vong-huyen-bi",
+    "ten": "Vòng Tay Huyền Bí Đêm Trăng",
+    "moTa": "Thiết kế cá tính với Đá Mặt Trăng và Đá Hắc Diệu bảo vệ năng lượng tích cực.",
+    "chuViCoTay": 170,
+    "danhSachCharm": [
+      "obsidian",
+      "moonstone",
+      "obsidian",
+      "gold-bead",
+      "obsidian",
+      "moonstone"
+    ],
+    "tongTien": 108000
+  },
+  {
+    "id": "vong-thien-nhien",
+    "ten": "Vòng Tay Gỗ Đàn Hương & Ngọc Lam",
+    "moTa": "Phong cách Boho mộc mạc kết hợp gỗ đàn hương thơm nhẹ và đá Turquoise rực rỡ.",
+    "chuViCoTay": 165,
+    "danhSachCharm": [
+      "sandalwood",
+      "turquoise",
+      "sandalwood",
+      "turquoise",
+      "gold-bead"
+    ],
+    "tongTien": 82000
+  }
+]

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 
 // Lưu ý: x-forwarded-for chỉ đáng tin khi app chạy sau proxy/host bạn kiểm soát (Vercel, Nginx...).
 export function clientIp(h: Headers) {
@@ -7,24 +7,61 @@ export function clientIp(h: Headers) {
 
 export type Limit = { ok: boolean; retryAfterSec: number };
 
-// Cửa sổ cố định, đếm nguyên tử bằng một câu upsert nên an toàn khi nhiều request chạy song song.
+// Cửa sổ cố định, đếm nguyên tử bằng upsert Supabase — an toàn cho các request song song.
 export async function rateLimit(key: string, limit: number, windowSec: number): Promise<Limit> {
-  const rows = await prisma.$queryRaw<{ count: number; reset_at: Date }[]>`
-    INSERT INTO rate_limits (key, count, reset_at)
-    VALUES (${key}, 1, now() + (${windowSec}::int * interval '1 second'))
-    ON CONFLICT (key) DO UPDATE SET
-      count = CASE WHEN rate_limits.reset_at < now() THEN 1 ELSE rate_limits.count + 1 END,
-      reset_at = CASE WHEN rate_limits.reset_at < now()
-                      THEN now() + (${windowSec}::int * interval '1 second')
-                      ELSE rate_limits.reset_at END
-    RETURNING count, reset_at`;
+  const now = new Date();
+  const resetAt = new Date(now.getTime() + windowSec * 1000);
+
+  // Lấy bản ghi hiện tại
+  const { data: existing } = await supabase
+    .from("rate_limits")
+    .select("*")
+    .eq("key", key)
+    .single();
+
+  let count = 1;
+  let reset_at = resetAt;
+
+  if (existing) {
+    const isExpired = new Date(existing.reset_at) < now;
+    if (isExpired) {
+      // Cửa sổ đã hết hạn → reset về 1
+      count = 1;
+      reset_at = resetAt;
+    } else {
+      count = existing.count + 1;
+      reset_at = new Date(existing.reset_at);
+    }
+    await supabase
+      .from("rate_limits")
+      .update({ count, reset_at: reset_at.toISOString() })
+      .eq("key", key);
+  } else {
+    await supabase.from("rate_limits").insert({
+      key,
+      count: 1,
+      reset_at: resetAt.toISOString(),
+    });
+  }
+
   // Thỉnh thoảng dọn các dòng đã hết hạn
-  if (Math.random() < 0.01) prisma.$executeRaw`DELETE FROM rate_limits WHERE reset_at < now()`.catch(() => {});
-  const { count, reset_at } = rows[0];
-  return { ok: Number(count) <= limit, retryAfterSec: Math.max(1, Math.ceil((reset_at.getTime() - Date.now()) / 1000)) };
+  if (Math.random() < 0.01) {
+    supabase
+      .from("rate_limits")
+      .delete()
+      .lt("reset_at", now.toISOString())
+      .then(() => {});
+  }
+
+  return {
+    ok: count <= limit,
+    retryAfterSec: Math.max(1, Math.ceil((reset_at.getTime() - now.getTime()) / 1000)),
+  };
 }
 
-export const clearLimit = (key: string) => prisma.rateLimit.deleteMany({ where: { key } });
+export const clearLimit = async (key: string) => {
+  await supabase.from("rate_limits").delete().eq("key", key);
+};
 
 export function limitError(...rs: Limit[]) {
   const bad = rs.filter((r) => !r.ok);

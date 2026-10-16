@@ -1,0 +1,56 @@
+[
+  {
+    "id": "tmpl-slot-1",
+    "template_id": "tmpl-hong-ngoc-01",
+    "slot_index": 0,
+    "bead_type_id": "rose-quartz"
+  },
+  {
+    "id": "tmpl-slot-2",
+    "template_id": "tmpl-hong-ngoc-01",
+    "slot_index": 1,
+    "bead_type_id": "pearl-white"
+  },
+  {
+    "id": "tmpl-slot-3",
+    "template_id": "tmpl-hong-ngoc-01",
+    "slot_index": 2,
+    "bead_type_id": "gold-bead"
+  },
+  {
+    "id": "tmpl-slot-4",
+    "template_id": "tmpl-hong-ngoc-01",
+    "slot_index": 3,
+    "bead_type_id": "rose-quartz"
+  },
+  {
+    "id": "tmpl-slot-5",
+    "template_id": "tmpl-dem-trang-02",
+    "slot_index": 0,
+    "bead_type_id": "obsidian"
+  },
+  {
+    "id": "tmpl-slot-6",
+    "template_id": "tmpl-dem-trang-02",
+    "slot_index": 1,
+    "bead_type_id": "moonstone"
+  },
+  {
+    "id": "tmpl-slot-7",
+    "template_id": "tmpl-dem-trang-02",
+    "slot_index": 2,
+    "bead_type_id": "gold-bead"
+  },
+  {
+    "id": "tmpl-slot-8",
+    "template_id": "tmpl-boho-03",
+    "slot_index": 0,
+    "bead_type_id": "sandalwood"
+  },
+  {
+    "id": "tmpl-slot-9",
+    "template_id": "tmpl-boho-03",
+    "slot_index": 1,
+    "bead_type_id": "turquoise"
+  }
+]
