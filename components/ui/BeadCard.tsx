@@ -9,12 +9,19 @@ interface BeadCardProps {
 }
 
 export default function BeadCard({ bead }: BeadCardProps) {
-  const { selectedBeadType, setSelectedBeadType } = useBraceletStore();
+  const { selectedBeadType, setSelectedBeadType, addBead } = useBraceletStore();
   const isSelected = selectedBeadType?.id === bead.id;
 
   return (
     <button
-      onClick={() => setSelectedBeadType(isSelected ? null : bead)}
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", bead.id);
+      }}
+      onClick={() => {
+        setSelectedBeadType(bead);
+        addBead(bead.id);
+      }}
       className={`
         relative flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all duration-200
         hover:shadow-pink hover:-translate-y-0.5

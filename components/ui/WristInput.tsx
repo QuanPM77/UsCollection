@@ -1,14 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useBraceletStore } from "@/lib/store";
-import { calculateBeadCount } from "@/lib/braceletMath";
+
+import { getBeadById } from "@/lib/beadData";
+import { calculateRadiusFromBeads } from "@/lib/braceletMath";
 
 export default function WristInput() {
-  const { wristCircumference, setWristCircumference } = useBraceletStore();
+  const { wristCircumference, setWristCircumference, slots } = useBraceletStore();
   const [inputValue, setInputValue] = useState(String(wristCircumference));
 
-  const beadCount = calculateBeadCount(wristCircumference);
+  useEffect(() => {
+    setInputValue(String(wristCircumference));
+  }, [wristCircumference]);
+
+
+  const beadCount = slots.length;
+  const actualLength = slots.reduce((sum, s) => {
+    const bead = s.beadTypeId ? getBeadById(s.beadTypeId) : null;
+    return sum + (bead?.diameter ?? 8);
+  }, 0);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
@@ -84,8 +95,18 @@ export default function WristInput() {
 
       {/* Info */}
       <div className="flex justify-between text-xs text-pink-text/60">
-        <span>R = {(wristCircumference / (2 * Math.PI * 10)).toFixed(2)} u</span>
-        <span>{beadCount} hạt</span>
+        <span>
+          R = {
+            (
+              slots.length > 0
+                ? calculateRadiusFromBeads(slots.map((s) => getBeadById(s.beadTypeId!)?.diameter ?? 8), wristCircumference)
+                : wristCircumference / (2 * Math.PI * 10)
+            ).toFixed(2)
+          } u
+        </span>
+        <span>
+          {beadCount} hạt ({actualLength}mm / {wristCircumference}mm)
+        </span>
       </div>
     </div>
   );

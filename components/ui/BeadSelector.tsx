@@ -22,7 +22,7 @@ export default function BeadSelector() {
 
       {/* Hint */}
       <p className="text-xs text-pink-text/60">
-        Chọn hạt rồi click vào vị trí trên vòng tay • Chuột phải để xóa
+        Kéo hạt thả vào vòng hoặc click để xâu • Click lên dây để xâu hạt đang chọn • Chuột phải để xóa
       </p>
 
       {/* Grid of bead cards */}
