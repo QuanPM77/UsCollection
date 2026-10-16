@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { logoutAdmin } from './actions';
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -21,12 +22,14 @@ const NAV_ITEMS = [
   { href: '/admin', label: 'Tổng quan', icon: LayoutDashboard },
   { href: '/admin/orders', label: 'Đơn hàng', icon: ShoppingBag },
   { href: '/admin/products', label: 'Sản phẩm', icon: Package },
+  { href: '/admin/products/catalog', label: 'Vòng bán sẵn', icon: Package },
   { href: '/admin/analytics', label: 'Phân tích', icon: BarChart3 },
   { href: '/admin/settings', label: 'Cài đặt', icon: Settings },
 ];
 
 function isActive(pathname: string, href: string): boolean {
   if (href === '/admin') return pathname === '/admin';
+  if (href === '/admin/products') return pathname === href || (pathname.startsWith(href) && !pathname.startsWith('/admin/products/catalog'));
   return pathname.startsWith(href);
 }
 
@@ -105,13 +108,12 @@ export function AdminSidebar({ open, onClose }: SidebarProps) {
               <p className="text-xs text-gray-400 truncate">admin@uscollection.vn</p>
             </div>
           </div>
-          <button
-            className="flex items-center gap-3 w-full px-3 py-2 mt-1 rounded-lg text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors"
-            title="Đăng xuất (chưa triển khai)"
-          >
-            <LogOut className="w-4 h-4" />
-            Đăng xuất
-          </button>
+          <form action={logoutAdmin}>
+            <button className="flex items-center gap-3 w-full px-3 py-2 mt-1 rounded-lg text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors">
+              <LogOut className="w-4 h-4" />
+              Đăng xuất
+            </button>
+          </form>
         </div>
       </aside>
     </>

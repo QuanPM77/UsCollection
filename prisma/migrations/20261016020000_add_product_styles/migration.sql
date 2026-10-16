@@ -1,0 +1,2 @@
+ALTER TABLE "products"
+ADD COLUMN "styles" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];

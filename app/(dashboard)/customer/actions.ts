@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/guard";
+import { isEmail } from "@/lib/form";
+import bcrypt from "bcryptjs";
+import { removeAvatar, uploadAvatar } from "@/lib/supabase-storage";
 
 function value(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -14,19 +17,51 @@ function finish(message: string) {
   redirect(`/customer?saved=${message}`);
 }
 
+export async function changePassword(formData: FormData) {
+  const session = await requireRole("customer");
+  const currentPassword = String(formData.get("currentPassword") ?? "");
+  const newPassword = String(formData.get("newPassword") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { passwordHash: true } });
+  if (!user?.passwordHash || !(await bcrypt.compare(currentPassword, user.passwordHash))) {
+    throw new Error("Mật khẩu hiện tại không đúng.");
+  }
+  if (newPassword.length < 8) throw new Error("Mật khẩu mới cần ít nhất 8 ký tự.");
+  if (newPassword !== confirmPassword) throw new Error("Mật khẩu nhập lại không khớp.");
+  await prisma.user.update({ where: { id: session.user.id }, data: { passwordHash: await bcrypt.hash(newPassword, 10) } });
+  finish("password-changed");
+}
+
 export async function updateProfile(formData: FormData) {
   const session = await requireRole("customer");
   const fullName = value(formData, "fullName");
-  const phone = value(formData, "phone");
+  const email = value(formData, "profileEmail").toLowerCase();
 
   if (fullName.length < 2 || fullName.length > 100) throw new Error("Họ tên cần từ 2 đến 100 ký tự.");
-  if (phone && !/^(0|\+84)[0-9]{8,10}$/.test(phone.replace(/\s/g, ""))) {
-    throw new Error("Số điện thoại không hợp lệ.");
+  if (email && !isEmail(email)) throw new Error("Email không hợp lệ.");
+
+  const emailValue = email || null;
+  const [existing, duplicate] = await Promise.all([
+    prisma.user.findUnique({ where: { id: session.user.id }, select: { email: true } }),
+    emailValue
+      ? prisma.user.findFirst({ where: { email: emailValue, id: { not: session.user.id } }, select: { id: true } })
+      : Promise.resolve(null),
+  ]);
+  if (duplicate) throw new Error("Email này đã được sử dụng bởi tài khoản khác.");
+
+  try {
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: {
+        fullName,
+        email: emailValue,
+        ...(existing?.email !== emailValue ? { emailVerifiedAt: null } : {}),
+      },
+    });
+  } catch (error: unknown) {
+    if ((error as { code?: string }).code === "P2002") throw new Error("Email này đã được sử dụng bởi tài khoản khác.");
+    throw error;
   }
-  await prisma.user.update({
-    where: { id: session.user.id },
-    data: { fullName, phone: phone || null },
-  });
   finish("profile");
 }
 
@@ -39,14 +74,24 @@ export async function saveAvatar(formData: FormData) {
   }
   const imageBytes = Buffer.from(match[2], "base64");
   if (imageBytes.byteLength > 150_000) throw new Error("Ảnh sau khi nén cần nhỏ hơn 150 KB.");
-
-  await prisma.user.update({ where: { id: session.user.id }, data: { avatarUrl: avatarData } });
+  const previous = await prisma.user.findUnique({ where: { id: session.user.id }, select: { avatarUrl: true } });
+  if (!previous) throw new Error("Không tìm thấy tài khoản.");
+  const uploadedPath = await uploadAvatar(session.user.id, imageBytes);
+  try {
+    await prisma.user.update({ where: { id: session.user.id }, data: { avatarUrl: uploadedPath } });
+  } catch (error) {
+    await removeAvatar(uploadedPath).catch(() => undefined);
+    throw error;
+  }
+  await removeAvatar(previous.avatarUrl).catch(() => undefined);
   finish("avatar-saved");
 }
 
 export async function deleteAvatar(_formData: FormData) {
   const session = await requireRole("customer");
+  const previous = await prisma.user.findUnique({ where: { id: session.user.id }, select: { avatarUrl: true } });
   await prisma.user.update({ where: { id: session.user.id }, data: { avatarUrl: null } });
+  await removeAvatar(previous?.avatarUrl).catch(() => undefined);
   finish("avatar-deleted");
 }
 
@@ -67,7 +112,7 @@ export async function addAddress(formData: FormData) {
     await tx.userAddress.create({
       data: {
         userId: session.user.id,
-        recipientName: user.fullName?.trim() || user.email,
+        recipientName: user.fullName?.trim() || user.email || "Khách hàng",
         phone: user.phone?.replace(/\s/g, "") || "",
         addressLine,
         province: province || null,

@@ -20,7 +20,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
         { phone: { contains: q } },
       ],
     }),
-    ...(status === "active" || status === "blocked" ? { status } : {}),
+    ...(status === "active" || status === "locked" ? { status } : {}),
   };
   const [users, total] = await Promise.all([
     prisma.user.findMany({ where, orderBy: { createdAt: "desc" }, skip: (p - 1) * PAGE, take: PAGE }),
@@ -42,7 +42,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
           <select name="status" defaultValue={status} className="rounded-lg border border-pink-200 bg-white px-3 py-2">
             <option value="">Mọi trạng thái</option>
             <option value="active">Đang hoạt động</option>
-            <option value="blocked">Đã khóa</option>
+            <option value="locked">Đã khóa</option>
           </select>
           <button className="rounded-lg bg-rose-500 px-4 py-2 font-semibold text-white hover:bg-rose-700">Tìm</button>
         </form>
@@ -56,7 +56,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
               {users.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-rose-700/70">Không tìm thấy người dùng nào.</td></tr>}
               {users.map((u) => (
                 <tr key={u.id} className="border-t border-pink-100">
-                  <td className="p-3"><div className="font-medium">{u.fullName ?? "(chưa có tên)"}</div><div className="text-rose-700/70">{u.email}{!u.emailVerifiedAt && " (chưa xác minh)"}</div></td>
+                  <td className="p-3"><div className="font-medium">{u.fullName ?? "(chưa có tên)"}</div><div className="text-rose-700/70">{u.email ?? "(chưa có email)"}{u.email && !u.emailVerifiedAt && " (chưa xác minh)"}</div></td>
                   <td className="p-3">{u.phone ?? "—"}</td>
                   <td className="p-3"><span className="rounded-full bg-pink-100 px-2.5 py-1 text-xs font-semibold text-rose-800">{u.role}</span></td>
                   <td className="p-3">
@@ -69,7 +69,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
                     {u.id !== me.user.id && (
                       <form action={setStatus}>
                         <input type="hidden" name="id" value={u.id} />
-                        <input type="hidden" name="to" value={u.status === "active" ? "blocked" : "active"} />
+                        <input type="hidden" name="to" value={u.status === "active" ? "locked" : "active"} />
                         <button className="rounded-lg border border-pink-200 px-3 py-1.5 text-rose-700 hover:bg-pink-50">
                           {u.status === "active" ? "Khóa" : "Mở khóa"}
                         </button>

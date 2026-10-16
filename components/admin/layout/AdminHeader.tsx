@@ -14,6 +14,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/admin/orders': 'Đơn hàng',
   '/admin/products': 'Sản phẩm',
   '/admin/products/new': 'Thêm sản phẩm',
+  '/admin/products/catalog': 'Vòng bán sẵn',
   '/admin/analytics': 'Phân tích',
   '/admin/settings': 'Cài đặt',
 };
@@ -33,7 +34,11 @@ function getBreadcrumbs(pathname: string): { label: string; href?: string }[] {
       crumbs.push({ label: 'Chi tiết đơn hàng' });
     }
   } else if (pathname.startsWith('/admin/products')) {
-    if (pathname === '/admin/products') {
+    if (pathname.startsWith('/admin/products/catalog')) {
+      crumbs.push({ label: 'Sản phẩm', href: '/admin/products' });
+      crumbs.push({ label: 'Vòng bán sẵn', href: '/admin/products/catalog' });
+      if (pathname !== '/admin/products/catalog') crumbs.push({ label: pathname.endsWith('/new') ? 'Thêm vòng' : 'Chỉnh sửa' });
+    } else if (pathname === '/admin/products') {
       crumbs.push({ label: 'Sản phẩm' });
     } else if (pathname === '/admin/products/new') {
       crumbs.push({ label: 'Sản phẩm', href: '/admin/products' });

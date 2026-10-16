@@ -16,7 +16,7 @@ export async function resendVerification(email: string): Promise<FormState> {
   if (lim) return { error: lim };
 
   const user = await prisma.user.findUnique({ where: { email } });
-  if (user && user.status === "active" && user.passwordHash && !user.emailVerifiedAt) {
+  if (user?.email && user.status === "active" && user.passwordHash && !user.emailVerifiedAt) {
     await sendVerificationEmail(user.id, user.email);
   }
   return { ok: true }; // luôn cùng một kết quả

@@ -10,11 +10,12 @@ datasource db {
 
 model User {
   id                  String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email               String                   @unique
+  email               String?                  @unique
   passwordHash        String?                  @map("password_hash")
   emailVerifiedAt     DateTime?                @map("email_verified_at") @db.Timestamptz(6)
   fullName            String?                  @map("full_name")
-  phone               String?
+  phone               String?                  @unique
+  profileCompletedAt  DateTime?                @map("profile_completed_at") @db.Timestamptz(6)
   avatarUrl           String?                  @map("avatar_url")
   role                Role                     @default(customer)
   status              Status                   @default(active)
@@ -26,6 +27,7 @@ model User {
   orders              Order[]
   resetTokens         PasswordResetToken[]
   addresses           UserAddress[]
+  productReviews      ProductReview[]
 
   @@map("users")
 }
@@ -194,10 +196,30 @@ model products {
   bracelet_product_details bracelet_product_details?
   inventory_movements      inventory_movements[]
   order_items              order_items[]
+  images                   String[]                  @default([])
+  details                  String[]                  @default([])
+  styles                   String[]                  @default([])
+  reviews                  ProductReview[]
 
   @@index([name], map: "idx_products_name")
   @@index([status], map: "idx_products_status")
   @@index([type], map: "idx_products_type")
+}
+
+model ProductReview {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  rating    Int
+  comment   String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  product   products @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([productId, userId], map: "product_reviews_product_id_user_id_key")
+  @@index([productId, createdAt(sort: Desc)], map: "idx_product_reviews_product_created")
+  @@map("product_reviews")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
