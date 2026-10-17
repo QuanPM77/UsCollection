@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { AuthShell } from "@/components/AuthShell";
 import { completeProfile } from "./actions";
+import AddressFields from "@/components/AddressFields";
 
 const fieldClass = "w-full rounded-xl border border-pink-mid/40 bg-white px-4 py-3 text-sm text-pink-text outline-none placeholder:text-pink-text/35 focus:border-pink-deep focus:ring-2 focus:ring-pink-mid/30";
 
@@ -28,14 +29,7 @@ export default async function CompleteProfilePage() {
           <p className="mt-1 text-xs text-pink-text/60">Email giúp bạn nhận liên kết đặt lại mật khẩu khi cần.</p>
         </div>
         <p className="text-sm text-pink-text/70">Số điện thoại đăng nhập: <strong>{user.phone}</strong></p>
-        <div>
-          <label htmlFor="addressLine" className="mb-1.5 block text-xs font-semibold text-pink-text">Địa chỉ giao hàng *</label>
-          <input id="addressLine" name="addressLine" required minLength={8} autoComplete="street-address" placeholder="Số nhà, đường, phường/xã, quận/huyện" className={fieldClass} />
-        </div>
-        <div>
-          <label htmlFor="province" className="mb-1.5 block text-xs font-semibold text-pink-text">Tỉnh / thành phố *</label>
-          <input id="province" name="province" required autoComplete="address-level1" className={fieldClass} />
-        </div>
+        <AddressFields idPrefix="complete-profile" streetName="street" provinceName="province" wardName="ward" inputClass={fieldClass} labelClass="mb-1.5 block text-xs font-semibold text-pink-text" />
         <button className="w-full rounded-xl bg-pink-deep px-5 py-3 text-sm font-semibold text-white transition hover:bg-pink-text">Lưu thông tin và tiếp tục</button>
       </form>
     </AuthShell>

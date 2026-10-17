@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isEmail } from "@/lib/form";
+import { isValidVietnamWard } from "@/lib/vietnam-addresses";
 
 export async function completeProfile(formData: FormData) {
   const session = await auth();
@@ -11,11 +12,14 @@ export async function completeProfile(formData: FormData) {
 
   const fullName = String(formData.get("fullName") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  const addressLine = String(formData.get("addressLine") ?? "").trim();
+  const street = String(formData.get("street") ?? "").trim();
   const province = String(formData.get("province") ?? "").trim();
+  const ward = String(formData.get("ward") ?? "").trim();
   if (fullName.length < 2 || fullName.length > 100) throw new Error("Họ tên cần từ 2 đến 100 ký tự.");
   if (email && !isEmail(email)) throw new Error("Email không hợp lệ.");
-  if (addressLine.length < 8) throw new Error("Vui lòng nhập địa chỉ giao hàng đầy đủ.");
+  if (street.length < 3) throw new Error("Vui lòng nhập số nhà và tên đường.");
+  if (!isValidVietnamWard(province, ward)) throw new Error("Vui lòng chọn tỉnh/thành phố và phường/xã hợp lệ.");
+  const addressLine = `${street}, ${ward}`;
 
   const existing = await prisma.user.findUnique({ where: { id: session.user.id }, select: { phone: true } });
   const phone = existing?.phone;

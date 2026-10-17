@@ -7,6 +7,7 @@ import { requireRole } from "@/lib/guard";
 import { isEmail } from "@/lib/form";
 import bcrypt from "bcryptjs";
 import { removeAvatar, uploadAvatar } from "@/lib/supabase-storage";
+import { isValidVietnamWard } from "@/lib/vietnam-addresses";
 
 function value(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -76,12 +77,14 @@ export async function updateProfile(formData: FormData) {
       }
 
       for (const address of addresses) {
-        const addressLine = String(formData.get(`addressLine_${address.id}`) ?? "").trim();
+        const street = String(formData.get(`street_${address.id}`) ?? "").trim();
         const province = String(formData.get(`province_${address.id}`) ?? "").trim();
-        if (addressLine.length < 8) throw new Error("Vui lòng nhập địa chỉ đầy đủ.");
+        const ward = String(formData.get(`ward_${address.id}`) ?? "").trim();
+        if (street.length < 3) throw new Error("Vui lòng nhập số nhà và tên đường.");
+        if (!isValidVietnamWard(province, ward)) throw new Error("Vui lòng chọn tỉnh/thành phố và phường/xã hợp lệ.");
         await tx.userAddress.update({
           where: { id: address.id },
-          data: { addressLine, province: province || null },
+          data: { addressLine: `${street}, ${ward}`, province },
         });
       }
     });
@@ -124,9 +127,12 @@ export async function deleteAvatar(_formData: FormData) {
 
 export async function addAddress(formData: FormData) {
   const session = await requireRole("customer");
-  const addressLine = value(formData, "addressLine");
+  const street = value(formData, "street");
   const province = value(formData, "province");
-  if (addressLine.length < 8) throw new Error("Vui lòng nhập địa chỉ đầy đủ.");
+  const ward = value(formData, "ward");
+  if (street.length < 3) throw new Error("Vui lòng nhập số nhà và tên đường.");
+  if (!isValidVietnamWard(province, ward)) throw new Error("Vui lòng chọn tỉnh/thành phố và phường/xã hợp lệ.");
+  const addressLine = `${street}, ${ward}`;
 
   const [user, existingCount] = await Promise.all([
     prisma.user.findUnique({ where: { id: session.user.id }, select: { email: true, fullName: true, phone: true } }),
@@ -153,10 +159,12 @@ export async function addAddress(formData: FormData) {
 export async function updateAddress(formData: FormData) {
   const session = await requireRole("customer");
   const id = value(formData, "id");
-  const addressLine = value(formData, "addressLine");
+  const street = value(formData, "street");
   const province = value(formData, "province");
+  const ward = value(formData, "ward");
   const isDefault = formData.get("isDefault") === "on";
-  if (!id || addressLine.length < 8) throw new Error("Vui lòng nhập địa chỉ đầy đủ.");
+  if (!id || street.length < 3) throw new Error("Vui lòng nhập số nhà và tên đường.");
+  if (!isValidVietnamWard(province, ward)) throw new Error("Vui lòng chọn tỉnh/thành phố và phường/xã hợp lệ.");
 
   await prisma.$transaction(async (tx) => {
     const owned = await tx.userAddress.findFirst({ where: { id, userId: session.user.id }, select: { id: true } });
@@ -164,7 +172,7 @@ export async function updateAddress(formData: FormData) {
     if (isDefault) await tx.userAddress.updateMany({ where: { userId: session.user.id }, data: { isDefault: false } });
     await tx.userAddress.update({
       where: { id },
-      data: { addressLine, province: province || null, isDefault },
+      data: { addressLine: `${street}, ${ward}`, province, isDefault },
     });
   });
   finish("address-updated");

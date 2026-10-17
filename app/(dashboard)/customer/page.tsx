@@ -3,6 +3,7 @@ import { auth, signOut } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import MainMenu from "@/components/MainMenu";
 import AvatarEditor from "./AvatarEditor";
+import AddressFields from "@/components/AddressFields";
 import { avatarDisplayUrl } from "@/lib/supabase-storage";
 import { addAddress, changePassword, deleteAddress, updateProfile } from "./actions";
 
@@ -128,15 +129,18 @@ export default async function CustomerPage({
                   <p className="mb-4 text-xs text-pink-text/60">
                     Người nhận: {address.recipientName} · {address.phone || "Chưa có số điện thoại trong hồ sơ"}
                   </p>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="sm:col-span-2">
-                      <label className={labelClass} htmlFor={`line-${address.id}`}>Địa chỉ chi tiết *</label>
-                      <input form="profile-form" id={`line-${address.id}`} name={`addressLine_${address.id}`} required minLength={8} defaultValue={address.addressLine} className={inputClass} />
-                    </div>
-                    <div>
-                      <label className={labelClass} htmlFor={`province-${address.id}`}>Tỉnh / thành phố</label>
-                      <input form="profile-form" id={`province-${address.id}`} name={`province_${address.id}`} defaultValue={address.province ?? ""} className={inputClass} />
-                    </div>
+                  <AddressFields
+                    idPrefix={`address-${address.id}`}
+                    streetName={`street_${address.id}`}
+                    provinceName={`province_${address.id}`}
+                    wardName={`ward_${address.id}`}
+                    initialAddressLine={address.addressLine}
+                    initialProvince={address.province ?? ""}
+                    formId="profile-form"
+                    inputClass={inputClass}
+                    labelClass={labelClass}
+                  />
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
                     {user.addresses.length > 1 && !address.isDefault && (
                       <label className="flex items-center gap-2 self-center text-sm text-pink-text/80">
                         <input form="profile-form" type="checkbox" name="defaultAddressId" value={address.id} className="h-4 w-4 accent-pink-deep" />
@@ -154,14 +158,7 @@ export default async function CustomerPage({
           <details className="mt-5 rounded-2xl border border-dashed border-pink-mid/60 p-4 sm:p-5">
             <summary className="cursor-pointer font-semibold text-pink-deep">Thêm địa chỉ mới</summary>
             <form action={addAddress} className="mt-5 grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <label className={labelClass} htmlFor="new-address">Địa chỉ chi tiết *</label>
-                <input id="new-address" name="addressLine" required minLength={8} className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass} htmlFor="new-province">Tỉnh / thành phố</label>
-                <input id="new-province" name="province" className={inputClass} />
-              </div>
+              <div className="sm:col-span-2"><AddressFields idPrefix="new-address" streetName="street" provinceName="province" wardName="ward" inputClass={inputClass} labelClass={labelClass} /></div>
               <label className="flex items-center gap-2 self-center text-sm text-pink-text/80">
                 <input type="checkbox" name="isDefault" className="h-4 w-4 accent-pink-deep" />
                 Đặt làm địa chỉ mặc định

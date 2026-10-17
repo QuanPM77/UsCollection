@@ -7,22 +7,21 @@ import { useBraceletStore } from "@/lib/store";
 import { formatPrice, getBeadById } from "@/lib/beadData";
 import { PaymentContext, PayOSStrategy } from "@/lib/payment";
 import { useLoginPrompt } from "@/components/LoginPromptProvider";
+import AddressFields, { type AddressParts } from "@/components/AddressFields";
+import { isValidVietnamWard } from "@/lib/vietnam-addresses";
 
 type FormData = {
   name: string;
   phone: string;
-  address: string;
 };
 
-type FormErrors = Partial<FormData>;
+type FormErrors = Partial<FormData> & { address?: string };
 
 function validate(data: FormData): FormErrors {
   const errors: FormErrors = {};
   if (!data.name.trim()) errors.name = "Vui lòng nhập họ tên";
   if (!/^(0|\+84)[0-9]{8,10}$/.test(data.phone.replace(/\s/g, "")))
     errors.phone = "Số điện thoại không hợp lệ";
-  if (data.address.trim().length < 10)
-    errors.address = "Vui lòng nhập địa chỉ đầy đủ";
   return errors;
 }
 
@@ -33,7 +32,8 @@ export default function CheckoutPage() {
   const { isAuthenticated, requestLogin } = useLoginPrompt();
   const { slots, wristCircumference, totalPrice, filledCount } = useBraceletStore();
 
-  const [form, setForm] = useState<FormData>({ name: "", phone: "", address: "" });
+  const [form, setForm] = useState<FormData>({ name: "", phone: "" });
+  const [addressParts, setAddressParts] = useState<AddressParts>({ street: "", province: "", ward: "" });
   const [errors, setErrors] = useState<FormErrors>({});
   const [loading, setLoading] = useState(false);
   const [payUrl, setPayUrl] = useState<string | null>(null);
@@ -61,6 +61,9 @@ export default function CheckoutPage() {
     setSubmitError(null);
 
     const validationErrors = validate(form);
+    if (addressParts.street.trim().length < 3 || !isValidVietnamWard(addressParts.province, addressParts.ward)) {
+      validationErrors.address = "Vui lòng nhập địa chỉ và chọn phường/xã hợp lệ.";
+    }
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
@@ -70,7 +73,7 @@ export default function CheckoutPage() {
 
     // The server calculates the price from the catalog and creates the order.
     const result = await paymentCtx.execute({
-      customer: { name: form.name.trim(), phone: form.phone.replace(/\s/g, ""), address: form.address.trim() },
+      customer: { name: form.name.trim(), phone: form.phone.replace(/\s/g, ""), address: [addressParts.street.trim(), addressParts.ward, addressParts.province].join(", ") },
       braceletConfig: { wristCircumference, slots },
     });
 
@@ -226,17 +229,17 @@ export default function CheckoutPage() {
               <label className="block text-xs font-medium text-pink-text mb-1.5">
                 Địa chỉ giao hàng *
               </label>
-              <textarea
-                name="address"
-                value={form.address}
-                onChange={handleChange}
-                placeholder="123 Đường ABC, Phường XYZ, Quận 1, TP.HCM"
-                rows={3}
-                className={`
-                  w-full px-4 py-3 rounded-xl bg-white/80 border text-sm text-pink-text
-                  outline-none focus:ring-2 focus:ring-pink-mid transition-all resize-none
-                  ${errors.address ? "border-red-300 focus:ring-red-200" : "border-pink-mid/40 focus:border-pink-mid"}
-                `}
+              <AddressFields
+                idPrefix="checkout-address"
+                streetName="addressStreet"
+                provinceName="addressProvince"
+                wardName="addressWard"
+                inputClass={`w-full px-4 py-3 rounded-xl bg-white/80 border text-sm text-pink-text outline-none focus:ring-2 focus:ring-pink-mid transition-all ${errors.address ? "border-red-300 focus:ring-red-200" : "border-pink-mid/40 focus:border-pink-mid"}`}
+                labelClass="block text-xs font-medium text-pink-text mb-1.5"
+                onValueChange={(parts) => {
+                  setAddressParts(parts);
+                  if (errors.address) setErrors((current) => ({ ...current, address: undefined }));
+                }}
               />
               {errors.address && (
                 <p className="text-red-400 text-xs mt-1">{errors.address}</p>

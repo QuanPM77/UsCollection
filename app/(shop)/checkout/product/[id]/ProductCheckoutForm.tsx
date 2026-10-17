@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useLoginPrompt } from "@/components/LoginPromptProvider";
+import AddressFields, { type AddressParts } from "@/components/AddressFields";
+import { isValidVietnamWard } from "@/lib/vietnam-addresses";
 
-type FormData = { name: string; phone: string; address: string };
+type FormData = { name: string; phone: string; addressLine: string; province: string };
 const currency = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 });
 const inputClass = "w-full rounded-xl border border-pink-mid/40 bg-white/80 px-4 py-3 text-sm outline-none focus:border-pink-mid focus:ring-2 focus:ring-pink-mid/30";
 
@@ -26,6 +28,7 @@ export default function ProductCheckoutForm({
 }) {
   const { isAuthenticated, requestLogin } = useLoginPrompt();
   const [form, setForm] = useState<FormData>(initialValues);
+  const [addressParts, setAddressParts] = useState<AddressParts>({ street: "", province: "", ward: "" });
   const [quantityInput, setQuantityInput] = useState("1");
   const [error, setError] = useState<string | null>(null);
   const [payUrl, setPayUrl] = useState<string | null>(null);
@@ -43,7 +46,7 @@ export default function ProductCheckoutForm({
     const phone = form.phone.replace(/\s/g, "");
     if (form.name.trim().length < 2) return setError("Vui lòng nhập họ tên.");
     if (!/^(0|\+84)[0-9]{8,10}$/.test(phone)) return setError("Số điện thoại không hợp lệ.");
-    if (form.address.trim().length < 10) return setError("Vui lòng nhập địa chỉ giao hàng đầy đủ.");
+    if (addressParts.street.trim().length < 3 || !isValidVietnamWard(addressParts.province, addressParts.ward)) return setError("Vui lòng nhập địa chỉ và chọn phường/xã hợp lệ.");
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > stock) return setError("Số lượng vượt quá tồn kho hiện tại.");
 
     setLoading(true);
@@ -51,7 +54,7 @@ export default function ProductCheckoutForm({
       const response = await fetch("/api/payment/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, quantity, customer: { name: form.name.trim(), phone, address: form.address.trim() } }),
+        body: JSON.stringify({ productId, quantity, customer: { name: form.name.trim(), phone, address: [addressParts.street.trim(), addressParts.ward, addressParts.province].join(", ") } }),
       });
       const result = await response.json();
       if (!response.ok || !result.success || !result.payUrl) throw new Error(result.message ?? "Không thể tạo đơn hàng.");
@@ -92,11 +95,11 @@ export default function ProductCheckoutForm({
 
     <section>
       <h2 className="font-display text-xl font-bold">Thông tin giao hàng</h2>
-      {(initialValues.name || initialValues.phone || initialValues.address) && <p className="mt-2 text-xs text-pink-text/60">Thông tin được điền từ hồ sơ và địa chỉ mặc định của bạn. Bạn có thể chỉnh sửa trước khi đặt hàng.</p>}
+      {(initialValues.name || initialValues.phone || initialValues.addressLine) && <p className="mt-2 text-xs text-pink-text/60">Thông tin được điền từ hồ sơ và địa chỉ mặc định của bạn. Bạn có thể chỉnh sửa trước khi đặt hàng.</p>}
       <form onSubmit={submit} className="mt-4 flex flex-col gap-4">
         <label className="text-xs font-medium">Họ và tên *<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Nguyễn Văn A" className={`${inputClass} mt-1.5`} /></label>
         <label className="text-xs font-medium">Số điện thoại *<input required type="tel" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} placeholder="0901234567" className={`${inputClass} mt-1.5`} /></label>
-        <label className="text-xs font-medium">Địa chỉ giao hàng *<textarea required rows={3} value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành" className={`${inputClass} mt-1.5 resize-none`} /></label>
+        <AddressFields idPrefix="product-checkout-address" streetName="addressStreet" provinceName="addressProvince" wardName="addressWard" initialAddressLine={initialValues.addressLine} initialProvince={initialValues.province} inputClass={inputClass} labelClass="text-xs font-medium" onValueChange={setAddressParts} />
         {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         <button type="submit" disabled={loading || stock < 1} className="rounded-2xl bg-pink-deep px-4 py-4 text-sm font-bold text-white shadow-lg transition hover:bg-pink-text disabled:cursor-not-allowed disabled:opacity-50">
           {loading ? "Đang kiểm tra tồn kho..." : stock > 0 ? `Đặt hàng và thanh toán — ${currency.format(total)}` : "Sản phẩm đã hết hàng"}

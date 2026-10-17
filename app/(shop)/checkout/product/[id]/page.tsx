@@ -27,7 +27,8 @@ export default async function ProductCheckoutPage({ params }: { params: Promise<
   const initialValues = {
     name: savedAddress?.recipientName || user?.fullName || "",
     phone: savedAddress?.phone || user?.phone || "",
-    address: savedAddress ? [savedAddress.addressLine, savedAddress.province].filter(Boolean).join(", ") : "",
+    addressLine: savedAddress?.addressLine ?? "",
+    province: savedAddress?.province ?? "",
   };
 
   return <main className="min-h-screen bg-gradient-to-br from-pink-light via-cream to-white text-pink-text">
