@@ -24,14 +24,14 @@ export async function requestReset(_: FormState, fd: FormData): Promise<FormStat
     await prisma.$transaction([
       prisma.passwordResetToken.deleteMany({ where: { userId: user.id } }),
       prisma.passwordResetToken.create({
-        data: { userId: user.id, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + 30 * 60 * 1000) },
+        data: { userId: user.id, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + 5 * 60 * 1000) },
       }),
     ]);
     const link = `${process.env.APP_URL ?? "http://localhost:3000"}/reset-password?token=${token}`;
     await sendMail(
       email,
       "Đặt lại mật khẩu UsStory",
-      `<p>Bấm vào liên kết sau để đặt mật khẩu mới (hết hạn sau 30 phút):</p><p><a href="${link}">${link}</a></p><p>Nếu không phải bạn yêu cầu, hãy bỏ qua email này.</p>`
+      `<p>Bấm vào liên kết sau để đặt mật khẩu mới (hết hạn sau 5 phút):</p><p><a href="${link}">${link}</a></p><p>Nếu không phải bạn yêu cầu, hãy bỏ qua email này.</p>`
     );
   }
   return { ok: true };

@@ -11,6 +11,7 @@ export const BEAD_CATALOG: BeadType[] = [
     roughness: 0.3,
     price: 15000,
     description: "Pha lê hồng nhạt, biểu tượng của tình yêu",
+    diameter: 8,
   },
   {
     id: "amethyst",
@@ -22,6 +23,7 @@ export const BEAD_CATALOG: BeadType[] = [
     roughness: 0.25,
     price: 18000,
     description: "Tím amethyst, mang lại bình yên",
+    diameter: 8,
   },
   {
     id: "pearl-white",
@@ -32,6 +34,7 @@ export const BEAD_CATALOG: BeadType[] = [
     roughness: 0.1,
     price: 22000,
     description: "Ngọc trai trắng thuần khiết",
+    diameter: 6,
   },
   {
     id: "moonstone",
@@ -43,6 +46,7 @@ export const BEAD_CATALOG: BeadType[] = [
     roughness: 0.2,
     price: 20000,
     description: "Đá mặt trăng huyền bí",
+    diameter: 8,
   },
   {
     id: "turquoise",
@@ -53,6 +57,7 @@ export const BEAD_CATALOG: BeadType[] = [
     roughness: 0.5,
     price: 16000,
     description: "Ngọc lam xanh biển rực rỡ",
+    diameter: 8,
   },
   {
     id: "gold-bead",
@@ -64,6 +69,7 @@ export const BEAD_CATALOG: BeadType[] = [
     roughness: 0.05,
     price: 30000,
     description: "Hạt vàng sang trọng",
+    diameter: 4,
   },
   {
     id: "obsidian",
@@ -74,6 +80,7 @@ export const BEAD_CATALOG: BeadType[] = [
     roughness: 0.15,
     price: 14000,
     description: "Đá hắc diệu, bảo vệ năng lượng",
+    diameter: 10,
   },
   {
     id: "sandalwood",
@@ -84,6 +91,7 @@ export const BEAD_CATALOG: BeadType[] = [
     roughness: 0.8,
     price: 10000,
     description: "Gỗ đàn hương thơm nhẹ",
+    diameter: 8,
   },
   {
     id: "cherry-glass",
@@ -95,6 +103,7 @@ export const BEAD_CATALOG: BeadType[] = [
     roughness: 0.05,
     price: 12000,
     description: "Hạt thủy tinh đỏ anh đào",
+    diameter: 6,
   },
   {
     id: "lavender-jade",
@@ -105,6 +114,7 @@ export const BEAD_CATALOG: BeadType[] = [
     roughness: 0.35,
     price: 25000,
     description: "Ngọc bích oải hương thanh lịch",
+    diameter: 8,
   },
 ];
 

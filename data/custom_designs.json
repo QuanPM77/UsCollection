@@ -1,0 +1,22 @@
+[
+  {
+    "id": "design-cust-01",
+    "user_id": "usr-customer-01",
+    "name": "Vòng Tay Tình Yêu & May Mắn",
+    "wrist_circumference": 160,
+    "thumbnail_url": null,
+    "is_public": true,
+    "created_at": "2026-05-15T00:00:00.000Z",
+    "updated_at": "2026-05-15T00:00:00.000Z"
+  },
+  {
+    "id": "design-cust-02",
+    "user_id": "usr-customer-02",
+    "name": "Vòng Đi Làm Tối Giản",
+    "wrist_circumference": 170,
+    "thumbnail_url": null,
+    "is_public": false,
+    "created_at": "2026-06-10T00:00:00.000Z",
+    "updated_at": "2026-06-10T00:00:00.000Z"
+  }
+]

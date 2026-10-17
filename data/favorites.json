@@ -1,0 +1,23 @@
+[
+  {
+    "id": "fav-01",
+    "user_id": "usr-customer-01",
+    "template_id": "tmpl-hong-ngoc-01",
+    "bead_type_id": null,
+    "created_at": "2026-05-12T00:00:00.000Z"
+  },
+  {
+    "id": "fav-02",
+    "user_id": "usr-customer-01",
+    "template_id": null,
+    "bead_type_id": "rose-quartz",
+    "created_at": "2026-05-14T00:00:00.000Z"
+  },
+  {
+    "id": "fav-03",
+    "user_id": "usr-customer-02",
+    "template_id": "tmpl-dem-trang-02",
+    "bead_type_id": null,
+    "created_at": "2026-06-05T00:00:00.000Z"
+  }
+]

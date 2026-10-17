@@ -1,0 +1,41 @@
+[
+  {
+    "id": "tmpl-hong-ngoc-01",
+    "name": "Vòng Phong Thủy Hồng Ngọc",
+    "description": "Kết hợp giữa Rose Quartz và Ngọc Trai Trắng cho nét tinh tế, dịu dàng.",
+    "wrist_circumference": 160,
+    "thumbnail_url": "/templates/rose-quartz.png",
+    "category": "phong_thuy",
+    "is_featured": true,
+    "status": "published",
+    "created_by": "usr-manager-01",
+    "created_at": "2026-05-05T00:00:00.000Z",
+    "updated_at": "2026-05-05T00:00:00.000Z"
+  },
+  {
+    "id": "tmpl-dem-trang-02",
+    "name": "Vòng Tay Đêm Trăng Huyền Bí",
+    "description": "Đá Mặt Trăng và Hắc Diệu mang lại sự bảo vệ năng lượng vượt trội.",
+    "wrist_circumference": 170,
+    "thumbnail_url": "/templates/moonstone.png",
+    "category": "toi_gian",
+    "is_featured": true,
+    "status": "published",
+    "created_by": "usr-manager-01",
+    "created_at": "2026-05-05T00:00:00.000Z",
+    "updated_at": "2026-05-05T00:00:00.000Z"
+  },
+  {
+    "id": "tmpl-boho-03",
+    "name": "Vòng Tay Boho Đàn Hương",
+    "description": "Mộc mạc nhưng cá tính với gỗ đàn hương và đá Turquoise.",
+    "wrist_circumference": 165,
+    "thumbnail_url": "/templates/boho.png",
+    "category": "dieu_da",
+    "is_featured": false,
+    "status": "published",
+    "created_by": "usr-manager-01",
+    "created_at": "2026-06-01T00:00:00.000Z",
+    "updated_at": "2026-06-01T00:00:00.000Z"
+  }
+]

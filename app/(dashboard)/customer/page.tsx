@@ -5,7 +5,8 @@ import MainMenu from "@/components/MainMenu";
 import AvatarEditor from "./AvatarEditor";
 import AddressFields from "@/components/AddressFields";
 import { avatarDisplayUrl } from "@/lib/supabase-storage";
-import { addAddress, changePassword, deleteAddress, updateProfile } from "./actions";
+import { addAddress, changePassword, deleteAddress, sendVerifyEmail, updateProfile } from "./actions";
+import EmailVerifyButton from "./EmailVerifyButton";
 
 const inputClass = "w-full rounded-xl border border-pink-mid/40 bg-white px-4 py-3 text-sm text-pink-text outline-none transition placeholder:text-pink-text/35 focus:border-pink-deep focus:ring-2 focus:ring-pink-mid/30";
 const labelClass = "mb-1.5 block text-xs font-semibold text-pink-text";
@@ -99,7 +100,17 @@ export default async function CustomerPage({
             </div>
             <div>
               <label className={labelClass} htmlFor="email">Email (không bắt buộc)</label>
-              <input id="email" name="profileEmail" type="email" defaultValue={user.email ?? ""} autoComplete="off" spellCheck={false} className={inputClass} />
+              <div className="relative">
+                <input id="email" name="profileEmail" type="email" defaultValue={user.email ?? ""} autoComplete="off" spellCheck={false} className={inputClass} />
+                {user.email && user.emailVerifiedAt && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500" title="Email đã xác thực">✔</span>}
+              </div>
+              {user.email && !user.emailVerifiedAt && (
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-xs text-amber-600">Chưa xác thực</span>
+                  <EmailVerifyButton action={sendVerifyEmail} />
+                </div>
+              )}
+              {user.email && user.emailVerifiedAt && <p className="mt-1 text-xs text-emerald-600">Email đã được xác thực.</p>}
             </div>
             <div className="grid gap-3 rounded-2xl bg-pink-light/60 p-4 text-sm sm:col-span-2 sm:grid-cols-3">
               <p><span className="block text-xs text-pink-text/55">Trạng thái tài khoản</span><strong>{user.status === "active" ? "Đang hoạt động" : "Đã khóa"}</strong></p>

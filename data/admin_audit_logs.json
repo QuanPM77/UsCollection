@@ -1,0 +1,29 @@
+[
+  {
+    "id": "audit-01",
+    "admin_id": "usr-manager-01",
+    "action": "publish_template",
+    "target_table": "bracelet_templates",
+    "target_id": "tmpl-hong-ngoc-01",
+    "detail": "Xuất bản mẫu vòng tay Phong Thủy Hồng Ngọc",
+    "created_at": "2026-05-05T00:00:00.000Z"
+  },
+  {
+    "id": "audit-02",
+    "admin_id": "usr-manager-01",
+    "action": "update_bead_price",
+    "target_table": "bead_types",
+    "target_id": "gold-bead",
+    "detail": "Cập nhật giá bán Gold Accent từ 28,000đ lên 30,000đ",
+    "created_at": "2026-05-10T00:00:00.000Z"
+  },
+  {
+    "id": "audit-03",
+    "admin_id": "usr-admin-01",
+    "action": "create_user",
+    "target_table": "users",
+    "target_id": "usr-manager-01",
+    "detail": "Tạo tài khoản Quản lý cho Nguyễn Văn Quản Lý",
+    "created_at": "2026-05-01T00:00:00.000Z"
+  }
+]

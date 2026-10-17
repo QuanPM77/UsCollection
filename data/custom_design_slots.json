@@ -1,0 +1,32 @@
+[
+  {
+    "id": "cd-slot-1",
+    "design_id": "design-cust-01",
+    "slot_index": 0,
+    "bead_type_id": "rose-quartz"
+  },
+  {
+    "id": "cd-slot-2",
+    "design_id": "design-cust-01",
+    "slot_index": 1,
+    "bead_type_id": "amethyst"
+  },
+  {
+    "id": "cd-slot-3",
+    "design_id": "design-cust-01",
+    "slot_index": 2,
+    "bead_type_id": "gold-bead"
+  },
+  {
+    "id": "cd-slot-4",
+    "design_id": "design-cust-02",
+    "slot_index": 0,
+    "bead_type_id": "obsidian"
+  },
+  {
+    "id": "cd-slot-5",
+    "design_id": "design-cust-02",
+    "slot_index": 1,
+    "bead_type_id": "sandalwood"
+  }
+]

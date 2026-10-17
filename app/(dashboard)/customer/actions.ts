@@ -8,6 +8,9 @@ import { isEmail } from "@/lib/form";
 import bcrypt from "bcryptjs";
 import { removeAvatar, uploadAvatar } from "@/lib/supabase-storage";
 import { isValidVietnamWard } from "@/lib/vietnam-addresses";
+import { sendVerificationEmail } from "@/lib/verify";
+import { headers } from "next/headers";
+import { clientIp, rateLimit, limitError } from "@/lib/ratelimit";
 
 function value(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -193,4 +196,24 @@ export async function deleteAddress(formData: FormData) {
     }
   });
   finish("address-deleted");
+}
+
+export async function sendVerifyEmail(): Promise<{ error?: string; ok?: boolean }> {
+  const session = await requireRole("customer");
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { email: true, emailVerifiedAt: true },
+  });
+  if (!user?.email) return { error: "Bạn chưa có email trong hồ sơ." };
+  if (user.emailVerifiedAt) return { error: "Email này đã được xác thực rồi." };
+
+  const ip = clientIp(await headers());
+  const message = limitError(
+    await rateLimit(`verify:e:${user.email}`, 3, 3600),
+    await rateLimit(`verify:ip:${ip}`, 10, 3600),
+  );
+  if (message) return { error: message };
+
+  await sendVerificationEmail(session.user.id, user.email);
+  return { ok: true };
 }
