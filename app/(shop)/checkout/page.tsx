@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useBraceletStore } from "@/lib/store";
 import { formatPrice, getBeadById } from "@/lib/beadData";
 import { PaymentContext, PayOSStrategy } from "@/lib/payment";
+import { useLoginPrompt } from "@/components/LoginPromptProvider";
 
 type FormData = {
   name: string;
@@ -29,6 +30,7 @@ const paymentCtx = new PaymentContext(new PayOSStrategy());
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { isAuthenticated, requestLogin } = useLoginPrompt();
   const { slots, wristCircumference, totalPrice, filledCount } = useBraceletStore();
 
   const [form, setForm] = useState<FormData>({ name: "", phone: "", address: "" });
@@ -52,6 +54,10 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAuthenticated) {
+      requestLogin();
+      return;
+    }
     setSubmitError(null);
 
     const validationErrors = validate(form);

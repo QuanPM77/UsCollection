@@ -8,6 +8,7 @@ import { productStyleLabel } from "@/lib/product-styles";
 import ProductGallery from "./ProductGallery";
 import ReviewForm from "./ReviewForm";
 import FavoriteButton from "../FavoriteButton";
+import { PurchaseLink } from "@/components/PurchaseLink";
 
 const currency = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 });
 const dateFormatter = new Intl.DateTimeFormat("vi-VN", { dateStyle: "medium" });
@@ -62,9 +63,9 @@ export default async function BraceletDetailPage({
               {averageRating !== null && <a href="#reviews" className="text-amber-600 hover:underline">★ {averageRating.toFixed(1)} · {product.reviews.length} đánh giá</a>}
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
-              <Link href={`/checkout/product/${product.id}`} aria-disabled={product.stock < 1} className={`inline-flex min-w-40 flex-1 items-center justify-center rounded-2xl px-5 py-4 text-sm font-bold text-white shadow-lg transition ${product.stock > 0 ? "bg-pink-deep hover:-translate-y-0.5 hover:bg-pink-text" : "pointer-events-none bg-pink-mid/50"}`}>
+              <PurchaseLink href={`/checkout/product/${product.id}`} disabled={product.stock < 1} className={`inline-flex min-w-40 flex-1 items-center justify-center rounded-2xl px-5 py-4 text-sm font-bold text-white shadow-lg transition ${product.stock > 0 ? "bg-pink-deep hover:-translate-y-0.5 hover:bg-pink-text" : "pointer-events-none bg-pink-mid/50"}`}>
                 Mua ngay
-              </Link>
+              </PurchaseLink>
               <FavoriteButton productId={product.id} variant="label" />
             </div>
             {productStyles.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{productStyles.map((style) => <span key={style} className="rounded-full bg-pink-light px-3 py-1.5 text-xs font-semibold text-pink-deep">{productStyleLabel(style)}</span>)}</div>}

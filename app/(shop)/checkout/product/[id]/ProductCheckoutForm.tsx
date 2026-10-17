@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLoginPrompt } from "@/components/LoginPromptProvider";
 
 type FormData = { name: string; phone: string; address: string };
 const currency = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 });
@@ -23,6 +24,7 @@ export default function ProductCheckoutForm({
   image: string | null;
   initialValues: FormData;
 }) {
+  const { isAuthenticated, requestLogin } = useLoginPrompt();
   const [form, setForm] = useState<FormData>(initialValues);
   const [quantityInput, setQuantityInput] = useState("1");
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +35,10 @@ export default function ProductCheckoutForm({
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!isAuthenticated) {
+      requestLogin();
+      return;
+    }
     setError(null);
     const phone = form.phone.replace(/\s/g, "");
     if (form.name.trim().length < 2) return setError("Vui lòng nhập họ tên.");

@@ -5,7 +5,7 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { inputCls, primaryCls, Notice } from "@/components/AuthShell";
 
-export default function LoginForm() {
+export default function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,7 +19,7 @@ export default function LoginForm() {
     setLoading(false);
     if (res?.code === "rate_limited") return setError("Bạn đã nhập sai mật khẩu 3 lần liên tiếp. Hãy đợi hết thời gian khóa trước khi đăng nhập lại.");
     if (res?.error) return setError("Số điện thoại hoặc mật khẩu không đúng, hoặc tài khoản đã bị khóa.");
-    router.push("/post-login");
+    router.push(callbackUrl ?? "/post-login");
     router.refresh();
   }
 

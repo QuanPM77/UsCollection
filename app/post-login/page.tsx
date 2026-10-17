@@ -9,5 +9,5 @@ export default async function PostLoginPage() {
     const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { profileCompletedAt: true } });
     if (!user?.profileCompletedAt) redirect('/complete-profile');
   }
-  redirect(session.user.role === 'admin' ? '/admin' : '/customer');
+  redirect('/');
 }

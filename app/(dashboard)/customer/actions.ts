@@ -22,12 +22,13 @@ export async function changePassword(formData: FormData) {
   const currentPassword = String(formData.get("currentPassword") ?? "");
   const newPassword = String(formData.get("newPassword") ?? "");
   const confirmPassword = String(formData.get("confirmPassword") ?? "");
+  if (newPassword.length < 8) redirect("/customer?passwordError=too-short");
+  if (newPassword !== confirmPassword) redirect("/customer?passwordError=mismatch");
+
   const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { passwordHash: true } });
   if (!user?.passwordHash || !(await bcrypt.compare(currentPassword, user.passwordHash))) {
-    throw new Error("Mật khẩu hiện tại không đúng.");
+    redirect("/customer?passwordError=incorrect");
   }
-  if (newPassword.length < 8) throw new Error("Mật khẩu mới cần ít nhất 8 ký tự.");
-  if (newPassword !== confirmPassword) throw new Error("Mật khẩu nhập lại không khớp.");
   await prisma.user.update({ where: { id: session.user.id }, data: { passwordHash: await bcrypt.hash(newPassword, 10) } });
   finish("password-changed");
 }
@@ -50,13 +51,39 @@ export async function updateProfile(formData: FormData) {
   if (duplicate) throw new Error("Email này đã được sử dụng bởi tài khoản khác.");
 
   try {
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: {
-        fullName,
-        email: emailValue,
-        ...(existing?.email !== emailValue ? { emailVerifiedAt: null } : {}),
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: session.user.id },
+        data: {
+          fullName,
+          email: emailValue,
+          ...(existing?.email !== emailValue ? { emailVerifiedAt: null } : {}),
+        },
+      });
+
+      const addresses = await tx.userAddress.findMany({
+        where: { userId: session.user.id },
+        select: { id: true, isDefault: true },
+      });
+      const selectedDefaultId = String(formData.get("defaultAddressId") ?? "");
+      if (selectedDefaultId && !addresses.some((address) => address.id === selectedDefaultId && !address.isDefault)) {
+        throw new Error("Địa chỉ mặc định không hợp lệ.");
+      }
+
+      if (selectedDefaultId) {
+        await tx.userAddress.updateMany({ where: { userId: session.user.id }, data: { isDefault: false } });
+        await tx.userAddress.update({ where: { id: selectedDefaultId }, data: { isDefault: true } });
+      }
+
+      for (const address of addresses) {
+        const addressLine = String(formData.get(`addressLine_${address.id}`) ?? "").trim();
+        const province = String(formData.get(`province_${address.id}`) ?? "").trim();
+        if (addressLine.length < 8) throw new Error("Vui lòng nhập địa chỉ đầy đủ.");
+        await tx.userAddress.update({
+          where: { id: address.id },
+          data: { addressLine, province: province || null },
+        });
+      }
     });
   } catch (error: unknown) {
     if ((error as { code?: string }).code === "P2002") throw new Error("Email này đã được sử dụng bởi tài khoản khác.");

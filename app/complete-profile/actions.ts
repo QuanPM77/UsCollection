@@ -22,10 +22,14 @@ export async function completeProfile(formData: FormData) {
   if (!phone) throw new Error("Tài khoản chưa có số điện thoại đăng nhập.");
 
   await prisma.$transaction(async (tx) => {
-    await tx.user.update({
-      where: { id: session.user.id },
+    // Claim profile completion atomically so a repeated/parallel form submit
+    // cannot create another default address for the same account.
+    const claimed = await tx.user.updateMany({
+      where: { id: session.user.id, profileCompletedAt: null },
       data: { fullName, email: email || null, profileCompletedAt: new Date() },
     });
+    if (claimed.count === 0) return;
+
     await tx.userAddress.updateMany({ where: { userId: session.user.id }, data: { isDefault: false } });
     await tx.userAddress.create({
       data: {

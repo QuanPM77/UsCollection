@@ -2,17 +2,19 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useLoginPrompt } from "@/components/LoginPromptProvider";
 
 const MENU_ITEMS = [
   { href: "/buy", label: "Mua vòng" },
   { href: "/customizer", label: "Thiết kế" },
-  { href: "/favorites", label: "Yêu thích" },
-  { href: "/transactions", label: "Lịch sử giao dịch" },
-  { href: "/customer", label: "Thông tin tài khoản" },
+  { href: "/favorites", label: "Yêu thích", requiresLogin: true },
+  { href: "/transactions", label: "Lịch sử giao dịch", requiresLogin: true },
+  { href: "/customer", label: "Thông tin tài khoản", requiresLogin: true },
 ];
 
 export default function MainMenu() {
   const [open, setOpen] = useState(false);
+  const { isAuthenticated, requestLogin } = useLoginPrompt();
 
   return (
     <div className="relative z-50">
@@ -46,7 +48,13 @@ export default function MainMenu() {
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={() => setOpen(false)}
+                onClick={(event) => {
+                  setOpen(false);
+                  if (item.requiresLogin && !isAuthenticated) {
+                    event.preventDefault();
+                    requestLogin();
+                  }
+                }}
                 className="block rounded-xl px-4 py-3 text-sm font-medium text-pink-text transition hover:bg-pink-light hover:text-pink-deep"
               >
                 {item.label}

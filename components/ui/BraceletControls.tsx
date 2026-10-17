@@ -3,8 +3,10 @@
 import { useBraceletStore } from "@/lib/store";
 import { formatPrice } from "@/lib/beadData";
 import Link from "next/link";
+import { useLoginPrompt } from "@/components/LoginPromptProvider";
 
 export default function BraceletControls() {
+  const { isAuthenticated, requestLogin } = useLoginPrompt();
   const {
     clearAll,
     fillAll,
@@ -81,7 +83,13 @@ export default function BraceletControls() {
             : "bg-pink-mid/30 text-pink-text/40 cursor-not-allowed"
           }
         `}
-        onClick={(e) => filled === 0 && e.preventDefault()}
+        onClick={(e) => {
+          if (filled === 0) e.preventDefault();
+          else if (!isAuthenticated) {
+            e.preventDefault();
+            requestLogin();
+          }
+        }}
       >
         Đặt hàng — {formatPrice(total)}
       </Link>

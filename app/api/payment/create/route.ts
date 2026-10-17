@@ -11,6 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/auth";
 import { PayOS } from "@payos/node";
 import { randomInt } from "node:crypto";
 import { prisma } from "@/lib/prisma";
@@ -27,6 +28,10 @@ class ProductStockUnavailableError extends Error {}
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await auth();
+    if (!session?.user.id) {
+      return NextResponse.json({ success: false, message: "Vui lòng đăng nhập để tiếp tục thanh toán." }, { status: 401 });
+    }
     const body = await req.json();
     const { customer, braceletConfig, productId, quantity } = body as {
       customer?: { name?: string; phone?: string; address?: string };

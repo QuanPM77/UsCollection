@@ -34,13 +34,28 @@ npm install
 npm run dev
 ```
 
-Ứng dụng chạy tại `http://localhost:3000`. Có thể dùng `pnpm install` và `pnpm dev` nếu đã cài pnpm.
+Ứng dụng chạy tại `http://localhost:3000`. Có thể dùng `pnpm install` và `pnpm dev` nếu đã cài pnpm. Clone trên mỗi máy không mang theo các file `.env`; cần tự tạo cấu hình môi trường trước khi chạy các chức năng dùng database.
+
+### Cấu hình database và biến môi trường
+
+Tạo một PostgreSQL database (ví dụ trên Supabase hoặc Neon), sao chép `.env.local.example` thành `.env.local`, rồi thay `DATABASE_URL` và `DIRECT_URL` bằng connection string của database đó. `DATABASE_URL` được Prisma dùng cho kết nối ứng dụng; `DIRECT_URL` dùng khi chạy migration. Nếu nhà cung cấp chỉ cấp một URL, có thể dùng cùng URL cho cả hai. Không chia sẻ hoặc commit `.env.local` vì file chứa thông tin bí mật.
+
+Trên máy mới, cài dependencies rồi áp dụng migrations và tạo Prisma Client trước khi khởi động ứng dụng:
+
+```bash
+npm install
+npx prisma migrate deploy
+npx prisma generate
+npm run dev
+```
+
+Đăng ký tài khoản gọi database ngay lập tức nên thiếu `DATABASE_URL` sẽ làm request `/register` lỗi 500. Nếu deploy trên Vercel hoặc nền tảng khác, thêm các biến từ `.env.local` vào phần Environment Variables của nền tảng và chạy migrations trong bước deploy phù hợp.
 
 ### Lưu ảnh đại diện trên Supabase Storage
 
 Tạo bucket public tên `avatars` trong Supabase Storage, giới hạn kích thước 150 KB và chỉ cho phép MIME `image/webp`. Ứng dụng tải ảnh lên từ server; thêm `SUPABASE_URL` và `SUPABASE_SERVICE_ROLE_KEY` vào `.env.local`. Khóa service role chỉ được dùng phía server, không đặt trong biến `NEXT_PUBLIC_*` hoặc mã frontend. Avatar dùng đường dẫn `<user-id>/<uuid>.webp`; ảnh sản phẩm dùng `products/<admin-id>/<uuid>.webp`. Biểu mẫu sản phẩm nén ảnh về WebP dưới 140 KB trước khi upload. Cột `users.avatar_url` lưu đường dẫn avatar, còn `products.images` lưu URL công khai của ảnh sản phẩm. Ảnh Base64 cũ vẫn hiển thị cho tới khi người dùng đổi ảnh.
 
-Tạo `.env.local` dựa trên `.env.local.example`, cấu hình biến kết nối PostgreSQL, NextAuth và PayOS. Không đưa khóa bí mật vào repository. Tạo/cập nhật database theo Prisma migration:
+Điền thêm các biến NextAuth, PayOS, SMTP và Supabase trong `.env.local` tùy theo tính năng cần dùng. Không đưa khóa bí mật vào repository. Để cập nhật database theo Prisma migration:
 
 ```bash
 npx prisma migrate deploy

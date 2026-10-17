@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import MainMenu from "@/components/MainMenu";
 import AvatarEditor from "./AvatarEditor";
 import { avatarDisplayUrl } from "@/lib/supabase-storage";
-import { addAddress, changePassword, deleteAddress, updateAddress, updateProfile } from "./actions";
+import { addAddress, changePassword, deleteAddress, updateProfile } from "./actions";
 
 const inputClass = "w-full rounded-xl border border-pink-mid/40 bg-white px-4 py-3 text-sm text-pink-text outline-none transition placeholder:text-pink-text/35 focus:border-pink-deep focus:ring-2 focus:ring-pink-mid/30";
 const labelClass = "mb-1.5 block text-xs font-semibold text-pink-text";
@@ -20,10 +20,16 @@ const savedMessages: Record<string, string> = {
   "address-deleted": "Đã xóa địa chỉ.",
 };
 
+const passwordErrors: Record<string, string> = {
+  incorrect: "Mật khẩu hiện tại không đúng. Mật khẩu chưa được thay đổi.",
+  "too-short": "Mật khẩu mới cần có ít nhất 8 ký tự.",
+  mismatch: "Mật khẩu mới và phần nhập lại không khớp.",
+};
+
 export default async function CustomerPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string }>;
+  searchParams: Promise<{ saved?: string; passwordError?: string }>;
 }) {
   const [session, params] = await Promise.all([auth(), searchParams]);
   if (!session?.user.id) return null;
@@ -34,7 +40,8 @@ export default async function CustomerPage({
   });
   if (!user) return null;
 
-  const savedMessage = params.saved ? savedMessages[params.saved] : undefined;
+  const passwordError = params.passwordError ? passwordErrors[params.passwordError] : undefined;
+  const savedMessage = !passwordError && params.saved ? savedMessages[params.saved] : undefined;
   const dateFormatter = new Intl.DateTimeFormat("vi-VN", { dateStyle: "long" });
 
   return (
@@ -43,7 +50,7 @@ export default async function CustomerPage({
         <div className="flex w-full items-center gap-4 px-4 py-4 sm:px-8 lg:px-12">
           <MainMenu />
           <Link href="/" className="font-display text-xl font-bold">UsStory</Link>
-          <form className="ml-auto" action={async () => { "use server"; await signOut({ redirectTo: "/login" }); }}>
+          <form className="ml-auto" action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
             <button className="rounded-xl border border-pink-mid/40 bg-white px-4 py-2.5 text-sm font-medium text-pink-deep transition hover:bg-pink-light">
               Đăng xuất
             </button>
@@ -60,6 +67,11 @@ export default async function CustomerPage({
         {savedMessage && (
           <p role="status" className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             {savedMessage}
+          </p>
+        )}
+        {passwordError && (
+          <p role="alert" className="mb-6 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+            {passwordError}
           </p>
         )}
 
@@ -108,7 +120,7 @@ export default async function CustomerPage({
                 <article key={address.id} className="rounded-2xl border border-pink-mid/25 bg-white p-4 sm:p-5">
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                     <h3 className="font-semibold">Địa chỉ {address.isDefault && <span className="ml-2 rounded-full bg-pink-light px-2.5 py-1 text-xs font-medium text-pink-deep">Mặc định</span>}</h3>
-                    <form action={deleteAddress}>
+                  <form action={deleteAddress}>
                       <input type="hidden" name="id" value={address.id} />
                       <button className="text-xs font-medium text-rose-600 hover:underline">Xóa địa chỉ</button>
                     </form>
@@ -116,24 +128,22 @@ export default async function CustomerPage({
                   <p className="mb-4 text-xs text-pink-text/60">
                     Người nhận: {address.recipientName} · {address.phone || "Chưa có số điện thoại trong hồ sơ"}
                   </p>
-                  <form action={updateAddress} className="grid gap-4 sm:grid-cols-2">
-                    <input type="hidden" name="id" value={address.id} />
+                  <div className="grid gap-4 sm:grid-cols-2">
                     <div className="sm:col-span-2">
                       <label className={labelClass} htmlFor={`line-${address.id}`}>Địa chỉ chi tiết *</label>
-                      <input id={`line-${address.id}`} name="addressLine" required minLength={8} defaultValue={address.addressLine} className={inputClass} />
+                      <input form="profile-form" id={`line-${address.id}`} name={`addressLine_${address.id}`} required minLength={8} defaultValue={address.addressLine} className={inputClass} />
                     </div>
                     <div>
                       <label className={labelClass} htmlFor={`province-${address.id}`}>Tỉnh / thành phố</label>
-                      <input id={`province-${address.id}`} name="province" defaultValue={address.province ?? ""} className={inputClass} />
+                      <input form="profile-form" id={`province-${address.id}`} name={`province_${address.id}`} defaultValue={address.province ?? ""} className={inputClass} />
                     </div>
-                    <label className="flex items-center gap-2 self-center text-sm text-pink-text/80">
-                      <input type="checkbox" name="isDefault" defaultChecked={address.isDefault} className="h-4 w-4 accent-pink-deep" />
-                      Đặt làm địa chỉ mặc định
-                    </label>
-                    <div className="sm:col-span-2">
-                      <button className="rounded-xl border border-pink-mid/50 px-4 py-2.5 text-sm font-semibold text-pink-deep transition hover:bg-pink-light">Lưu địa chỉ</button>
-                    </div>
-                  </form>
+                    {user.addresses.length > 1 && !address.isDefault && (
+                      <label className="flex items-center gap-2 self-center text-sm text-pink-text/80">
+                        <input form="profile-form" type="checkbox" name="defaultAddressId" value={address.id} className="h-4 w-4 accent-pink-deep" />
+                        Đặt làm địa chỉ mặc định
+                      </label>
+                    )}
+                  </div>
                 </article>
               ))}
             </div>
