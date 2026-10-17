@@ -18,6 +18,7 @@ export default function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
     const res = await signIn("credentials", { phone, password: f.get("password"), redirect: false });
     setLoading(false);
     if (res?.code === "rate_limited") return setError("Bạn đã nhập sai mật khẩu 3 lần liên tiếp. Hãy đợi hết thời gian khóa trước khi đăng nhập lại.");
+    if (res?.code === "account_not_found") return setError("Tài khoản chưa đăng ký. Vui lòng đăng ký tài khoản.");
     if (res?.error) return setError("Số điện thoại hoặc mật khẩu không đúng, hoặc tài khoản đã bị khóa.");
     router.push(callbackUrl ?? "/post-login");
     router.refresh();

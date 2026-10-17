@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { clientIp, clearLimit, progressiveFailureLimit, recordProgressiveFailure } from "@/lib/ratelimit";
 
 class TooMany extends CredentialsSignin { code = "rate_limited"; }
+class AccountNotFound extends CredentialsSignin { code = "account_not_found"; }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // Phiên trượt: mỗi lần ứng dụng xác nhận session, thời hạn 30 phút được làm mới.
@@ -26,11 +27,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!a.ok || !b.ok) throw new TooMany();
 
         const user = await prisma.user.findUnique({ where: { phone } });
-        const passwordHash = user?.status === "active" ? user.passwordHash : null;
+        if (!user) {
+          await Promise.all([
+            recordProgressiveFailure(perAccount, 3),
+            recordProgressiveFailure(perIp, 3),
+          ]);
+          throw new AccountNotFound();
+        }
+        const passwordHash = user.status === "active" ? user.passwordHash : null;
         const ok = passwordHash
           ? await bcrypt.compare(String(c?.password ?? ""), passwordHash)
           : false;
-        if (!ok || !user) {
+        if (!ok) {
           await Promise.all([
             recordProgressiveFailure(perAccount, 3),
             recordProgressiveFailure(perIp, 3),

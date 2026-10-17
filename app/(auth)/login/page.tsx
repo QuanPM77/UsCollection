@@ -1,11 +1,14 @@
 import { AuthShell, Notice } from "@/components/AuthShell";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 import LoginForm from "./LoginForm";
 
 export default async function LoginPage({
   searchParams,
 }: { searchParams: Promise<{ registered?: string; reset?: string; expired?: string; callbackUrl?: string }> }) {
-  const sp = await searchParams;
+  const [sp, session] = await Promise.all([searchParams, auth()]);
   const callbackUrl = sp.callbackUrl?.startsWith("/") && !sp.callbackUrl.startsWith("//") ? sp.callbackUrl : undefined;
+  if (session?.user) redirect(callbackUrl ?? "/");
   return (
     <AuthShell title="Đăng nhập" subtitle="Đăng nhập bằng số điện thoại và mật khẩu">
       {sp.registered && <div className="mb-4"><Notice kind="ok">Đăng ký thành công. Bạn có thể đăng nhập bằng số điện thoại và mật khẩu.</Notice></div>}
