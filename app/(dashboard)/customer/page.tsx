@@ -3,7 +3,9 @@ import { auth, signOut } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import MainMenu from "@/components/MainMenu";
 import AvatarEditor from "./AvatarEditor";
-import { addAddress, deleteAddress, updateAddress, updateProfile } from "./actions";
+import { avatarDisplayUrl } from "@/lib/supabase-storage";
+import { addAddress, changePassword, deleteAddress, updateAddress, updateProfile, sendVerifyEmail } from "./actions";
+import EmailVerifyButton from "./EmailVerifyButton";
 
 const inputClass = "w-full rounded-xl border border-pink-mid/40 bg-white px-4 py-3 text-sm text-pink-text outline-none transition placeholder:text-pink-text/35 focus:border-pink-deep focus:ring-2 focus:ring-pink-mid/30";
 const labelClass = "mb-1.5 block text-xs font-semibold text-pink-text";
@@ -11,6 +13,7 @@ const buttonClass = "rounded-xl bg-pink-deep px-5 py-3 text-sm font-semibold tex
 
 const savedMessages: Record<string, string> = {
   profile: "Thông tin cá nhân đã được lưu.",
+  "password-changed": "Mật khẩu đã được thay đổi.",
   "avatar-saved": "Ảnh đại diện đã được lưu.",
   "avatar-deleted": "Đã xóa ảnh đại diện.",
   "address-added": "Đã thêm địa chỉ giao hàng.",
@@ -69,26 +72,39 @@ export default async function CustomerPage({
           </div>
 
           <div className="mb-6">
-            <AvatarEditor key={user.updatedAt.getTime()} avatarUrl={user.avatarUrl} />
+            <AvatarEditor key={user.updatedAt.getTime()} avatarUrl={await avatarDisplayUrl(user.avatarUrl)} />
           </div>
 
           <form id="profile-form" action={updateProfile} className="grid gap-5 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <label className={labelClass} htmlFor="email">Email đăng ký</label>
-              <input id="email" value={user.email} readOnly className={`${inputClass} cursor-not-allowed bg-pink-light/60`} />
+            <div>
+              <label className={labelClass} htmlFor="phone">Số điện thoại đăng ký</label>
+              <input id="phone" type="tel" value={user.phone ?? ""} readOnly className={`${inputClass} cursor-not-allowed bg-pink-light/60`} />
+              <p className="mt-1 text-xs text-pink-text/55">Số điện thoại dùng để đăng nhập và không thể thay đổi.</p>
             </div>
-
             <div>
               <label className={labelClass} htmlFor="fullName">Họ và tên *</label>
               <input id="fullName" name="fullName" required minLength={2} maxLength={100} defaultValue={user.fullName ?? ""} className={inputClass} />
             </div>
             <div>
-              <label className={labelClass} htmlFor="phone">Số điện thoại</label>
-              <input id="phone" name="phone" type="tel" pattern="(0|\+84)[0-9]{8,10}" title="Nhập số Việt Nam, ví dụ 0912345678" defaultValue={user.phone ?? ""} className={inputClass} />
+              <label className={labelClass} htmlFor="email">Email (không bắt buộc)</label>
+              <div className="relative">
+                <input id="email" name="profileEmail" type="email" defaultValue={user.email ?? ""} autoComplete="off" spellCheck={false} className={inputClass} />
+                {user.email && user.emailVerifiedAt && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500" title="Email đã xác thực">✔</span>
+                )}
+              </div>
+              {user.email && !user.emailVerifiedAt && (
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-xs text-amber-600">Chưa xác thực</span>
+                  <EmailVerifyButton action={sendVerifyEmail} />
+                </div>
+              )}
+              {user.email && user.emailVerifiedAt && (
+                <p className="mt-1 text-xs text-emerald-600">Email đã được xác thực.</p>
+              )}
             </div>
             <div className="grid gap-3 rounded-2xl bg-pink-light/60 p-4 text-sm sm:col-span-2 sm:grid-cols-3">
               <p><span className="block text-xs text-pink-text/55">Trạng thái tài khoản</span><strong>{user.status === "active" ? "Đang hoạt động" : "Đã khóa"}</strong></p>
-              <p><span className="block text-xs text-pink-text/55">Email</span><strong>{user.emailVerifiedAt ? "Đã xác minh" : "Chưa xác minh"}</strong></p>
               <p><span className="block text-xs text-pink-text/55">Ngày tạo tài khoản</span><strong>{dateFormatter.format(user.createdAt)}</strong></p>
               <p><span className="block text-xs text-pink-text/55">Đăng nhập gần nhất</span><strong>{user.lastLoginAt ? dateFormatter.format(user.lastLoginAt) : "Chưa có"}</strong></p>
             </div>
@@ -162,6 +178,27 @@ export default async function CustomerPage({
           </details>
         </div>
         </div>
+
+        <details className="mt-7 border-t border-pink-mid/25 pt-6">
+          <summary className="cursor-pointer font-semibold text-pink-deep">Đổi mật khẩu</summary>
+          <form action={changePassword} className="mt-5 grid gap-4 sm:grid-cols-3">
+            <div>
+              <label className={labelClass} htmlFor="currentPassword">Mật khẩu hiện tại *</label>
+              <input id="currentPassword" name="currentPassword" type="password" required autoComplete="current-password" className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass} htmlFor="newPassword">Mật khẩu mới *</label>
+              <input id="newPassword" name="newPassword" type="password" required minLength={8} autoComplete="new-password" className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass} htmlFor="confirmPassword">Nhập lại mật khẩu mới *</label>
+              <input id="confirmPassword" name="confirmPassword" type="password" required minLength={8} autoComplete="new-password" className={inputClass} />
+            </div>
+            <div className="sm:col-span-3">
+              <button className={buttonClass}>Cập nhật mật khẩu</button>
+            </div>
+          </form>
+        </details>
 
         <div className="mt-6 flex justify-end">
           <button form="profile-form" className={buttonClass}>Lưu thông tin</button>
