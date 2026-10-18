@@ -14,9 +14,9 @@ export interface StoreSettings {
 export const DEFAULT_SETTINGS: StoreSettings = {
   storeName: 'UsStory',
   storeDescription: 'Cửa hàng vòng tay thủ công handmade',
-  contactPhone: '0901 234 567',
-  contactEmail: 'contact@uscollection.vn',
-  address: 'Quận 1, TP. Hồ Chí Minh',
+  contactPhone: '',
+  contactEmail: '',
+  address: '',
   lowStockThreshold: 10,
   currency: 'VND',
   orderAutoConfirm: false,

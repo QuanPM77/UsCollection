@@ -44,7 +44,7 @@ export const analyticsService = {
   async getRevenueByDay(days: number = 7): Promise<RevenueDataPoint[]> {
     await delay();
     const result: RevenueDataPoint[] = [];
-    const now = new Date('2025-09-28T23:59:59Z');
+    const now = new Date();
 
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date(now);

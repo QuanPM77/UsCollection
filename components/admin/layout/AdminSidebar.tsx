@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { ADMIN_AVATAR_EVENT, getAdminAvatar } from '@/lib/admin/avatar';
 import { logoutAdmin } from './actions';
 import {
   LayoutDashboard,
@@ -34,6 +36,17 @@ function isActive(pathname: string, href: string): boolean {
 }
 
 export function AdminSidebar({ open, onClose }: SidebarProps) {
+  const [adminAvatar, setAdminAvatar] = useState<string | null>(null);
+  useEffect(() => {
+    const updateAvatar = () => setAdminAvatar(getAdminAvatar());
+    updateAvatar();
+    window.addEventListener(ADMIN_AVATAR_EVENT, updateAvatar);
+    window.addEventListener('storage', updateAvatar);
+    return () => {
+      window.removeEventListener(ADMIN_AVATAR_EVENT, updateAvatar);
+      window.removeEventListener('storage', updateAvatar);
+    };
+  }, []);
   const pathname = usePathname();
 
   return (
@@ -48,17 +61,16 @@ export function AdminSidebar({ open, onClose }: SidebarProps) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 z-50 h-full w-[260px] bg-white border-r border-gray-200 flex flex-col
+        className={`fixed top-0 left-0 z-50 h-full w-[260px] bg-[#FFFBFC] border-r border-pink-100 flex flex-col
           transition-transform duration-300 ease-in-out
           lg:translate-x-0 lg:static lg:z-auto
           ${open ? 'translate-x-0' : '-translate-x-full'}`}
       >
         {/* Logo */}
-        <div className="flex items-center justify-between px-5 h-16 border-b border-gray-100 shrink-0">
-          <Link href="/admin" className="flex items-center gap-2.5">
-            <span className="text-xl">💎</span>
+        <div className="flex items-center justify-between px-5 h-16 border-b border-pink-100 shrink-0">
+          <Link href="/admin" className="flex items-center">
             <div>
-              <span className="font-bold text-gray-900 text-sm">UsStory</span>
+              <span className="text-xl font-semibold tracking-tight text-pink-text">𝒰𝓈𝒮𝓉𝑜𝓇𝓎</span>
               <span className="block text-[10px] text-gray-400 -mt-0.5 font-medium tracking-wide">ADMIN</span>
             </div>
           </Link>
@@ -84,7 +96,7 @@ export function AdminSidebar({ open, onClose }: SidebarProps) {
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors admin-focus
                       ${active
                         ? 'bg-brand-50 text-brand-700'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        : 'text-gray-600 hover:bg-pink-50 hover:text-gray-900'
                       }`}
                     aria-current={active ? 'page' : undefined}
                   >
@@ -98,10 +110,10 @@ export function AdminSidebar({ open, onClose }: SidebarProps) {
         </nav>
 
         {/* Footer */}
-        <div className="px-3 py-4 border-t border-gray-100 shrink-0">
+        <div className="px-3 py-4 border-t border-pink-100 shrink-0">
           <div className="flex items-center gap-3 px-3 py-2">
-            <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center">
-              <span className="text-xs font-bold text-brand-600">A</span>
+            <div className="w-8 h-8 rounded-full bg-brand-100 overflow-hidden flex items-center justify-center">
+              {adminAvatar ? <img src={adminAvatar} alt="Ảnh đại diện admin" className="w-full h-full object-cover" /> : <span className="text-xs font-bold text-brand-600">A</span>}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">Admin</p>
@@ -109,7 +121,7 @@ export function AdminSidebar({ open, onClose }: SidebarProps) {
             </div>
           </div>
           <form action={logoutAdmin}>
-            <button className="flex items-center gap-3 w-full px-3 py-2 mt-1 rounded-lg text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors">
+            <button className="flex items-center gap-3 w-full px-3 py-2 mt-1 rounded-lg text-sm text-gray-500 hover:bg-pink-50 hover:text-gray-700 transition-colors">
               <LogOut className="w-4 h-4" />
               Đăng xuất
             </button>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import {
   ShoppingBag,
-  DollarSign,
+  Banknote,
   Clock,
   AlertTriangle,
 } from 'lucide-react';
@@ -87,7 +87,7 @@ export default function AdminDashboardPage() {
         <StatCard
           title="Doanh thu"
           value={formatCurrency(kpis?.totalRevenue ?? 0)}
-          icon={DollarSign}
+          icon={Banknote}
           color="green"
           subtitle="Từ đơn đã thanh toán"
         />
