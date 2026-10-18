@@ -1,46 +1,63 @@
-# 🚀 HƯỚNG DẪN DỰNG SUPABASE POSTGRESQL DATABASE (3 BƯỚC)
+# Dựng database UsStory trên Supabase
 
-Tài liệu hướng dẫn dựng CSDL Cloud **Supabase** 12 Bảng cho dự án **UsCollection**.
+File [`supabase_schema.sql`](./supabase_schema.sql) là schema đầy đủ theo `prisma/schema.prisma` hiện tại, gồm 14 bảng ứng dụng, enum, index, foreign key, ràng buộc dữ liệu, cấu hình RLS, bucket ảnh và 10 loại hạt mặc định cho thiết kế 3D.
 
----
+## 1. Tạo database mới
 
-## 📌 BƯỚC 1: Tạo Dự Án Mới Trên Supabase
+Tạo một Supabase project mới. Mở **SQL Editor → New query**, dán toàn bộ `supabase_schema.sql` và chạy. Script chỉ tạo cấu trúc trên schema rỗng; script không xóa dữ liệu cũ. Không chạy script trên database đang có các bảng ứng dụng.
 
-1. Truy cập [Supabase Dashboard](https://supabase.com/dashboard) và đăng nhập.
-2. Nút **"New Project"**.
-3. Điền thông tin:
-   - **Name**: `UsCollection`
-   - **Database Password**: Đặt mật khẩu bất kỳ (nhớ lưu lại).
-   - **Region**: Chọn `Singapore (ap-southeast-1)` (gần Việt Nam nhất).
-4. Bấm **"Create new project"** (chờ khoảng 1 phút để Supabase khởi tạo CSDL PostgreSQL).
+Không có tài khoản admin mẫu hoặc mật khẩu giả trong script. Sau khi đăng ký tài khoản qua ứng dụng, nâng quyền tài khoản cần quản trị bằng SQL Editor:
 
----
-
-## 📌 BƯỚC 2: Chạy Script Tạo 12 Bảng CSDL (SQL Editor)
-
-1. Ở menu bên trái Supabase, chọn mục **`SQL Editor`** (biểu tượng `>_`).
-2. Bấm nút **`New query`**.
-3. Mở file **[supabase_schema.sql](file:///d:/EXE101/UsCollection-main/UsCollection/supabase_schema.sql)** trong dự án code của bạn, **copy toàn bộ nội dung** và **paste** vào ô soạn thảo SQL.
-4. Bấm nút **`Run`** màu xanh (hoặc ấn `Ctrl + Enter`).
-5. Kết quả báo **`Success. No rows returned`** là thành công!
-6. Bấm thử vào mục **`Table Editor`** ở menu bên trái: Bạn sẽ thấy **đầy đủ 12 Bảng** cùng dữ liệu mẫu đã tự động xuất hiện!
-
----
-
-## 📌 BƯỚC 3: Lấy API Keys & Dán Vào Project
-
-1. Ở menu bên trái, bấm **`Project Settings`** (biểu tượng bánh răng ⚙️ ở góc dưới).
-2. Chọn mục **`API`**.
-3. Copy 2 thông tin:
-   - **Project URL**: Ví dụ `https://xyzcompany.supabase.co`
-   - **anon public key**: Ví dụ `eyJhY...`
-4. Mở file **[.env.local](file:///d:/EXE101/UsCollection-main/UsCollection/.env.local)** trong mã nguồn dự án `UsCollection`, dán vào 2 dòng sau:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://xyzcompany.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhY...
+```sql
+UPDATE public.users
+SET role = 'admin'::public.user_role
+WHERE phone = 'SỐ_ĐIỆN_THOẠI_TÀI_KHOẢN';
 ```
 
----
+## 2. Cấu hình kết nối ứng dụng
 
-🎉 **HOÀN THÀNH!** Giờ đây dự án `UsCollection` của bạn đã được kết nối trực tiếp với **Supabase Cloud PostgreSQL Database** 12 bảng thực sự!
+Trong Supabase **Project Settings → Database**, sao chép connection string do dự án cung cấp. Cấu hình `DATABASE_URL` bằng URL pooler phù hợp với runtime; cấu hình `DIRECT_URL` bằng URL kết nối trực tiếp để Prisma chạy migration. Không dùng anon key hoặc service role key làm connection string PostgreSQL.
+
+```env
+DATABASE_URL="<Supabase transaction-pooler connection string>"
+DIRECT_URL="<Supabase direct connection string>"
+
+SUPABASE_URL="https://<project-ref>.supabase.co"
+SUPABASE_SERVICE_ROLE_KEY="<server-only service role key>"
+NEXT_PUBLIC_SUPABASE_URL="https://<project-ref>.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="<publishable/anon key>"
+```
+
+Giữ `SUPABASE_SERVICE_ROLE_KEY` ở server, không đặt tiền tố `NEXT_PUBLIC_` và không commit file môi trường. Database bật RLS và không cấp policy đọc/ghi cho `anon`; ứng dụng truy cập bảng qua Prisma ở server. `NEXT_PUBLIC_SUPABASE_ANON_KEY` không dùng để truy vấn trực tiếp các bảng này.
+
+Script tạo bucket Storage tên `avatars` ở chế độ public, giới hạn ảnh WebP 150 KiB. Ảnh avatar và ảnh sản phẩm đều được ứng dụng upload qua server bằng service role.
+
+## 3. Khởi tạo Prisma trên database đã tạo bằng SQL
+
+Chạy trong thư mục dự án sau khi đã cấu hình `DIRECT_URL`:
+
+```powershell
+npx prisma generate
+npx prisma migrate resolve --applied 20261014000000_add_orders
+npx prisma migrate resolve --applied 20261016000000_add_profile_completion
+npx prisma migrate resolve --applied 20261016010000_add_bracelet_catalog_and_reviews
+npx prisma migrate resolve --applied 20261016020000_add_product_styles
+npx prisma migrate resolve --applied 20261018000000_add_email_to_verification_tokens
+npx prisma migrate resolve --applied 20261018010000_add_3d_bead_catalog
+npx prisma migrate resolve --applied 20261018020000_financial_metrics
+```
+
+Các migration trên được đánh dấu đã áp dụng vì SQL đầy đủ đã tạo cấu trúc và dữ liệu hạt tương ứng. Sau đó, các migration mới có thể chạy bằng `npx prisma migrate deploy`.
+
+## 4. Nhập số tồn và giá vốn thật
+
+10 hạt mặc định được tạo với `stock = 0` và `cost_price = NULL` để tránh ghi nhầm số vốn/tồn kho mẫu thành số liệu thật. Trước khi nhận đơn, vào trang **Admin → Các loại hạt** nhập số tồn và giá vốn thực tế. Checkout cố ý từ chối sản phẩm chưa có giá vốn; điều này giúp báo cáo lợi nhuận không coi giá vốn thiếu là 0.
+
+Schema không tạo dữ liệu khách hàng, đơn hàng, giá vốn, số tồn hoặc tài khoản mẫu. Không thể khôi phục các dữ liệu đó khi tạo project mới; cần nhập lại từ nguồn dữ liệu thật nếu có.
+
+## Ghi chú đối chiếu code và database
+
+- Các luồng đăng nhập, hồ sơ, catalog sản phẩm/hạt, đơn thanh toán PayOS, webhook, kho, đánh giá, thông báo và cài đặt hiện dùng Prisma và được bao phủ trong schema này.
+- Các API cũ như `/api/orders`, `/api/auth`, `/api/favorites`, `/api/custom-designs`, `/api/bracelet-templates`, `/api/manager/financials` vẫn đọc/ghi JSON qua `lib/db/fileDb.ts`; chúng không dùng các bảng Supabase trong file này. Không dùng các API cũ làm nguồn dữ liệu sản xuất nếu chưa chuyển chúng sang Prisma.
+- Database giữ role `manager` vì enum Prisma đang định nghĩa role đó, nhưng guard hiện tại của ứng dụng dùng `staff` thay vì `manager`. Tạo tài khoản quản trị bằng role `admin`; cần đồng bộ role trước khi sử dụng tài khoản manager.
+- Báo cáo lợi nhuận chỉ chính xác từ các đơn có `order_items.unit_cost`. Đơn cũ không có snapshot giá vốn sẽ không thể khôi phục lãi lịch sử nếu không có sổ giá vốn riêng.

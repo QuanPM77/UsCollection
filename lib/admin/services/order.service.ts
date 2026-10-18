@@ -1,19 +1,9 @@
-// Order service — abstracts data access for orders
-// Currently uses mock data, designed to be replaced with API calls
-
-import { AdminOrder, OrderStatus, canTransitionTo, VALID_ORDER_TRANSITIONS } from '../types/order';
+import { AdminOrder, AdminOrderType, OrderStatus, canTransitionTo, VALID_ORDER_TRANSITIONS } from '../types/order';
 import { PaymentStatus } from '@/lib/store/types';
-import { mockOrders } from '../mock-data';
-
-// In-memory state
-let orders: AdminOrder[] = [...mockOrders];
-
-function delay(ms: number = 300): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 export interface OrderFilters {
   search?: string;
+  orderTypes?: AdminOrderType[];
   orderStatus?: OrderStatus;
   paymentStatus?: PaymentStatus;
   dateFrom?: string;
@@ -28,94 +18,43 @@ export interface OrderListResult {
   totalPages: number;
 }
 
+async function request<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, { ...init, headers: { 'Content-Type': 'application/json', ...init?.headers } });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(data?.message || `Không thể xử lý đơn hàng (HTTP ${response.status}).`);
+  return data as T;
+}
+
 export const orderService = {
-  async getAll(
-    filters?: OrderFilters,
-    page: number = 1,
-    pageSize: number = 10
-  ): Promise<OrderListResult> {
-    await delay();
-    let filtered = [...orders];
-
-    if (filters?.search) {
-      const query = filters.search.toLowerCase();
-      filtered = filtered.filter(o =>
-        o.orderCode.toLowerCase().includes(query) ||
-        o.customer.fullName.toLowerCase().includes(query) ||
-        o.customer.phone.includes(query)
-      );
+  async getAll(filters: OrderFilters = {}, page = 1, pageSize = 10): Promise<OrderListResult> {
+    const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    for (const [key, value] of Object.entries(filters)) {
+      if (Array.isArray(value)) value.forEach((item) => query.append('orderType', item));
+      else if (value) query.set(key, value);
     }
-
-    if (filters?.orderStatus) {
-      filtered = filtered.filter(o => o.orderStatus === filters.orderStatus);
-    }
-
-    if (filters?.paymentStatus) {
-      filtered = filtered.filter(o => o.paymentStatus === filters.paymentStatus);
-    }
-
-    if (filters?.dateFrom) {
-      const from = new Date(filters.dateFrom);
-      filtered = filtered.filter(o => new Date(o.createdAt) >= from);
-    }
-
-    if (filters?.dateTo) {
-      const to = new Date(filters.dateTo);
-      to.setHours(23, 59, 59, 999);
-      filtered = filtered.filter(o => new Date(o.createdAt) <= to);
-    }
-
-    // Sort by creation date, newest first
-    filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-    const total = filtered.length;
-    const totalPages = Math.ceil(total / pageSize);
-    const startIndex = (page - 1) * pageSize;
-    const paginatedOrders = filtered.slice(startIndex, startIndex + pageSize);
-
-    return {
-      orders: paginatedOrders,
-      total,
-      page,
-      pageSize,
-      totalPages,
-    };
+    return request<OrderListResult>(`/api/admin/orders?${query}`);
   },
 
   async getById(id: string): Promise<AdminOrder | null> {
-    await delay();
-    return orders.find(o => o.id === id) ?? null;
+    const response = await fetch(`/api/admin/orders/${encodeURIComponent(id)}`);
+    if (response.status === 404) return null;
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Không thể tải đơn hàng.');
+    return data as AdminOrder;
   },
 
   async updateOrderStatus(id: string, newStatus: OrderStatus): Promise<AdminOrder | null> {
-    await delay();
-    const index = orders.findIndex(o => o.id === id);
-    if (index === -1) return null;
-
-    const currentStatus = orders[index].orderStatus;
-    if (!canTransitionTo(currentStatus, newStatus)) {
-      throw new Error(`Không thể chuyển trạng thái từ "${currentStatus}" sang "${newStatus}"`);
+    const current = await this.getById(id);
+    if (!current) return null;
+    if (!canTransitionTo(current.orderStatus, newStatus)) {
+      throw new Error(`Không thể chuyển trạng thái từ "${current.orderStatus}" sang "${newStatus}"`);
     }
-
-    orders[index] = {
-      ...orders[index],
-      orderStatus: newStatus,
-      updatedAt: new Date().toISOString(),
-    };
-
-    return orders[index];
+    await request(`/api/admin/orders/${encodeURIComponent(id)}`, {
+      method: 'PATCH', body: JSON.stringify({ orderStatus: newStatus }),
+    });
+    return { ...current, orderStatus: newStatus, updatedAt: new Date().toISOString() };
   },
 
-  async cancelOrder(id: string): Promise<AdminOrder | null> {
-    return this.updateOrderStatus(id, 'cancelled');
-  },
-
-  getValidTransitions(currentStatus: OrderStatus): OrderStatus[] {
-    return VALID_ORDER_TRANSITIONS[currentStatus] ?? [];
-  },
-
-  // Reset to initial mock state
-  reset(): void {
-    orders = [...mockOrders];
-  },
+  async cancelOrder(id: string) { return this.updateOrderStatus(id, 'cancelled'); },
+  getValidTransitions(currentStatus: OrderStatus) { return VALID_ORDER_TRANSITIONS[currentStatus] ?? []; },
 };

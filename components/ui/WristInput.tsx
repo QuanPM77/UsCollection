@@ -3,11 +3,10 @@
 import { useState, useEffect } from "react";
 import { useBraceletStore } from "@/lib/store";
 
-import { getBeadById } from "@/lib/beadData";
 import { calculateRadiusFromBeads } from "@/lib/braceletMath";
 
 export default function WristInput() {
-  const { wristCircumference, setWristCircumference, slots } = useBraceletStore();
+  const { wristCircumference, setWristCircumference, slots, beadCatalog } = useBraceletStore();
   const [inputValue, setInputValue] = useState(String(wristCircumference));
 
   useEffect(() => {
@@ -17,7 +16,7 @@ export default function WristInput() {
 
   const beadCount = slots.length;
   const actualLength = slots.reduce((sum, s) => {
-    const bead = s.beadTypeId ? getBeadById(s.beadTypeId) : null;
+    const bead = s.beadTypeId ? beadCatalog.find((item) => item.id === s.beadTypeId) : null;
     return sum + (bead?.diameter ?? 8);
   }, 0);
 
@@ -99,7 +98,7 @@ export default function WristInput() {
           R = {
             (
               slots.length > 0
-                ? calculateRadiusFromBeads(slots.map((s) => getBeadById(s.beadTypeId!)?.diameter ?? 8), wristCircumference)
+                ? calculateRadiusFromBeads(slots.map((s) => beadCatalog.find((item) => item.id === s.beadTypeId)?.diameter ?? 8), wristCircumference)
                 : wristCircumference / (2 * Math.PI * 10)
             ).toFixed(2)
           } u

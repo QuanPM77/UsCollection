@@ -13,16 +13,15 @@ import {
   calculateRadiusFromBeads,
   generateVariableBeadPositions,
 } from "@/lib/braceletMath";
-import { getBeadById } from "@/lib/beadData";
 
 import BeadMesh from "./BeadMesh";
 import BraceletCord from "./BraceletCord";
 
 function BraceletScene() {
-  const { wristCircumference, slots, isAutoRotating, canvasTheme } = useBraceletStore();
+  const { wristCircumference, slots, beadCatalog, isAutoRotating, canvasTheme } = useBraceletStore();
 
   const diameters = slots.map((s) => {
-    const bead = s.beadTypeId ? getBeadById(s.beadTypeId) : null;
+    const bead = s.beadTypeId ? beadCatalog.find((item) => item.id === s.beadTypeId) : null;
     return bead?.diameter ?? 8;
   });
 
@@ -81,7 +80,7 @@ function BraceletScene() {
         if (!pos) return null;
 
         const beadType = slot.beadTypeId
-          ? getBeadById(slot.beadTypeId) ?? null
+          ? beadCatalog.find((item) => item.id === slot.beadTypeId) ?? null
           : null;
         const beadRadius = beadType ? beadType.diameter / 20 : 0.4;
 

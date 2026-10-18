@@ -17,7 +17,7 @@ export const DEFAULT_SETTINGS: StoreSettings = {
   contactPhone: '',
   contactEmail: '',
   address: '',
-  lowStockThreshold: 10,
+  lowStockThreshold: 5,
   currency: 'VND',
   orderAutoConfirm: false,
 };

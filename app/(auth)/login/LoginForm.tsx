@@ -17,9 +17,15 @@ export default function LoginForm({ callbackUrl, initialPhone }: { callbackUrl?:
     setLoading(true); setError("");
     const res = await signIn("credentials", { phone, password: f.get("password"), redirect: false });
     setLoading(false);
-    if (res?.code === "rate_limited") return setError("Bạn đã nhập sai mật khẩu 3 lần liên tiếp. Hãy đợi hết thời gian khóa trước khi đăng nhập lại.");
-    if (res?.code === "account_not_found") return setError("Tài khoản chưa đăng ký. Vui lòng đăng ký tài khoản.");
-    if (res?.error) return setError("Số điện thoại hoặc mật khẩu không đúng, hoặc tài khoản đã bị khóa.");
+    if (res?.code === "account_locked") return setError("Tài khoản của bạn đã bị quản trị viên khóa. Tài khoản sẽ không tự mở khóa; vui lòng liên hệ quản trị viên để được hỗ trợ.");
+    const rateLimitSeconds = res?.code?.startsWith("rate_limited_") ? Number(res.code.slice("rate_limited_".length)) : 0;
+    if (rateLimitSeconds > 0) {
+      const duration = rateLimitSeconds >= 60
+        ? `${Math.floor(rateLimitSeconds / 60)} phút${rateLimitSeconds % 60 ? ` ${rateLimitSeconds % 60} giây` : ""}`
+        : `${rateLimitSeconds} giây`;
+      return setError(`Bạn đã thử đăng nhập sai quá nhiều lần. Tạm khóa đăng nhập trong ${duration} nữa rồi thử lại.`);
+    }
+    if (res?.error) return setError("Số điện thoại hoặc mật khẩu không đúng. Vui lòng kiểm tra lại thông tin.");
     router.push(callbackUrl ?? "/post-login");
     router.refresh();
   }

@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useBraceletStore } from "@/lib/store";
-import { formatPrice, getBeadById } from "@/lib/beadData";
+import { formatPrice } from "@/lib/beadData";
+import { useBeadCatalog } from "@/lib/useBeadCatalog";
 import { PaymentContext, PayOSStrategy } from "@/lib/payment";
 import { useLoginPrompt } from "@/components/LoginPromptProvider";
 import AddressFields, { type AddressParts } from "@/components/AddressFields";
@@ -30,7 +31,8 @@ const paymentCtx = new PaymentContext(new PayOSStrategy());
 export default function CheckoutPage() {
   const router = useRouter();
   const { isAuthenticated, requestLogin } = useLoginPrompt();
-  const { slots, wristCircumference, totalPrice, filledCount } = useBraceletStore();
+  const { slots, wristCircumference, totalPrice, filledCount, beadCatalog } = useBraceletStore();
+  useBeadCatalog();
 
   const [form, setForm] = useState<FormData>({ name: "", phone: "" });
   const [addressParts, setAddressParts] = useState<AddressParts>({ street: "", province: "", ward: "" });
@@ -149,7 +151,7 @@ export default function CheckoutPage() {
             {/* Bead list */}
             <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
               {filledSlots.map((slot) => {
-                const bead = getBeadById(slot.beadTypeId!);
+                const bead = beadCatalog.find((item) => item.id === slot.beadTypeId);
                 if (!bead) return null;
                 return (
                   <div key={slot.index} className="flex items-center gap-2.5">

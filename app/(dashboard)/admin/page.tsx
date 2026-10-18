@@ -13,7 +13,7 @@ import { CardSkeleton } from '@/components/admin/ui/LoadingState';
 import { analyticsService } from '@/lib/admin/services';
 import { orderService, productService } from '@/lib/admin/services';
 import { DashboardKPIs, RevenueDataPoint, TopProduct } from '@/lib/admin/types/analytics';
-import { AdminOrder, ORDER_STATUS_LABELS } from '@/lib/admin/types/order';
+import { AdminOrder, ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/admin/types/order';
 import { AdminProduct, getStockStatus, STOCK_STATUS_LABELS } from '@/lib/admin/types/product';
 import { formatCurrency, formatDateTime, formatCompactNumber } from '@/lib/admin/utils/formatters';
 import Link from 'next/link';
@@ -39,6 +39,7 @@ export default function AdminDashboardPage() {
   const [recentOrders, setRecentOrders] = useState<AdminOrder[]>([]);
   const [lowStockProducts, setLowStockProducts] = useState<AdminProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadDashboard() {
@@ -46,7 +47,7 @@ export default function AdminDashboardPage() {
         const [analytics, ordersResult, productsResult] = await Promise.all([
           analyticsService.getFullAnalytics(),
           orderService.getAll(undefined, 1, 5),
-          productService.getAll({ stockStatus: 'low_stock' }),
+          productService.getAll({ stockStatus: 'attention' }),
         ]);
 
         setKpis(analytics.kpis);
@@ -57,6 +58,7 @@ export default function AdminDashboardPage() {
         setLowStockProducts(productsResult.products);
       } catch (err) {
         console.error('Dashboard load error:', err);
+        setLoadError(err instanceof Error ? err.message : 'Máy chủ không tải được dữ liệu tổng quan.');
       } finally {
         setLoading(false);
       }
@@ -67,17 +69,19 @@ export default function AdminDashboardPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {Array.from({ length: 5 }).map((_, i) => <CardSkeleton key={i} />)}
         </div>
       </div>
     );
   }
 
+  if (loadError && !kpis) return <div role="alert" className="rounded-xl border border-rose-200 bg-white p-8 text-center"><h2 className="font-semibold text-gray-900">Không tải được dữ liệu tổng quan</h2><p className="mt-2 text-sm text-gray-500">{loadError}</p><button onClick={() => window.location.reload()} className="mt-4 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white">Thử lại</button></div>;
+
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard
           title="Tổng đơn hàng"
           value={kpis?.totalOrders ?? 0}
@@ -92,10 +96,17 @@ export default function AdminDashboardPage() {
           subtitle="Từ đơn đã thanh toán"
         />
         <StatCard
-          title="Đơn chờ xử lý"
+          title="Lợi nhuận"
+          value={formatCurrency(kpis?.grossProfit ?? 0)}
+          icon={Banknote}
+          color="blue"
+        />
+        <StatCard
+          title="Đơn mới chờ xử lý"
           value={kpis?.pendingOrders ?? 0}
           icon={Clock}
           color="amber"
+          subtitle="Đã thanh toán, cần xác nhận"
         />
         <StatCard
           title="Sản phẩm sắp hết"
@@ -188,6 +199,7 @@ export default function AdminDashboardPage() {
             </Link>
           </div>
           <div className="divide-y divide-gray-50">
+            {recentOrders.length === 0 && <p className="px-5 py-8 text-center text-sm text-gray-400">Chưa có đơn hàng.</p>}
             {recentOrders.map((order) => (
               <Link
                 key={order.id}
@@ -204,7 +216,7 @@ export default function AdminDashboardPage() {
                     />
                   </div>
                   <p className="text-xs text-gray-400">
-                    {order.customer.fullName} · {formatDateTime(order.createdAt)}
+                    {order.orderType === 'catalog_product' ? 'Vòng có sẵn' : 'Thiết kế 3D'} · {order.customer.fullName} · {PAYMENT_STATUS_LABELS[order.paymentStatus]} · {formatDateTime(order.createdAt)}
                   </p>
                 </div>
                 <span className="text-sm font-semibold text-gray-900 ml-4">
@@ -219,20 +231,18 @@ export default function AdminDashboardPage() {
         <div className="bg-white rounded-xl border border-gray-200">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <h3 className="font-semibold text-gray-900">Cảnh báo tồn kho</h3>
-            <Link href="/admin/products" className="text-sm text-brand-500 hover:text-brand-600 font-medium">
-              Quản lý kho →
-            </Link>
+            <div className="flex gap-3 text-sm font-medium"><Link href="/admin/products/catalog?stockStatus=attention" className="text-brand-500 hover:text-brand-600">Vòng bán sẵn</Link><Link href="/admin/beads?stockStatus=attention" className="text-brand-500 hover:text-brand-600">Các loại hạt</Link></div>
           </div>
           {lowStockProducts.length === 0 ? (
             <div className="px-5 py-8 text-center text-sm text-gray-400">
-              Tất cả sản phẩm đều có đủ hàng
+              Không có sản phẩm đang bán nào sắp hết hoặc hết hàng
             </div>
           ) : (
             <div className="divide-y divide-gray-50">
               {lowStockProducts.slice(0, 5).map((product) => {
-                const stockStatus = getStockStatus(product.stock);
+                const stockStatus = getStockStatus(product.stock, product.lowStockThreshold ?? kpis?.lowStockThreshold ?? 5);
                 return (
-                  <div key={product.id} className="flex items-center justify-between px-5 py-3.5">
+                  <Link key={product.id} href={product.type === 'bead' ? '/admin/beads?stockStatus=attention' : '/admin/products/catalog?stockStatus=attention'} className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-gray-900">{product.name}</p>
                       <p className="text-xs text-gray-400">SKU: {product.sku}</p>
@@ -244,7 +254,7 @@ export default function AdminDashboardPage() {
                         variant={stockStatus === 'out_of_stock' ? 'error' : 'warning'}
                       />
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
@@ -267,6 +277,7 @@ export default function AdminDashboardPage() {
                   <th className="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Loại</th>
                   <th className="text-right px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Đã bán</th>
                   <th className="text-right px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Doanh thu</th>
+                  <th className="text-right px-5 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Lợi nhuận gộp</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -277,6 +288,7 @@ export default function AdminDashboardPage() {
                     <td className="px-5 py-3 text-gray-500">{product.type}</td>
                     <td className="px-5 py-3 text-right text-gray-700">{product.sold}</td>
                     <td className="px-5 py-3 text-right font-medium text-gray-900">{formatCurrency(product.revenue)}</td>
+                    <td className="px-5 py-3 text-right font-medium text-emerald-700">{formatCurrency(product.grossProfit)}{product.profitCoverage < 100 && <span className="ml-1 text-xs text-amber-700">({product.profitCoverage.toFixed(0)}%)</span>}</td>
                   </tr>
                 ))}
               </tbody>

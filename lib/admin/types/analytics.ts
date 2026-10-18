@@ -3,19 +3,23 @@
 export interface DashboardKPIs {
   totalOrders: number;
   totalRevenue: number;
+  grossProfit: number;
+  profitCoverage: number;
   paidOrders: number;
   pendingOrders: number;
   processingOrders: number;
   activeProducts: number;
   lowStockProducts: number;
   outOfStockProducts: number;
+  lowStockThreshold: number;
 }
 
 export interface RevenueDataPoint {
   date: string;
   label: string;
   revenue: number;
-  orders: number;
+  paidOrders: number;
+  createdOrders: number;
 }
 
 export interface OrderStatusDistribution {
@@ -31,6 +35,8 @@ export interface TopProduct {
   type: string;
   sold: number;
   revenue: number;
+  grossProfit: number;
+  profitCoverage: number;
 }
 
 export interface AnalyticsData {

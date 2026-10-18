@@ -15,7 +15,6 @@ import { auth } from "@/auth";
 import { PayOS } from "@payos/node";
 import { randomInt } from "node:crypto";
 import { prisma } from "@/lib/prisma";
-import { BEAD_CATALOG } from "@/lib/beadData";
 import { BraceletConfig } from "@/types";
 
 const payos = new PayOS({
@@ -51,7 +50,6 @@ export async function POST(req: NextRequest) {
     let amount: number;
     let payItemName: string;
     let payQuantity = 1;
-    let isCatalogProduct = false;
     let order: Awaited<ReturnType<typeof prisma.order.create>>;
     if (typeof productId === "string") {
       const requestedQuantity = typeof quantity === "number" ? quantity : Number.NaN;
@@ -70,6 +68,7 @@ export async function POST(req: NextRequest) {
             include: { bracelet_product_details: true },
           });
           if (!product) throw new ProductStockUnavailableError("Sản phẩm không còn khả dụng.");
+          if (product.cost_price === null) throw new ProductStockUnavailableError("Sản phẩm chưa được cập nhật giá vốn. Vui lòng liên hệ cửa hàng để hoàn tất đơn hàng.");
           const [reservation] = await tx.$queryRaw<Array<{ reserved: number }>>`
             SELECT COALESCE(SUM(oi.quantity), 0)::int AS reserved
             FROM order_items oi
@@ -85,6 +84,7 @@ export async function POST(req: NextRequest) {
           const total = product.price * requestedQuantity;
           const createdOrder = await tx.order.create({ data: {
             orderCode: BigInt(orderCode),
+            user_id: session.user.id,
             customerName: customer.name!.trim(),
             customerPhone: customer.phone!,
             customerAddress: customer.address!.trim(),
@@ -97,6 +97,7 @@ export async function POST(req: NextRequest) {
               product_type: product.type,
               quantity: requestedQuantity,
               unit_price: product.price,
+              unit_cost: product.cost_price,
               line_total: total,
               details: { details: product.details, wristCircumference: product.bracelet_product_details?.wrist_circumference ?? null },
             } },
@@ -114,28 +115,67 @@ export async function POST(req: NextRequest) {
       amount = purchase.amount;
       payItemName = purchase.name.slice(0, 50);
       payQuantity = requestedQuantity;
-      isCatalogProduct = true;
     } else {
       if (!braceletConfig || !Number.isInteger(braceletConfig.wristCircumference) ||
         braceletConfig.wristCircumference < 100 || braceletConfig.wristCircumference > 250 ||
         !Array.isArray(braceletConfig.slots) || braceletConfig.slots.length < 6 || braceletConfig.slots.length > 32 ||
         braceletConfig.slots.some((slot, index) => slot.index !== index ||
-          (slot.beadTypeId !== null && !BEAD_CATALOG.some((bead) => bead.id === slot.beadTypeId)))) {
+          (slot.beadTypeId !== null && (typeof slot.beadTypeId !== "string" || slot.beadTypeId.length > 64)))) {
         return NextResponse.json({ success: false, message: "Thông tin đơn hàng không hợp lệ." }, { status: 400 });
       }
-      const selectedBeads = braceletConfig.slots.flatMap((slot) =>
-        slot.beadTypeId ? [BEAD_CATALOG.find((bead) => bead.id === slot.beadTypeId)!] : []
-      );
-      if (!selectedBeads.length) return NextResponse.json({ success: false, message: "Vui lòng chọn ít nhất một hạt." }, { status: 400 });
+      const selectedIds = braceletConfig.slots.flatMap((slot) => slot.beadTypeId ? [slot.beadTypeId] : []);
+      if (!selectedIds.length) return NextResponse.json({ success: false, message: "Vui lòng chọn ít nhất một hạt." }, { status: 400 });
+      const catalogBeads = await prisma.products.findMany({
+        where: { type: "bead", status: "active", sku: { in: [...new Set(selectedIds)] } },
+        select: { id: true, sku: true, name: true, price: true, cost_price: true },
+      });
+      const beadBySku = new Map(catalogBeads.map((bead) => [bead.sku, bead]));
+      const selectedBeads = selectedIds.map((sku) => beadBySku.get(sku)).filter((bead) => bead !== undefined);
+      if (selectedBeads.length !== selectedIds.length) {
+        return NextResponse.json({ success: false, message: "Một hoặc nhiều loại hạt không còn được bán. Vui lòng cập nhật thiết kế." }, { status: 409 });
+      }
+      if (selectedBeads.some((bead) => bead.cost_price === null)) {
+        return NextResponse.json({ success: false, message: "Một hoặc nhiều loại hạt chưa được cập nhật giá vốn. Vui lòng liên hệ cửa hàng để hoàn tất đơn hàng." }, { status: 409 });
+      }
       amount = selectedBeads.reduce((sum, bead) => sum + bead.price, 0);
       payItemName = "Vòng tay thiết kế";
       const orderCode = randomInt(1_000_000_000, 9_000_000_000);
-      order = await prisma.order.create({ data: {
-        orderCode: BigInt(orderCode),
-        customerName: customer.name.trim(), customerPhone: customer.phone,
-        customerAddress: customer.address.trim(), braceletConfig: braceletConfig as object,
-        totalPrice: amount,
-      } });
+      const quantities = new Map<string, number>();
+      for (const sku of selectedIds) quantities.set(sku, (quantities.get(sku) ?? 0) + 1);
+      const reservedUntil = new Date(Date.now() - 15 * 60 * 1000);
+      try {
+        order = await prisma.$transaction(async (tx) => {
+          for (const bead of [...selectedBeads].sort((a, b) => a.id.localeCompare(b.id))) {
+            const quantity = quantities.get(bead.sku) ?? 0;
+            await tx.$queryRaw`SELECT id FROM products WHERE id = ${bead.id}::uuid FOR UPDATE`;
+            const lockedBead = await tx.products.findUnique({ where: { id: bead.id }, select: { type: true, status: true, stock: true } });
+            if (!lockedBead || lockedBead.type !== "bead" || lockedBead.status !== "active") throw new ProductStockUnavailableError("Một hoặc nhiều loại hạt không còn được bán.");
+            const [reservation] = await tx.$queryRaw<Array<{ reserved: number }>>`
+              SELECT COALESCE(SUM(oi.quantity), 0)::int AS reserved
+              FROM order_items oi
+              JOIN orders o ON o.id = oi.order_id
+              WHERE oi.product_id = ${bead.id}::uuid
+                AND o.payment_status = 'pending'
+                AND o.created_at > ${reservedUntil}
+            `;
+            if (lockedBead.stock - Number(reservation?.reserved ?? 0) < quantity) throw new ProductStockUnavailableError("Một hoặc nhiều loại hạt đã hết tồn kho. Vui lòng cập nhật thiết kế.");
+          }
+          return tx.order.create({ data: {
+            orderCode: BigInt(orderCode),
+            user_id: session.user.id,
+            customerName: customer.name.trim(), customerPhone: customer.phone,
+            customerAddress: customer.address.trim(), braceletConfig: braceletConfig as object,
+            totalPrice: amount,
+            order_items: { create: [...quantities.entries()].map(([sku, quantity]) => {
+              const bead = beadBySku.get(sku)!;
+              return { product_id: bead.id, product_name: bead.name, sku: bead.sku, product_type: "bead", quantity, unit_price: bead.price, unit_cost: bead.cost_price, line_total: bead.price * quantity };
+            }) },
+          } });
+        });
+      } catch (error) {
+        if (error instanceof ProductStockUnavailableError) return NextResponse.json({ success: false, message: error.message }, { status: 409 });
+        throw error;
+      }
     }
     const baseUrl = process.env.APP_URL ?? new URL(req.url).origin;
 
@@ -145,7 +185,7 @@ export async function POST(req: NextRequest) {
         orderCode: Number(order.orderCode), amount,
         description: `Vong tay ${order.orderCode}`,
         items: [{ name: payItemName.slice(0, 50), quantity: payQuantity, price: Math.floor(amount / payQuantity) }],
-        ...(isCatalogProduct ? { expiredAt: Math.floor(Date.now() / 1000) + 15 * 60 } : {}),
+        expiredAt: Math.floor(Date.now() / 1000) + 15 * 60,
         cancelUrl: `${baseUrl}/checkout/result?orderId=${order.id}&cancel=true`,
         returnUrl: `${baseUrl}/checkout/result?orderId=${order.id}`,
       });
@@ -158,7 +198,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       payUrl: paymentLinkRes.checkoutUrl,
-      orderCode: paymentLinkRes.orderCode,
+      orderCode: String(order.orderCode),
       orderId: order.id,
     });
   } catch (err) {

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import { useBraceletStore } from "@/lib/store";
-import { formatPrice, getBeadById } from "@/lib/beadData";
+import { formatPrice } from "@/lib/beadData";
 import Link from "next/link";
 import { useLoginPrompt } from "@/components/LoginPromptProvider";
 
@@ -29,6 +29,7 @@ export default function BraceletControls() {
     slots,
     wristCircumference,
     selectedBeadType,
+    beadCatalog,
   } = useBraceletStore();
 
   const total = mounted ? totalPrice() : 0;
@@ -66,7 +67,7 @@ export default function BraceletControls() {
           </div>
           <div className="flex flex-col gap-1.5">
             {slots.map((slot, idx) => {
-              const bead = slot.beadTypeId ? getBeadById(slot.beadTypeId) : null;
+              const bead = slot.beadTypeId ? beadCatalog.find((item) => item.id === slot.beadTypeId) : null;
               if (!bead) return null;
               return (
                 <div

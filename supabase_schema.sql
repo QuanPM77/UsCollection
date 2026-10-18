@@ -1,274 +1,481 @@
--- ============================================================================
--- USCOLLECTION — SUPABASE POSTGRESQL SCHEMA & SEED SCRIPT (12 ERD TABLES)
--- Paste this entire file into Supabase SQL Editor and click "RUN"
--- ============================================================================
+-- UsStory database for the current Next.js + Prisma application.
+-- Run this script only in a NEW/EMPTY Supabase project (public schema).
+-- It intentionally does not DROP existing tables or insert demo accounts.
+-- Generated from prisma/schema.prisma, then extended with application constraints,
+-- starter 3D bead catalog, singleton settings, RLS, and the Storage bucket.
 
--- Enable UUID extension if not enabled
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+BEGIN;
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE SCHEMA IF NOT EXISTS "public";
+SET search_path TO "public";
 
--- Drop existing tables if re-running (Clean slate)
-DROP TABLE IF EXISTS admin_audit_logs CASCADE;
-DROP TABLE IF EXISTS payment_logs CASCADE;
-DROP TABLE IF EXISTS order_slots CASCADE;
-DROP TABLE IF EXISTS orders CASCADE;
-DROP TABLE IF EXISTS favorites CASCADE;
-DROP TABLE IF EXISTS custom_design_slots CASCADE;
-DROP TABLE IF EXISTS custom_designs CASCADE;
-DROP TABLE IF EXISTS bracelet_template_slots CASCADE;
-DROP TABLE IF EXISTS bracelet_templates CASCADE;
-DROP TABLE IF EXISTS bead_types CASCADE;
-DROP TABLE IF EXISTS user_addresses CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
 
--- 1. USERS TABLE
-CREATE TABLE users (
-    id VARCHAR(50) PRIMARY KEY DEFAULT CONCAT('usr-', uuid_generate_v4()),
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    full_name VARCHAR(255) NOT NULL,
-    phone VARCHAR(50),
-    avatar_url TEXT,
-    role VARCHAR(20) NOT NULL CHECK (role IN ('customer', 'manager', 'admin')),
-    status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'locked')),
-    last_login_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+-- CreateEnum
+CREATE TYPE "user_role" AS ENUM ('customer', 'manager', 'admin');
+
+-- CreateEnum
+CREATE TYPE "user_status" AS ENUM ('active', 'locked');
+
+-- CreateEnum
+CREATE TYPE "bead_material" AS ENUM ('glass', 'crystal', 'wood', 'stone', 'pearl');
+
+-- CreateEnum
+CREATE TYPE "fulfillment_status" AS ENUM ('pending', 'processing', 'completed', 'cancelled');
+
+-- CreateEnum
+CREATE TYPE "order_status" AS ENUM ('new', 'confirmed', 'processing', 'shipping', 'completed', 'cancelled');
+
+-- CreateEnum
+CREATE TYPE "payment_log_status" AS ENUM ('initiated', 'success', 'failed');
+
+-- CreateEnum
+CREATE TYPE "payment_method" AS ENUM ('payos', 'bank_transfer', 'cod');
+
+-- CreateEnum
+CREATE TYPE "payment_status" AS ENUM ('pending', 'paid', 'failed');
+
+-- CreateEnum
+CREATE TYPE "product_status" AS ENUM ('active', 'inactive', 'draft');
+
+-- CreateEnum
+CREATE TYPE "product_type" AS ENUM ('bead', 'bracelet');
+
+-- CreateEnum
+CREATE TYPE "template_status" AS ENUM ('draft', 'published');
+
+-- CreateTable
+CREATE TABLE "users" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "email" TEXT,
+    "password_hash" TEXT,
+    "email_verified_at" TIMESTAMPTZ(6),
+    "full_name" TEXT,
+    "phone" TEXT,
+    "profile_completed_at" TIMESTAMPTZ(6),
+    "avatar_url" TEXT,
+    "role" "user_role" NOT NULL DEFAULT 'customer',
+    "status" "user_status" NOT NULL DEFAULT 'active',
+    "last_login_at" TIMESTAMPTZ(6),
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
 
--- 2. USER ADDRESSES TABLE
-CREATE TABLE user_addresses (
-    id VARCHAR(50) PRIMARY KEY DEFAULT CONCAT('addr-', uuid_generate_v4()),
-    user_id VARCHAR(50) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    recipient_name VARCHAR(255) NOT NULL,
-    phone VARCHAR(50) NOT NULL,
-    address_line TEXT NOT NULL,
-    province VARCHAR(100) NOT NULL,
-    is_default BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+-- CreateTable
+CREATE TABLE "user_addresses" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "user_id" UUID NOT NULL,
+    "recipient_name" TEXT NOT NULL,
+    "phone" TEXT NOT NULL,
+    "address_line" TEXT NOT NULL,
+    "province" TEXT,
+    "is_default" BOOLEAN NOT NULL DEFAULT false,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "user_addresses_pkey" PRIMARY KEY ("id")
 );
 
--- 3. BEAD TYPES (CATALOG & INVENTORY) TABLE
-CREATE TABLE bead_types (
-    id VARCHAR(100) PRIMARY KEY, -- slug e.g. 'rose-quartz'
-    code VARCHAR(50) UNIQUE NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    material VARCHAR(50) NOT NULL CHECK (material IN ('glass', 'crystal', 'wood', 'stone', 'pearl')),
-    color_hex VARCHAR(20) NOT NULL,
-    emissive_hex VARCHAR(20),
-    metalness FLOAT NOT NULL DEFAULT 0.1,
-    roughness FLOAT NOT NULL DEFAULT 0.3,
-    description TEXT,
-    cost_price INT NOT NULL DEFAULT 0,  -- Giá vốn
-    sell_price INT NOT NULL DEFAULT 0,  -- Giá bán
-    stock_quantity INT NOT NULL DEFAULT 100,
-    is_active BOOLEAN DEFAULT TRUE,
-    diameter INT NOT NULL DEFAULT 8,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+-- CreateTable
+CREATE TABLE "password_reset_tokens" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "user_id" UUID NOT NULL,
+    "token_hash" TEXT NOT NULL,
+    "expires_at" TIMESTAMPTZ(6) NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "password_reset_tokens_pkey" PRIMARY KEY ("id")
 );
 
--- 4. BRACELET TEMPLATES TABLE
-CREATE TABLE bracelet_templates (
-    id VARCHAR(50) PRIMARY KEY DEFAULT CONCAT('tmpl-', uuid_generate_v4()),
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    wrist_circumference INT NOT NULL DEFAULT 160,
-    thumbnail_url TEXT,
-    category VARCHAR(50) DEFAULT 'phong_thuy',
-    is_featured BOOLEAN DEFAULT FALSE,
-    status VARCHAR(20) NOT NULL DEFAULT 'published' CHECK (status IN ('draft', 'published')),
-    created_by VARCHAR(50) REFERENCES users(id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+-- CreateTable
+CREATE TABLE "email_verification_tokens" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "user_id" UUID NOT NULL,
+    "email" TEXT,
+    "token_hash" TEXT NOT NULL,
+    "expires_at" TIMESTAMPTZ(6) NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "email_verification_tokens_pkey" PRIMARY KEY ("id")
 );
 
--- 5. BRACELET TEMPLATE SLOTS TABLE
-CREATE TABLE bracelet_template_slots (
-    id VARCHAR(50) PRIMARY KEY DEFAULT CONCAT('tslot-', uuid_generate_v4()),
-    template_id VARCHAR(50) NOT NULL REFERENCES bracelet_templates(id) ON DELETE CASCADE,
-    slot_index INT NOT NULL,
-    bead_type_id VARCHAR(100) NOT NULL REFERENCES bead_types(id) ON DELETE CASCADE
+-- CreateTable
+CREATE TABLE "rate_limits" (
+    "key" TEXT NOT NULL,
+    "count" INTEGER NOT NULL DEFAULT 0,
+    "reset_at" TIMESTAMPTZ(6) NOT NULL,
+
+    CONSTRAINT "rate_limits_pkey" PRIMARY KEY ("key")
 );
 
--- 6. CUSTOM DESIGNS TABLE (THIẾT KẾ CỦA TÔI)
-CREATE TABLE custom_designs (
-    id VARCHAR(50) PRIMARY KEY DEFAULT CONCAT('design-', uuid_generate_v4()),
-    user_id VARCHAR(50) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    wrist_circumference INT NOT NULL DEFAULT 160,
-    thumbnail_url TEXT,
-    is_public BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+-- CreateTable
+CREATE TABLE "orders" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "order_code" BIGINT NOT NULL,
+    "user_id" UUID,
+    "customer_name" TEXT NOT NULL,
+    "customer_phone" TEXT NOT NULL,
+    "customer_address" TEXT NOT NULL,
+    "bracelet_config" JSONB NOT NULL,
+    "total_price" INTEGER NOT NULL,
+    "paid_at" TIMESTAMPTZ(6),
+    "payment_status" TEXT NOT NULL DEFAULT 'pending',
+    "order_status" "order_status" NOT NULL DEFAULT 'new',
+    "payment_method" "payment_method" NOT NULL DEFAULT 'payos',
+    "payment_link_id" TEXT,
+    "note" TEXT,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "orders_pkey" PRIMARY KEY ("id")
 );
 
--- 7. CUSTOM DESIGN SLOTS TABLE
-CREATE TABLE custom_design_slots (
-    id VARCHAR(50) PRIMARY KEY DEFAULT CONCAT('cslot-', uuid_generate_v4()),
-    design_id VARCHAR(50) NOT NULL REFERENCES custom_designs(id) ON DELETE CASCADE,
-    slot_index INT NOT NULL,
-    bead_type_id VARCHAR(100) NOT NULL REFERENCES bead_types(id) ON DELETE CASCADE
+-- CreateTable
+CREATE TABLE "bead_product_details" (
+    "product_id" UUID NOT NULL,
+    "material" "bead_material" NOT NULL,
+    "color" TEXT NOT NULL,
+    "emissive_color" TEXT,
+    "diameter" INTEGER NOT NULL DEFAULT 8,
+    "metalness" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "roughness" DOUBLE PRECISION NOT NULL DEFAULT 0.5,
+
+    CONSTRAINT "bead_product_details_pkey" PRIMARY KEY ("product_id")
 );
 
--- 8. FAVORITES TABLE
-CREATE TABLE favorites (
-    id VARCHAR(50) PRIMARY KEY DEFAULT CONCAT('fav-', uuid_generate_v4()),
-    user_id VARCHAR(50) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    template_id VARCHAR(50) REFERENCES bracelet_templates(id) ON DELETE CASCADE,
-    bead_type_id VARCHAR(100) REFERENCES bead_types(id) ON DELETE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+-- CreateTable
+CREATE TABLE "bracelet_product_beads" (
+    "bracelet_product_id" UUID NOT NULL,
+    "bead_product_id" UUID NOT NULL,
+    "quantity" INTEGER NOT NULL,
+
+    CONSTRAINT "bracelet_product_beads_pkey" PRIMARY KEY ("bracelet_product_id","bead_product_id")
 );
 
--- 9. ORDERS TABLE
-CREATE TABLE orders (
-    id VARCHAR(50) PRIMARY KEY DEFAULT CONCAT('ord-', uuid_generate_v4()),
-    order_code VARCHAR(100) UNIQUE NOT NULL,
-    user_id VARCHAR(50) REFERENCES users(id) ON DELETE SET NULL,
-    source_design_id VARCHAR(50) REFERENCES custom_designs(id) ON DELETE SET NULL,
-    source_template_id VARCHAR(50) REFERENCES bracelet_templates(id) ON DELETE SET NULL,
-    customer_name VARCHAR(255) NOT NULL,
-    phone VARCHAR(50) NOT NULL,
-    address TEXT NOT NULL,
-    wrist_circumference INT NOT NULL DEFAULT 160,
-    total_price INT NOT NULL DEFAULT 0,
-    payment_status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending', 'paid', 'failed')),
-    fulfillment_status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (fulfillment_status IN ('pending', 'processing', 'completed', 'cancelled')),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+-- CreateTable
+CREATE TABLE "bracelet_product_details" (
+    "product_id" UUID NOT NULL,
+    "wrist_circumference" INTEGER NOT NULL,
+    "image_url" TEXT,
+
+    CONSTRAINT "bracelet_product_details_pkey" PRIMARY KEY ("product_id")
 );
 
--- 10. ORDER SLOTS TABLE (WITH PRICE SNAPSHOT)
-CREATE TABLE order_slots (
-    id VARCHAR(50) PRIMARY KEY DEFAULT CONCAT('oslot-', uuid_generate_v4()),
-    order_id VARCHAR(50) NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-    slot_index INT NOT NULL,
-    bead_type_id VARCHAR(100) NOT NULL REFERENCES bead_types(id) ON DELETE RESTRICT,
-    unit_price INT NOT NULL DEFAULT 0 -- Price snapshot at purchase time
+-- CreateTable
+CREATE TABLE "inventory_movements" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "product_id" UUID NOT NULL,
+    "changed_by" UUID,
+    "quantity_delta" INTEGER NOT NULL,
+    "reason" TEXT NOT NULL,
+    "order_id" UUID,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "inventory_movements_pkey" PRIMARY KEY ("id")
 );
 
--- 11. PAYMENT LOGS TABLE
-CREATE TABLE payment_logs (
-    id VARCHAR(50) PRIMARY KEY DEFAULT CONCAT('paylog-', uuid_generate_v4()),
-    order_id VARCHAR(50) NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-    method VARCHAR(50) NOT NULL DEFAULT 'momo',
-    amount INT NOT NULL DEFAULT 0,
-    status VARCHAR(20) NOT NULL DEFAULT 'initiated' CHECK (status IN ('initiated', 'success', 'failed')),
-    transaction_id VARCHAR(100),
-    raw_response TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+-- CreateTable
+CREATE TABLE "order_items" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "order_id" UUID NOT NULL,
+    "product_id" UUID,
+    "product_name" TEXT NOT NULL,
+    "sku" TEXT,
+    "product_type" TEXT NOT NULL,
+    "quantity" INTEGER NOT NULL,
+    "unit_price" INTEGER NOT NULL,
+    "unit_cost" INTEGER,
+    "line_total" INTEGER NOT NULL,
+    "details" JSONB,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "order_items_pkey" PRIMARY KEY ("id")
 );
 
--- 12. ADMIN AUDIT LOGS TABLE
-CREATE TABLE admin_audit_logs (
-    id VARCHAR(50) PRIMARY KEY DEFAULT CONCAT('audit-', uuid_generate_v4()),
-    admin_id VARCHAR(50) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    action VARCHAR(100) NOT NULL,
-    target_table VARCHAR(100) NOT NULL,
-    target_id VARCHAR(100) NOT NULL,
-    detail TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+-- CreateTable
+CREATE TABLE "products" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "sku" TEXT NOT NULL,
+    "type" "product_type" NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "price" INTEGER NOT NULL,
+    "cost_price" INTEGER,
+    "stock" INTEGER NOT NULL DEFAULT 0,
+    "status" "product_status" NOT NULL DEFAULT 'draft',
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "images" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "details" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "styles" TEXT[] DEFAULT ARRAY[]::TEXT[],
+
+    CONSTRAINT "products_pkey" PRIMARY KEY ("id")
 );
 
--- ============================================================================
--- INITIAL SEED DATA FOR SUPABASE
--- ============================================================================
+-- CreateTable
+CREATE TABLE "product_reviews" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "product_id" UUID NOT NULL,
+    "user_id" UUID NOT NULL,
+    "rating" INTEGER NOT NULL,
+    "comment" TEXT NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL,
 
--- Seed Users
-INSERT INTO users (id, email, password_hash, full_name, phone, role, status) VALUES
-('usr-admin-01', 'admin@beadstudio.com', '$2a$10$abcdef1234567890adminhash', 'Quản Trị Viên Hệ Thống', '0988888888', 'admin', 'active'),
-('usr-manager-01', 'manager@beadstudio.com', '$2a$10$abcdef1234567890managerhash', 'Nguyễn Văn Quản Lý', '0977777777', 'manager', 'active'),
-('usr-customer-01', 'khachhang@gmail.com', '$2a$10$abcdef1234567890customerhash', 'Lê Thị Thảo', '0901234567', 'customer', 'active'),
-('usr-customer-02', 'tranminh@gmail.com', '$2a$10$abcdef1234567890customerhash2', 'Trần Minh', '0912345678', 'customer', 'active');
+    CONSTRAINT "product_reviews_pkey" PRIMARY KEY ("id")
+);
 
--- Seed User Addresses
-INSERT INTO user_addresses (id, user_id, recipient_name, phone, address_line, province, is_default) VALUES
-('addr-01', 'usr-customer-01', 'Lê Thị Thảo', '0901234567', '123 Đường Lê Lợi, Phường Bến Thành, Quận 1', 'TP. Hồ Chí Minh', TRUE),
-('addr-02', 'usr-customer-02', 'Trần Minh', '0912345678', '456 Đường Nguyễn Huệ, Quận 3', 'TP. Hồ Chí Minh', TRUE);
+-- CreateTable
+CREATE TABLE "store_settings" (
+    "id" SMALLINT NOT NULL DEFAULT 1,
+    "store_name" TEXT NOT NULL DEFAULT 'UsStory',
+    "store_description" TEXT NOT NULL DEFAULT '',
+    "contact_phone" TEXT NOT NULL DEFAULT '',
+    "contact_email" TEXT NOT NULL DEFAULT '',
+    "address" TEXT NOT NULL DEFAULT '',
+    "low_stock_threshold" INTEGER NOT NULL DEFAULT 5,
+    "currency" TEXT NOT NULL DEFAULT 'VND',
+    "order_auto_confirm" BOOLEAN NOT NULL DEFAULT false,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
--- Seed Bead Types
-INSERT INTO bead_types (id, code, name, material, color_hex, emissive_hex, metalness, roughness, description, cost_price, sell_price, stock_quantity, diameter) VALUES
-('rose-quartz', 'BEAD-RQ-01', 'Rose Quartz', 'crystal', '#F4A7B9', '#FF8FAB', 0.1, 0.3, 'Pha lê hồng nhạt, biểu tượng của tình yêu và sự chữa lành', 7000, 15000, 250, 8),
-('amethyst', 'BEAD-AM-02', 'Amethyst', 'crystal', '#9B59B6', '#7D3C98', 0.1, 0.25, 'Tím amethyst, mang lại sự tập trung và bình yên tâm trí', 8500, 18000, 180, 8),
-('pearl-white', 'BEAD-PW-03', 'White Pearl', 'pearl', '#F8F0E3', NULL, 0.3, 0.1, 'Ngọc trai trắng thuần khiết, quý phái', 10000, 22000, 120, 6),
-('moonstone', 'BEAD-MS-04', 'Moonstone', 'stone', '#E8E8F0', '#C5C5E0', 0.15, 0.2, 'Đá mặt trăng huyền bí, gia tăng trực giác', 9500, 20000, 200, 8),
-('turquoise', 'BEAD-TQ-05', 'Turquoise', 'stone', '#40E0D0', NULL, 0.05, 0.5, 'Ngọc lam xanh biển rực rỡ, mang năng lượng tích cực', 7500, 16000, 150, 8),
-('gold-bead', 'BEAD-GD-06', 'Gold Accent', 'crystal', '#FFD700', '#B8860B', 0.9, 0.05, 'Hạt mạ vàng điểm nhấn sang trọng', 14000, 30000, 90, 4),
-('obsidian', 'BEAD-OB-07', 'Black Obsidian', 'stone', '#2C2C2C', NULL, 0.4, 0.15, 'Đá hắc diệu xua tan năng lượng tiêu cực', 6000, 14000, 300, 10),
-('sandalwood', 'BEAD-SW-08', 'Sandalwood', 'wood', '#C19A6B', NULL, 0.0, 0.8, 'Gỗ đàn hương tự nhiên thơm nhẹ thư thái', 4500, 10000, 400, 8),
-('cherry-glass', 'BEAD-CG-09', 'Cherry Glass', 'glass', '#DC143C', '#8B0000', 0.05, 0.05, 'Hạt thủy tinh đỏ anh đào nổi bật', 5000, 12000, 220, 6),
-('lavender-jade', 'BEAD-LJ-10', 'Lavender Jade', 'stone', '#B57EDC', NULL, 0.1, 0.35, 'Ngọc bích oải hương thanh lịch, may mắn', 11000, 25000, 110, 8);
+    CONSTRAINT "store_settings_pkey" PRIMARY KEY ("id")
+);
 
--- Seed Bracelet Templates
-INSERT INTO bracelet_templates (id, name, description, wrist_circumference, thumbnail_url, category, is_featured, status, created_by) VALUES
-('tmpl-hong-ngoc-01', 'Vòng Phong Thủy Hồng Ngọc', 'Kết hợp giữa Rose Quartz và Ngọc Trai Trắng cho nét tinh tế, dịu dàng.', 160, '/templates/rose-quartz.png', 'phong_thuy', TRUE, 'published', 'usr-manager-01'),
-('tmpl-dem-trang-02', 'Vòng Tay Đêm Trăng Huyền Bí', 'Đá Mặt Trăng và Hắc Diệu mang lại sự bảo vệ năng lượng vượt trội.', 170, '/templates/moonstone.png', 'toi_gian', TRUE, 'published', 'usr-manager-01'),
-('tmpl-boho-03', 'Vòng Tay Boho Đàn Hương', 'Mộc mạc nhưng cá tính với gỗ đàn hương và đá Turquoise.', 165, '/templates/boho.png', 'dieu_da', FALSE, 'published', 'usr-manager-01');
+-- CreateIndex
+CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
--- Seed Template Slots
-INSERT INTO bracelet_template_slots (id, template_id, slot_index, bead_type_id) VALUES
-('tmpl-slot-1', 'tmpl-hong-ngoc-01', 0, 'rose-quartz'),
-('tmpl-slot-2', 'tmpl-hong-ngoc-01', 1, 'pearl-white'),
-('tmpl-slot-3', 'tmpl-hong-ngoc-01', 2, 'gold-bead'),
-('tmpl-slot-4', 'tmpl-hong-ngoc-01', 3, 'rose-quartz'),
-('tmpl-slot-5', 'tmpl-dem-trang-02', 0, 'obsidian'),
-('tmpl-slot-6', 'tmpl-dem-trang-02', 1, 'moonstone'),
-('tmpl-slot-7', 'tmpl-dem-trang-02', 2, 'gold-bead');
+-- CreateIndex
+CREATE UNIQUE INDEX "users_phone_key" ON "users"("phone");
 
--- Seed Custom Designs
-INSERT INTO custom_designs (id, user_id, name, wrist_circumference, is_public) VALUES
-('design-cust-01', 'usr-customer-01', 'Vòng Tay Tình Yêu & May Mắn', 160, TRUE),
-('design-cust-02', 'usr-customer-02', 'Vòng Đi Làm Tối Giản', 170, FALSE);
+-- CreateIndex
+CREATE INDEX "idx_user_addresses_user_id" ON "user_addresses"("user_id");
 
--- Seed Custom Design Slots
-INSERT INTO custom_design_slots (id, design_id, slot_index, bead_type_id) VALUES
-('cd-slot-1', 'design-cust-01', 0, 'rose-quartz'),
-('cd-slot-2', 'design-cust-01', 1, 'amethyst'),
-('cd-slot-3', 'design-cust-01', 2, 'gold-bead'),
-('cd-slot-4', 'design-cust-02', 0, 'obsidian'),
-('cd-slot-5', 'design-cust-02', 1, 'sandalwood');
+-- CreateIndex
+CREATE UNIQUE INDEX "password_reset_tokens_token_hash_key" ON "password_reset_tokens"("token_hash");
 
--- Seed Favorites
-INSERT INTO favorites (id, user_id, template_id, bead_type_id) VALUES
-('fav-01', 'usr-customer-01', 'tmpl-hong-ngoc-01', NULL),
-('fav-02', 'usr-customer-01', NULL, 'rose-quartz');
+-- CreateIndex
+CREATE INDEX "idx_password_reset_user_id" ON "password_reset_tokens"("user_id");
 
--- Seed Orders
-INSERT INTO orders (id, order_code, user_id, source_design_id, customer_name, phone, address, wrist_circumference, total_price, payment_status, fulfillment_status, created_at) VALUES
-('ord-01', 'BS-1725100000000', 'usr-customer-01', 'design-cust-01', 'Lê Thị Thảo', '0901234567', '123 Đường Lê Lợi, Quận 1, TP. Hồ Chí Minh', 160, 63000, 'paid', 'completed', '2026-05-20 10:00:00+07'),
-('ord-02', 'BS-1725200000000', 'usr-customer-02', NULL, 'Trần Minh', '0912345678', '456 Đường Nguyễn Huệ, Quận 3, TP. Hồ Chí Minh', 170, 64000, 'paid', 'completed', '2026-06-15 14:30:00+07'),
-('ord-03', 'BS-1725300000000', 'usr-customer-01', NULL, 'Lê Thị Thảo', '0901234567', '123 Đường Lê Lợi, Quận 1, TP. Hồ Chí Minh', 160, 82000, 'paid', 'completed', '2026-07-10 11:00:00+07'),
-('ord-04', 'BS-1725400000000', NULL, NULL, 'Phạm Quốc Tuấn', '0933445566', '789 Đường Nam Kỳ Khởi Nghĩa, Quận 3, TP. Hồ Chí Minh', 165, 52000, 'paid', 'processing', '2026-08-05 16:20:00+07'),
-('ord-05', 'BS-1725500000000', 'usr-customer-02', 'design-cust-02', 'Trần Minh', '0912345678', '456 Đường Nguyễn Huệ, Quận 3, TP. Hồ Chí Minh', 170, 49000, 'paid', 'pending', '2026-09-22 09:00:00+07');
+-- CreateIndex
+CREATE UNIQUE INDEX "email_verification_tokens_token_hash_key" ON "email_verification_tokens"("token_hash");
 
--- Seed Order Slots
-INSERT INTO order_slots (id, order_id, slot_index, bead_type_id, unit_price) VALUES
-('os-101', 'ord-01', 0, 'rose-quartz', 15000),
-('os-102', 'ord-01', 1, 'amethyst', 18000),
-('os-103', 'ord-01', 2, 'gold-bead', 30000),
-('os-201', 'ord-02', 0, 'obsidian', 14000),
-('os-202', 'ord-02', 1, 'moonstone', 20000),
-('os-203', 'ord-02', 2, 'gold-bead', 30000),
-('os-301', 'ord-03', 0, 'rose-quartz', 15000),
-('os-302', 'ord-03', 1, 'pearl-white', 22000),
-('os-303', 'ord-03', 2, 'gold-bead', 30000),
-('os-304', 'ord-03', 3, 'rose-quartz', 15000),
-('os-401', 'ord-04', 0, 'sandalwood', 10000),
-('os-402', 'ord-04', 1, 'turquoise', 16000),
-('os-403', 'ord-04', 2, 'lavender-jade', 26000),
-('os-501', 'ord-05', 0, 'obsidian', 14000),
-('os-502', 'ord-05', 1, 'sandalwood', 10000),
-('os-503', 'ord-05', 2, 'lavender-jade', 25000);
+-- CreateIndex
+CREATE INDEX "idx_email_verification_user_id" ON "email_verification_tokens"("user_id");
 
--- Seed Payment Logs
-INSERT INTO payment_logs (id, order_id, method, amount, status, transaction_id, raw_response) VALUES
-('paylog-01', 'ord-01', 'momo', 63000, 'success', 'MOMO1725100000000', '{"resultCode":0,"message":"Thành công"}'),
-('paylog-02', 'ord-02', 'momo', 64000, 'success', 'MOMO1725200000000', '{"resultCode":0,"message":"Thành công"}'),
-('paylog-03', 'ord-03', 'momo', 82000, 'success', 'MOMO1725300000000', '{"resultCode":0,"message":"Thành công"}'),
-('paylog-04', 'ord-04', 'momo', 52000, 'success', 'MOMO1725400000000', '{"resultCode":0,"message":"Thành công"}'),
-('paylog-05', 'ord-05', 'momo', 49000, 'success', 'MOMO1725500000000', '{"resultCode":0,"message":"Thành công"}');
+-- CreateIndex
+CREATE UNIQUE INDEX "orders_order_code_key" ON "orders"("order_code");
 
--- Seed Admin Audit Logs
-INSERT INTO admin_audit_logs (id, admin_id, action, target_table, target_id, detail) VALUES
-('audit-01', 'usr-manager-01', 'publish_template', 'bracelet_templates', 'tmpl-hong-ngoc-01', 'Xuất bản mẫu vòng tay Phong Thủy Hồng Ngọc'),
-('audit-02', 'usr-manager-01', 'update_bead_price', 'bead_types', 'gold-bead', 'Cập nhật giá bán Gold Accent từ 28,000đ lên 30,000đ'),
-('audit-03', 'usr-admin-01', 'create_user', 'users', 'usr-manager-01', 'Tạo tài khoản Quản lý cho Nguyễn Văn Quản Lý');
+-- CreateIndex
+CREATE INDEX "idx_orders_created_at" ON "orders"("created_at" DESC);
+
+-- CreateIndex
+CREATE INDEX "idx_orders_paid_at" ON "orders"("paid_at" DESC);
+
+-- CreateIndex
+CREATE INDEX "idx_orders_order_status" ON "orders"("order_status");
+
+-- CreateIndex
+CREATE INDEX "idx_orders_payment_status" ON "orders"("payment_status");
+
+-- CreateIndex
+CREATE INDEX "idx_orders_user_id" ON "orders"("user_id");
+
+-- CreateIndex
+CREATE INDEX "idx_inventory_created_at" ON "inventory_movements"("created_at" DESC);
+
+-- CreateIndex
+CREATE INDEX "idx_inventory_product_id" ON "inventory_movements"("product_id");
+
+-- CreateIndex
+CREATE INDEX "idx_order_items_order_id" ON "order_items"("order_id");
+
+-- CreateIndex
+CREATE INDEX "idx_order_items_product_id" ON "order_items"("product_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "products_sku_key" ON "products"("sku");
+
+-- CreateIndex
+CREATE INDEX "idx_products_name" ON "products"("name");
+
+-- CreateIndex
+CREATE INDEX "idx_products_status" ON "products"("status");
+
+-- CreateIndex
+CREATE INDEX "idx_products_type" ON "products"("type");
+
+-- CreateIndex
+CREATE INDEX "idx_product_reviews_product_created" ON "product_reviews"("product_id", "created_at" DESC);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "product_reviews_product_id_user_id_key" ON "product_reviews"("product_id", "user_id");
+
+-- AddForeignKey
+ALTER TABLE "user_addresses" ADD CONSTRAINT "user_addresses_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE "password_reset_tokens" ADD CONSTRAINT "password_reset_tokens_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE "email_verification_tokens" ADD CONSTRAINT "email_verification_tokens_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE "orders" ADD CONSTRAINT "orders_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE "bead_product_details" ADD CONSTRAINT "bead_product_details_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE "bracelet_product_beads" ADD CONSTRAINT "bracelet_product_beads_bead_product_id_fkey" FOREIGN KEY ("bead_product_id") REFERENCES "bead_product_details"("product_id") ON DELETE RESTRICT ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE "bracelet_product_beads" ADD CONSTRAINT "bracelet_product_beads_bracelet_product_id_fkey" FOREIGN KEY ("bracelet_product_id") REFERENCES "bracelet_product_details"("product_id") ON DELETE CASCADE ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE "bracelet_product_details" ADD CONSTRAINT "bracelet_product_details_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE "inventory_movements" ADD CONSTRAINT "inventory_movements_changed_by_fkey" FOREIGN KEY ("changed_by") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE "inventory_movements" ADD CONSTRAINT "inventory_movements_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "orders"("id") ON DELETE SET NULL ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE "inventory_movements" ADD CONSTRAINT "inventory_movements_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE "order_items" ADD CONSTRAINT "order_items_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE "order_items" ADD CONSTRAINT "order_items_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE SET NULL ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE "product_reviews" ADD CONSTRAINT "product_reviews_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+
+-- AddForeignKey
+ALTER TABLE "product_reviews" ADD CONSTRAINT "product_reviews_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+
+-- Application-level invariants enforced by the database as well.
+ALTER TABLE "products"
+  ADD CONSTRAINT "products_price_nonnegative_check" CHECK ("price" >= 0),
+  ADD CONSTRAINT "products_cost_nonnegative_check" CHECK ("cost_price" IS NULL OR "cost_price" >= 0),
+  ADD CONSTRAINT "products_stock_nonnegative_check" CHECK ("stock" >= 0);
+
+ALTER TABLE "orders"
+  ADD CONSTRAINT "orders_total_price_nonnegative_check" CHECK ("total_price" >= 0),
+  ADD CONSTRAINT "orders_payment_status_check" CHECK ("payment_status" IN ('pending', 'paid', 'failed'));
+
+ALTER TABLE "order_items"
+  ADD CONSTRAINT "order_items_product_type_check" CHECK ("product_type" IN ('bead', 'bracelet')),
+  ADD CONSTRAINT "order_items_quantity_positive_check" CHECK ("quantity" > 0),
+  ADD CONSTRAINT "order_items_unit_price_nonnegative_check" CHECK ("unit_price" >= 0),
+  ADD CONSTRAINT "order_items_unit_cost_nonnegative_check" CHECK ("unit_cost" IS NULL OR "unit_cost" >= 0),
+  ADD CONSTRAINT "order_items_line_total_nonnegative_check" CHECK ("line_total" >= 0);
+
+ALTER TABLE "bead_product_details"
+  ADD CONSTRAINT "bead_product_details_diameter_check" CHECK ("diameter" BETWEEN 2 AND 30),
+  ADD CONSTRAINT "bead_product_details_metalness_check" CHECK ("metalness" BETWEEN 0 AND 1),
+  ADD CONSTRAINT "bead_product_details_roughness_check" CHECK ("roughness" BETWEEN 0 AND 1);
+
+ALTER TABLE "bracelet_product_beads"
+  ADD CONSTRAINT "bracelet_product_beads_quantity_positive_check" CHECK ("quantity" > 0);
+
+ALTER TABLE "product_reviews"
+  ADD CONSTRAINT "product_reviews_rating_check" CHECK ("rating" BETWEEN 1 AND 5);
+
+ALTER TABLE "store_settings"
+  ADD CONSTRAINT "store_settings_singleton_id_check" CHECK ("id" = 1),
+  ADD CONSTRAINT "store_settings_low_stock_threshold_check" CHECK ("low_stock_threshold" >= 1);
+
+-- Keep updated_at accurate for writes made through SQL as well as Prisma.
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at = CURRENT_TIMESTAMP;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER "users_set_updated_at" BEFORE UPDATE ON "users"
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+CREATE TRIGGER "products_set_updated_at" BEFORE UPDATE ON "products"
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+CREATE TRIGGER "orders_set_updated_at" BEFORE UPDATE ON "orders"
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+CREATE TRIGGER "product_reviews_set_updated_at" BEFORE UPDATE ON "product_reviews"
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+CREATE TRIGGER "store_settings_set_updated_at" BEFORE UPDATE ON "store_settings"
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- The application accesses database tables through its authenticated server/Prisma
+-- connection. No public/anon table policies are created, so the Supabase Data API
+-- cannot read or write customer/order data directly.
+ALTER TABLE "users" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "user_addresses" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "password_reset_tokens" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "email_verification_tokens" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "rate_limits" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "orders" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "bead_product_details" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "bracelet_product_beads" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "bracelet_product_details" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "inventory_movements" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "order_items" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "products" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "product_reviews" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "store_settings" ENABLE ROW LEVEL SECURITY;
+
+-- Public read-only product images/avatars; uploads and deletes use the server-only
+-- SUPABASE_SERVICE_ROLE_KEY. Do not expose that key to the browser.
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('avatars', 'avatars', TRUE, 153600, ARRAY['image/webp']::text[])
+ON CONFLICT (id) DO NOTHING;
+
+-- The site needs one settings row; admin API also upserts it if it is missing.
+INSERT INTO "store_settings" ("id") VALUES (1) ON CONFLICT ("id") DO NOTHING;
+
+-- Starter bead catalog used by the 3D designer. Stock starts at zero and costs are
+-- intentionally NULL because real opening stock/costs must be entered by the shop.
+-- Checkout blocks items without a recorded cost, which protects profit reporting.
+WITH seed("sku", "name", "description", "price", "material", "color", "emissive", "metalness", "roughness", "diameter") AS (
+  VALUES
+    ('rose-quartz', 'Rose Quartz', 'Pha lê hồng nhạt, biểu tượng của tình yêu', 15000, 'crystal', '#F4A7B9', '#FF8FAB', 0.1, 0.3, 8),
+    ('amethyst', 'Amethyst', 'Tím amethyst, mang lại bình yên', 18000, 'crystal', '#9B59B6', '#7D3C98', 0.1, 0.25, 8),
+    ('pearl-white', 'White Pearl', 'Ngọc trai trắng thuần khiết', 22000, 'pearl', '#F8F0E3', NULL, 0.3, 0.1, 6),
+    ('moonstone', 'Moonstone', 'Đá mặt trăng huyền bí', 20000, 'stone', '#E8E8F0', '#C5C5E0', 0.15, 0.2, 8),
+    ('turquoise', 'Turquoise', 'Ngọc lam xanh biển rực rỡ', 16000, 'stone', '#40E0D0', NULL, 0.05, 0.5, 8),
+    ('gold-bead', 'Gold Accent', 'Hạt vàng sang trọng', 30000, 'crystal', '#FFD700', '#B8860B', 0.9, 0.05, 4),
+    ('obsidian', 'Black Obsidian', 'Đá hắc diệu, bảo vệ năng lượng', 14000, 'stone', '#2C2C2C', NULL, 0.4, 0.15, 10),
+    ('sandalwood', 'Sandalwood', 'Gỗ đàn hương thơm nhẹ', 10000, 'wood', '#C19A6B', NULL, 0.0, 0.8, 8),
+    ('cherry-glass', 'Cherry Glass', 'Hạt thủy tinh đỏ anh đào', 12000, 'glass', '#DC143C', '#8B0000', 0.05, 0.05, 6),
+    ('lavender-jade', 'Lavender Jade', 'Ngọc bích oải hương thanh lịch', 25000, 'stone', '#B57EDC', NULL, 0.1, 0.35, 8)
+)
+INSERT INTO "products" ("id", "sku", "type", "name", "description", "price", "cost_price", "stock", "status")
+SELECT gen_random_uuid(), seed."sku", 'bead'::"product_type", seed."name", seed."description", seed."price", NULL, 0, 'active'::"product_status"
+FROM seed
+ON CONFLICT ("sku") DO NOTHING;
+
+WITH seed("sku", "material", "color", "emissive", "metalness", "roughness", "diameter") AS (
+  VALUES
+    ('rose-quartz', 'crystal', '#F4A7B9', '#FF8FAB', 0.1, 0.3, 8),
+    ('amethyst', 'crystal', '#9B59B6', '#7D3C98', 0.1, 0.25, 8),
+    ('pearl-white', 'pearl', '#F8F0E3', NULL, 0.3, 0.1, 6),
+    ('moonstone', 'stone', '#E8E8F0', '#C5C5E0', 0.15, 0.2, 8),
+    ('turquoise', 'stone', '#40E0D0', NULL, 0.05, 0.5, 8),
+    ('gold-bead', 'crystal', '#FFD700', '#B8860B', 0.9, 0.05, 4),
+    ('obsidian', 'stone', '#2C2C2C', NULL, 0.4, 0.15, 10),
+    ('sandalwood', 'wood', '#C19A6B', NULL, 0.0, 0.8, 8),
+    ('cherry-glass', 'glass', '#DC143C', '#8B0000', 0.05, 0.05, 6),
+    ('lavender-jade', 'stone', '#B57EDC', NULL, 0.1, 0.35, 8)
+)
+INSERT INTO "bead_product_details" ("product_id", "material", "color", "emissive_color", "metalness", "roughness", "diameter")
+SELECT p."id", seed."material"::"bead_material", seed."color", seed."emissive", seed."metalness", seed."roughness", seed."diameter"
+FROM seed
+JOIN "products" p ON p."sku" = seed."sku" AND p."type" = 'bead'::"product_type"
+ON CONFLICT ("product_id") DO NOTHING;
+
+COMMIT;

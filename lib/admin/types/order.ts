@@ -1,13 +1,23 @@
 // Admin order types — extends existing order model with fulfillment lifecycle
-import { CustomerInfo, BraceletConfig, PaymentMethod, PaymentStatus } from '@/lib/store/types';
+import { CustomerInfo, PaymentMethod, PaymentStatus } from '@/lib/store/types';
 
 export type OrderStatus = 'new' | 'confirmed' | 'processing' | 'shipping' | 'completed' | 'cancelled';
+export type AdminOrderType = 'catalog_product' | 'custom_design';
 
 export interface AdminOrder {
   id: string;
   orderCode: string;
+  orderType: AdminOrderType;
+  productName: string;
   customer: CustomerInfo;
-  braceletConfig: BraceletConfig;
+  braceletConfig: {
+    wristCircumference?: number;
+    slots?: { beadTypeId: string | null; position?: number; index?: number }[];
+    kind?: string;
+    name?: string;
+    quantity?: number;
+  };
+  items?: { productName: string; productType: string; sku?: string | null; quantity: number; unitPrice: number; unitCost: number | null; lineTotal: number; details?: unknown }[];
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
   orderStatus: OrderStatus;

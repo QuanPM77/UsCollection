@@ -10,7 +10,7 @@ import { EmptyState } from '@/components/admin/ui/EmptyState';
 import { LoadingState } from '@/components/admin/ui/LoadingState';
 import { ErrorState } from '@/components/admin/ui/ErrorState';
 import { orderService, OrderFilters } from '@/lib/admin/services/order.service';
-import { AdminOrder, ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/admin/types/order';
+import { AdminOrder, AdminOrderType, ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/admin/types/order';
 import { formatCurrency, formatDateTime } from '@/lib/admin/utils/formatters';
 
 const ORDER_STATUS_VARIANT: Record<string, 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'brand'> = {
@@ -38,6 +38,7 @@ export default function OrdersPage() {
   const [search, setSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<OrderFilters>({});
+  const selectedOrderTypes = filters.orderTypes ?? [];
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
@@ -57,6 +58,16 @@ export default function OrdersPage() {
       setLoading(false);
     }
   }, [filters, search, page]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const orderStatus = params.get('orderStatus');
+    const paymentStatus = params.get('paymentStatus');
+    if (orderStatus || paymentStatus) {
+      setFilters((current) => ({ ...current, orderStatus: orderStatus === 'new' ? 'new' : current.orderStatus, paymentStatus: paymentStatus === 'paid' ? 'paid' : current.paymentStatus }));
+      setShowFilters(true);
+    }
+  }, []);
 
   useEffect(() => {
     loadOrders();
@@ -81,19 +92,41 @@ export default function OrdersPage() {
     setPage(1);
   };
 
+  const toggleOrderType = (type: AdminOrderType) => {
+    setFilters((prev) => {
+      const selected = prev.orderTypes?.[0];
+      return { ...prev, orderTypes: selected === type ? undefined : [type] };
+    });
+    setPage(1);
+  };
+
   const hasActiveFilters = Object.values(filters).some(v => v) || search;
 
   return (
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <SearchInput
-          value={search}
-          onChange={handleSearch}
-          placeholder="Tìm mã đơn, tên, số điện thoại..."
-          className="w-full sm:w-80"
-        />
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
+          <SearchInput
+            value={search}
+            onChange={handleSearch}
+            placeholder="Mã đơn, sản phẩm, tên hoặc SĐT khách..."
+            className="w-full sm:w-80"
+          />
+          <div className="inline-flex w-fit rounded-xl border border-gray-200 bg-white p-1 shadow-sm" role="group" aria-label="Lọc loại đơn hàng">
+            {([['catalog_product', 'Vòng tay có sẵn'], ['custom_design', 'Thiết kế 3D']] as const).map(([type, label]) => {
+              const selected = selectedOrderTypes.includes(type);
+              return <button
+                key={type}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => toggleOrderType(type)}
+                className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${selected ? 'bg-brand-100 text-brand-800 ring-1 ring-inset ring-brand-200' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              >{label}</button>;
+            })}
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`inline-flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg border transition-colors
@@ -196,6 +229,7 @@ export default function OrdersPage() {
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/50">
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Mã đơn</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Loại / sản phẩm</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Khách hàng</th>
                   <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Tổng tiền</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Thanh toán</th>
@@ -209,6 +243,10 @@ export default function OrdersPage() {
                   <tr key={order.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-4 py-3">
                       <span className="font-medium text-gray-900">{order.orderCode}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="block text-xs font-semibold text-brand-700">{order.orderType === 'catalog_product' ? 'Vòng có sẵn' : 'Thiết kế 3D'}</span>
+                      <span className="mt-1 block max-w-52 truncate text-xs text-gray-500" title={order.productName}>{order.productName}</span>
                     </td>
                     <td className="px-4 py-3">
                       <div>

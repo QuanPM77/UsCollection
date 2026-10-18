@@ -12,6 +12,7 @@ function readProduct(formData: FormData) {
   const sku = String(formData.get("sku") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const price = Number(formData.get("price"));
+  const costPrice = Number(formData.get("costPrice"));
   const stock = Number(formData.get("stock"));
   const wristCircumference = Number(formData.get("wristCircumference"));
   const statusValue = String(formData.get("status") ?? "draft");
@@ -23,6 +24,7 @@ function readProduct(formData: FormData) {
   if (name.length < 2 || name.length > 160) throw new Error("Tên sản phẩm cần từ 2 đến 160 ký tự.");
   if (!sku || sku.length > 64) throw new Error("Vui lòng nhập mã SKU hợp lệ.");
   if (!Number.isSafeInteger(price) || price <= 0) throw new Error("Giá sản phẩm phải lớn hơn 0.");
+  if (!Number.isSafeInteger(costPrice) || costPrice < 0) throw new Error("Giá vốn phải là số nguyên không âm.");
   if (!Number.isSafeInteger(stock) || stock < 0) throw new Error("Tồn kho không hợp lệ.");
   if (!Number.isSafeInteger(wristCircumference) || wristCircumference < 100 || wristCircumference > 250) {
     throw new Error("Chu vi vòng cần từ 100 đến 250 mm.");
@@ -37,7 +39,7 @@ function readProduct(formData: FormData) {
     throw new Error("Phong cách sản phẩm không hợp lệ.");
   }
 
-  return { name, sku, description: description || null, price, stock, status, images, details, styles, wristCircumference };
+  return { name, sku, description: description || null, price, costPrice, stock, status, images, details, styles, wristCircumference };
 }
 
 function refreshCatalog(productId?: string) {
@@ -47,54 +49,67 @@ function refreshCatalog(productId?: string) {
 }
 
 export async function createBracelet(formData: FormData) {
-  await requireRole("admin");
+  const session = await requireRole("admin");
   const data = readProduct(formData);
-  const product = await prisma.products.create({
-    data: {
-      sku: data.sku,
-      type: "bracelet",
-      name: data.name,
-      description: data.description,
-      price: data.price,
-      stock: data.stock,
-      status: data.status,
-      images: data.images,
-      details: data.details,
-      styles: data.styles,
-      bracelet_product_details: {
-        create: { wrist_circumference: data.wristCircumference, image_url: data.images[0] ?? null },
+  const product = await prisma.$transaction(async (tx) => {
+    const created = await tx.products.create({
+      data: {
+        sku: data.sku,
+        type: "bracelet",
+        name: data.name,
+        description: data.description,
+        price: data.price,
+        cost_price: data.costPrice,
+        stock: data.stock,
+        status: data.status,
+        images: data.images,
+        details: data.details,
+        styles: data.styles,
+        bracelet_product_details: {
+          create: { wrist_circumference: data.wristCircumference, image_url: data.images[0] ?? null },
+        },
       },
-    },
-    select: { id: true },
+      select: { id: true },
+    });
+    if (data.stock > 0) await tx.inventory_movements.create({ data: { product_id: created.id, quantity_delta: data.stock, reason: "initial_stock", changed_by: session.user.id } });
+    return created;
   });
   refreshCatalog(product.id);
   redirect("/admin/products/catalog");
 }
 
 export async function updateBracelet(productId: string, formData: FormData) {
-  await requireRole("admin");
+  const session = await requireRole("admin");
   const data = readProduct(formData);
-  const previous = await prisma.products.findFirst({ where: { id: productId, type: "bracelet" }, select: { images: true } });
+  const previous = await prisma.products.findFirst({ where: { id: productId, type: "bracelet" }, select: { images: true, stock: true } });
   if (!previous) redirect("/admin/products/catalog");
-  await prisma.products.update({
-    where: { id: productId, type: "bracelet" },
-    data: {
-      sku: data.sku,
-      name: data.name,
-      description: data.description,
-      price: data.price,
-      stock: data.stock,
-      status: data.status,
-      images: data.images,
-      details: data.details,
-      styles: data.styles,
-      bracelet_product_details: {
-        upsert: {
-          create: { wrist_circumference: data.wristCircumference, image_url: data.images[0] ?? null },
-          update: { wrist_circumference: data.wristCircumference, image_url: data.images[0] ?? null },
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM products WHERE id = ${productId}::uuid FOR UPDATE`;
+    const current = await tx.products.findUnique({ where: { id: productId }, select: { stock: true } });
+    if (!current) redirect("/admin/products/catalog");
+    await tx.products.update({
+      where: { id: productId, type: "bracelet" },
+      data: {
+        sku: data.sku,
+        name: data.name,
+        description: data.description,
+        price: data.price,
+        cost_price: data.costPrice,
+        stock: data.stock,
+        status: data.status,
+        images: data.images,
+        details: data.details,
+        styles: data.styles,
+        bracelet_product_details: {
+          upsert: {
+            create: { wrist_circumference: data.wristCircumference, image_url: data.images[0] ?? null },
+            update: { wrist_circumference: data.wristCircumference, image_url: data.images[0] ?? null },
+          },
         },
       },
-    },
+    });
+    const stockDelta = data.stock - current.stock;
+    if (stockDelta !== 0) await tx.inventory_movements.create({ data: { product_id: productId, quantity_delta: stockDelta, reason: "inventory_adjustment", changed_by: session.user.id } });
   });
   const removedImages = previous.images.filter((image) => !data.images.includes(image));
   await Promise.all(removedImages.map((image) => removeProductImage(image).catch(() => undefined)));

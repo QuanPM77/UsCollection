@@ -15,6 +15,8 @@ export interface BeadType {
   cost_price?: number; // Cost price (giá vốn)
   sell_price?: number; // Sell price (giá bán)
   stock_quantity?: number;
+  /** Current sellable inventory for this bead type. */
+  stock?: number;
   is_active?: boolean;
   description: string;
   diameter: number;    // diameter in mm

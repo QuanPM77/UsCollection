@@ -9,22 +9,25 @@ interface BeadCardProps {
 }
 
 export default function BeadCard({ bead }: BeadCardProps) {
-  const { selectedBeadType, setSelectedBeadType, addBead } = useBraceletStore();
+  const { selectedBeadType, setSelectedBeadType, addBead, slots } = useBraceletStore();
   const isSelected = selectedBeadType?.id === bead.id;
+  const remaining = Math.max(0, (bead.stock ?? 0) - slots.filter((slot) => slot.beadTypeId === bead.id).length);
 
   return (
     <button
-      draggable
+      draggable={remaining > 0}
       onDragStart={(e) => {
         e.dataTransfer.setData("text/plain", bead.id);
       }}
       onClick={() => {
+        if (remaining <= 0) return;
         setSelectedBeadType(bead);
         addBead(bead.id);
       }}
+      disabled={remaining <= 0}
       className={`
         relative flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all duration-200
-        hover:shadow-pink hover:-translate-y-0.5
+        hover:shadow-pink hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0
         ${
           isSelected
             ? "border-pink-deep bg-pink-light shadow-pink-lg scale-105"
@@ -47,6 +50,9 @@ export default function BeadCard({ bead }: BeadCardProps) {
       {/* Price */}
       <span className="text-[10px] text-pink-deep font-semibold">
         {formatPrice(bead.price)}
+      </span>
+      <span className={`text-[10px] font-medium ${remaining === 0 ? "text-red-600" : "text-emerald-700"}`}>
+        Còn {remaining} hạt
       </span>
 
       {/* Selected indicator */}

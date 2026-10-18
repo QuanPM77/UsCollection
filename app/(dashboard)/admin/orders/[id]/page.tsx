@@ -57,7 +57,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           return;
         }
         setOrder(orderData);
-        setBeadMap(productService.getBeadTypeMap());
+        setBeadMap(await productService.getBeadTypeMap());
       } catch {
         setError(true);
       } finally {
@@ -101,11 +101,16 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   }
 
   const validTransitions = orderService.getValidTransitions(order.orderStatus);
+  const costedItems = (order.items ?? []).filter((item) => item.unitCost !== null);
+  const costedRevenue = costedItems.reduce((sum, item) => sum + item.lineTotal, 0);
+  const costTotal = costedItems.reduce((sum, item) => sum + item.unitCost! * item.quantity, 0);
+  const grossProfit = costedRevenue - costTotal;
 
   // Summarize bead configuration
   const beadSummary: { beadId: string; bead: AdminBeadProduct | undefined; count: number }[] = [];
   const beadCounts: Record<string, number> = {};
-  for (const slot of order.braceletConfig.slots) {
+  for (const slot of order.braceletConfig.slots ?? []) {
+    if (!slot.beadTypeId) continue;
     beadCounts[slot.beadTypeId] = (beadCounts[slot.beadTypeId] || 0) + 1;
   }
   for (const [beadId, count] of Object.entries(beadCounts)) {
@@ -130,6 +135,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           <p className="text-sm text-gray-500 mt-1">Tạo lúc {formatDateTime(order.createdAt)}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <span className="rounded-full bg-brand-50 px-3 py-1.5 text-sm font-semibold text-brand-700">{order.orderType === 'catalog_product' ? 'Vòng tay có sẵn' : 'Thiết kế 3D'}</span>
           <StatusBadge
             label={PAYMENT_STATUS_LABELS[order.paymentStatus]}
             variant={PAYMENT_STATUS_VARIANT[order.paymentStatus]}
@@ -168,24 +174,43 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             )}
           </div>
 
-          {/* Bracelet Configuration */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h3 className="font-semibold text-gray-900 mb-4">Cấu hình vòng tay</h3>
+            <h3 className="font-semibold text-gray-900 mb-4">Giá vốn và lợi nhuận gộp</h3>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <InfoRow icon={CreditCard} label="Giá vốn đã đối chiếu" value={formatCurrency(costTotal)} />
+              <InfoRow icon={CreditCard} label="Lợi nhuận gộp" value={formatCurrency(grossProfit)} valueClassName="text-lg font-bold text-emerald-700" />
+              <InfoRow icon={CreditCard} label="Độ phủ giá vốn" value={`${order.totalPrice ? Math.min(100, costedRevenue / order.totalPrice * 100).toFixed(0) : 0}%`} />
+            </div>
+            {costedItems.length < (order.items?.length ?? 0) && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">Một số sản phẩm chưa có giá vốn tại thời điểm mua; lợi nhuận đang được tính trên phần đã đối chiếu.</p>}
+          </div>
+
+          {/* Product or 3D design details */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 className="font-semibold text-gray-900 mb-4">{order.orderType === 'catalog_product' ? 'Chi tiết sản phẩm có sẵn' : 'Chi tiết thiết kế 3D'}</h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-              <div className="p-3 rounded-lg bg-gray-50">
+              {order.orderType === 'custom_design' ? <div className="p-3 rounded-lg bg-gray-50">
                 <p className="text-xs text-gray-500 mb-1">Kích thước cổ tay</p>
-                <p className="text-sm font-semibold text-gray-900">{order.braceletConfig.wristCircumference} cm</p>
-              </div>
+                <p className="text-sm font-semibold text-gray-900">{order.braceletConfig.wristCircumference ?? '—'} mm</p>
+              </div> : <div className="p-3 rounded-lg bg-gray-50">
+                <p className="text-xs text-gray-500 mb-1">Sản phẩm</p>
+                <p className="text-sm font-semibold text-gray-900">{order.productName}</p>
+              </div>}
               <div className="p-3 rounded-lg bg-gray-50">
-                <p className="text-xs text-gray-500 mb-1">Số lượng hạt</p>
-                <p className="text-sm font-semibold text-gray-900">{order.braceletConfig.slots.length} hạt</p>
+                <p className="text-xs text-gray-500 mb-1">{order.orderType === 'catalog_product' ? 'Số lượng mua' : 'Số lượng hạt'}</p>
+                <p className="text-sm font-semibold text-gray-900">{order.orderType === 'catalog_product' ? order.braceletConfig.quantity ?? order.items?.[0]?.quantity ?? 1 : order.braceletConfig.slots?.length ?? order.items?.reduce((sum, item) => sum + item.quantity, 0) ?? 0} {order.orderType === 'catalog_product' ? 'vòng' : 'hạt'}</p>
               </div>
             </div>
 
             {/* Bead summary */}
-            <h4 className="text-sm font-medium text-gray-700 mb-3">Chi tiết hạt chuỗi</h4>
+            <h4 className="text-sm font-medium text-gray-700 mb-3">Sản phẩm trong đơn</h4>
             <div className="space-y-2">
+              {order.items?.map((item, index) => (
+                <div key={`${item.productName}-${index}`} className="flex items-center justify-between rounded-lg border border-gray-100 p-3">
+                  <span className="text-sm font-medium text-gray-900">{item.productName}{item.sku ? <span className="ml-1 text-xs text-gray-500">({item.sku})</span> : null} × {item.quantity}<span className="block text-xs font-normal text-gray-500">Đơn giá: {formatCurrency(item.unitPrice)}</span></span>
+                  <span className="text-right text-sm text-gray-600">{formatCurrency(item.lineTotal)}<span className="mt-1 block text-xs">Giá vốn: {item.unitCost === null ? 'Chưa nhập' : formatCurrency(item.unitCost * item.quantity)}</span></span>
+                </div>
+              ))}
               {beadSummary.map(({ beadId, bead, count }) => (
                 <div key={beadId} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100">
                   <div
@@ -205,10 +230,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             </div>
 
             {/* Visual bead layout */}
-            <div className="mt-4 p-4 rounded-lg bg-gray-50">
+            {order.orderType === 'custom_design' && <div className="mt-4 p-4 rounded-lg bg-gray-50">
               <p className="text-xs text-gray-500 mb-2">Thứ tự hạt trên vòng</p>
               <div className="flex flex-wrap gap-1.5">
-                {order.braceletConfig.slots.map((slot, i) => {
+              {(order.braceletConfig.slots ?? []).filter((slot) => slot.beadTypeId).map((slot, i) => {
                   const bead = beadMap[slot.beadTypeId];
                   return (
                     <div
@@ -220,7 +245,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   );
                 })}
               </div>
-            </div>
+            </div>}
           </div>
         </div>
 

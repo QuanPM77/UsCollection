@@ -23,15 +23,14 @@ interface SidebarProps {
 const NAV_ITEMS = [
   { href: '/admin', label: 'Tổng quan', icon: LayoutDashboard },
   { href: '/admin/orders', label: 'Đơn hàng', icon: ShoppingBag },
-  { href: '/admin/products', label: 'Sản phẩm', icon: Package },
-  { href: '/admin/products/catalog', label: 'Vòng bán sẵn', icon: Package },
+  { href: '/admin/products/catalog', label: 'Sản phẩm bán sẵn', icon: Package },
+  { href: '/admin/beads', label: 'Các loại hạt', icon: Package },
   { href: '/admin/analytics', label: 'Phân tích', icon: BarChart3 },
   { href: '/admin/settings', label: 'Cài đặt', icon: Settings },
 ];
 
 function isActive(pathname: string, href: string): boolean {
   if (href === '/admin') return pathname === '/admin';
-  if (href === '/admin/products') return pathname === href || (pathname.startsWith(href) && !pathname.startsWith('/admin/products/catalog'));
   return pathname.startsWith(href);
 }
 

@@ -10,7 +10,6 @@ import {
   calculateBeadCount,
   calculateTotalPrice,
 } from "@/lib/braceletMath";
-import { BEAD_CATALOG } from "@/lib/beadData";
 
 export type CanvasTheme = "pink" | "white" | "dark";
 
@@ -18,6 +17,7 @@ interface BraceletStore {
   // Config
   wristCircumference: number; // mm
   slots: BraceletSlot[];
+  beadCatalog: BeadType[];
   selectedBeadType: BeadType | null;
   hoveredSlotIndex: number | null;
 
@@ -28,6 +28,7 @@ interface BraceletStore {
   // Actions
   setWristCircumference: (mm: number) => void;
   setSelectedBeadType: (bead: BeadType | null) => void;
+  setBeadCatalog: (beads: BeadType[]) => void;
   setHoveredSlot: (index: number | null) => void;
   setCanvasTheme: (theme: CanvasTheme) => void;
   addBead: (beadTypeId: string) => void;
@@ -50,6 +51,7 @@ export const useBraceletStore = create<BraceletStore>()(
     (set, get) => ({
       wristCircumference: DEFAULT_CIRCUMFERENCE,
       slots: [], // Empty cord by default
+      beadCatalog: [],
       selectedBeadType: null,
       hoveredSlotIndex: null,
       isAutoRotating: false,
@@ -67,7 +69,7 @@ export const useBraceletStore = create<BraceletStore>()(
         let currentTotal = 0;
         const newSlots = [];
         for (const slot of slots) {
-          const bead = BEAD_CATALOG.find((b) => b.id === slot.beadTypeId);
+          const bead = get().beadCatalog.find((b) => b.id === slot.beadTypeId);
           const diameter = bead?.diameter ?? 8;
           if (currentTotal + diameter <= clampedMm + 2) {
             newSlots.push(slot);
@@ -87,16 +89,29 @@ export const useBraceletStore = create<BraceletStore>()(
 
       setSelectedBeadType: (bead) => set({ selectedBeadType: bead }),
 
+      setBeadCatalog: (beadCatalog) => {
+        const activeIds = new Set(beadCatalog.map((bead) => bead.id));
+        const { selectedBeadType } = get();
+        set({
+          beadCatalog,
+          selectedBeadType: selectedBeadType && activeIds.has(selectedBeadType.id) && beadCatalog.find((bead) => bead.id === selectedBeadType.id)?.is_active !== false
+            ? beadCatalog.find((bead) => bead.id === selectedBeadType.id) ?? null
+            : null,
+        });
+      },
+
       setHoveredSlot: (index) => set({ hoveredSlotIndex: index }),
 
       addBead: (beadTypeId) => {
-        const { slots, wristCircumference } = get();
-        const bead = BEAD_CATALOG.find((b) => b.id === beadTypeId);
+        const { slots, wristCircumference, beadCatalog } = get();
+        const bead = beadCatalog.find((b) => b.id === beadTypeId && b.is_active !== false);
         if (!bead) return;
+        const alreadyPlaced = slots.filter((slot) => slot.beadTypeId === beadTypeId).length;
+        if (bead.stock !== undefined && alreadyPlaced >= bead.stock) return;
 
         // Calculate current total diameter
         const currentTotal = slots.reduce((sum, s) => {
-          const b = BEAD_CATALOG.find((x) => x.id === s.beadTypeId);
+          const b = beadCatalog.find((x) => x.id === s.beadTypeId);
           return sum + (b?.diameter ?? 8);
         }, 0);
 
@@ -124,14 +139,18 @@ export const useBraceletStore = create<BraceletStore>()(
       fillSlot: (index) => {
         const { selectedBeadType, slots, wristCircumference } = get();
         if (!selectedBeadType) return;
+        const currentUses = slots.filter((slot) => slot.beadTypeId === selectedBeadType.id).length;
+        const replacedId = slots[index]?.beadTypeId;
+        const usesAfterReplace = currentUses - (replacedId === selectedBeadType.id ? 1 : 0) + (replacedId === selectedBeadType.id ? 0 : 1);
+        if (selectedBeadType.stock !== undefined && usesAfterReplace > selectedBeadType.stock) return;
 
         // Check if replacing this bead would exceed the limit
         const currentTotal = slots.reduce((sum, s) => {
-          const b = BEAD_CATALOG.find((x) => x.id === s.beadTypeId);
+          const b = get().beadCatalog.find((x) => x.id === s.beadTypeId);
           return sum + (b?.diameter ?? 8);
         }, 0);
 
-        const oldBead = BEAD_CATALOG.find((b) => b.id === slots[index]?.beadTypeId);
+        const oldBead = get().beadCatalog.find((b) => b.id === slots[index]?.beadTypeId);
         const oldDiameter = oldBead?.diameter ?? 8;
         const newDiameter = selectedBeadType.diameter;
 
@@ -161,8 +180,9 @@ export const useBraceletStore = create<BraceletStore>()(
         if (!selectedBeadType) return;
         
         const beadDiameter = selectedBeadType.diameter ?? 8;
-        const count = Math.round(wristCircumference / beadDiameter);
-        const newSlots = Array.from({ length: Math.max(count, 6) }, (_, i) => ({
+        const count = Math.min(Math.round(wristCircumference / beadDiameter), selectedBeadType.stock ?? Number.MAX_SAFE_INTEGER);
+        if (count < 1) return;
+        const newSlots = Array.from({ length: count }, (_, i) => ({
           index: i,
           beadTypeId: selectedBeadType.id,
         }));
@@ -173,7 +193,7 @@ export const useBraceletStore = create<BraceletStore>()(
       toggleAutoRotate: () =>
         set((state) => ({ isAutoRotating: !state.isAutoRotating })),
 
-      totalPrice: () => calculateTotalPrice(get().slots, BEAD_CATALOG),
+      totalPrice: () => calculateTotalPrice(get().slots, get().beadCatalog),
 
       filledCount: () =>
         get().slots.filter((s) => s.beadTypeId !== null).length,

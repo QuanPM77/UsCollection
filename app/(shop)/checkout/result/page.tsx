@@ -9,6 +9,8 @@ function ResultContent() {
   const orderId = params.get("orderId") ?? "unknown";
   const wasCancelled = params.get("cancel") === "true";
   const [paymentStatus, setPaymentStatus] = useState<"pending" | "paid" | "failed">("pending");
+  const [orderCode, setOrderCode] = useState<string | null>(null);
+  const [orderType, setOrderType] = useState<"catalog_product" | "custom_design" | null>(null);
   useEffect(() => {
     if (orderId === "unknown") return;
     let active = true;
@@ -18,6 +20,8 @@ function ResultContent() {
         if (!response.ok) return;
         const result = await response.json();
         if (active && ["pending", "paid", "failed"].includes(result.paymentStatus)) setPaymentStatus(result.paymentStatus);
+        if (active && typeof result.orderCode === "string") setOrderCode(result.orderCode);
+        if (active && ["catalog_product", "custom_design"].includes(result.orderType)) setOrderType(result.orderType);
       } catch { /* Retry while this page remains open. */ }
     };
     void refresh();
@@ -36,8 +40,9 @@ function ResultContent() {
           {success ? "Thanh toán thành công!" : wasCancelled ? "Bạn đã hủy thanh toán" : pending ? "Đang chờ xác nhận thanh toán" : "Thanh toán thất bại"}
         </h1>
         <p className="text-pink-text/60 text-sm mb-2">
-          Mã đơn hàng: <span className="font-mono font-medium text-pink-deep">{orderId}</span>
+          Mã đơn hàng: <span className="font-mono font-medium text-pink-deep">{orderCode ?? "Đang tải..."}</span>
         </p>
+        {orderType && <p className="text-pink-text/60 text-xs mb-4">{orderType === "catalog_product" ? "Vòng tay có sẵn" : "Vòng tay thiết kế 3D"}</p>}
         {success ? (
           <p className="text-pink-text/60 text-sm mb-8">
             Cảm ơn bạn! Chúng tôi sẽ liên hệ xác nhận trong vòng 24h.

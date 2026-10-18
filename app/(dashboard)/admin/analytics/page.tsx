@@ -39,21 +39,21 @@ export default function AnalyticsPage() {
   const [paymentRate, setPaymentRate] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   const loadData = async (days: 7 | 14 | 30) => {
+    setLoadError(false);
     try {
-      const [fullAnalytics, revenueByRange] = await Promise.all([
-        analyticsService.getFullAnalytics(),
-        analyticsService.getRevenueByDay(days),
-      ]);
+      const fullAnalytics = await analyticsService.getFullAnalytics(days);
 
       setKpis(fullAnalytics.kpis);
-      setRevenueData(revenueByRange);
+      setRevenueData(fullAnalytics.revenueByDay);
       setStatusDist(fullAnalytics.orderStatusDistribution);
       setTopProducts(fullAnalytics.topProducts);
       setPaymentRate(fullAnalytics.paymentSuccessRate);
     } catch (err) {
       console.error('Analytics load error:', err);
+      setLoadError(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -74,7 +74,7 @@ export default function AnalyticsPage() {
     : 0;
 
   const totalPeriodRevenue = revenueData.reduce((sum, item) => sum + item.revenue, 0);
-  const totalPeriodOrders = revenueData.reduce((sum, item) => sum + item.orders, 0);
+  const totalPeriodPaidOrders = revenueData.reduce((sum, item) => sum + item.paidOrders, 0);
 
   if (loading) {
     return (
@@ -83,7 +83,8 @@ export default function AnalyticsPage() {
           <div className="h-8 w-48 bg-stone-200 animate-pulse rounded" />
           <div className="h-10 w-36 bg-stone-200 animate-pulse rounded" />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <CardSkeleton />
           <CardSkeleton />
           <CardSkeleton />
           <CardSkeleton />
@@ -97,8 +98,11 @@ export default function AnalyticsPage() {
     );
   }
 
+  if (loadError && !kpis) return <div role="alert" className="rounded-xl border border-rose-200 bg-white p-8 text-center"><h2 className="font-semibold text-stone-900">Không tải được báo cáo</h2><p className="mt-2 text-sm text-stone-500">Không thể hiển thị số liệu cho đến khi máy chủ trả dữ liệu.</p><button onClick={() => { setLoading(true); loadData(timeRange); }} className="mt-4 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white">Thử lại</button></div>;
+
   return (
     <div className="space-y-6">
+      {loadError && <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">Làm mới thất bại; đang hiển thị dữ liệu tải thành công gần nhất.</p>}
       {/* Header with Title and Range Picker */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -106,7 +110,7 @@ export default function AnalyticsPage() {
             Báo cáo & Phân tích
           </h1>
           <p className="text-sm text-stone-500 mt-1">
-            Hiệu suất kinh doanh, doanh thu và xu hướng đơn hàng
+            Hiệu suất kinh doanh, doanh thu, lợi nhuận gộp và xu hướng đơn hàng
           </p>
         </div>
 
@@ -158,33 +162,39 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Top Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard
-          title="Tổng doanh thu"
+          title="Doanh thu trọn đời"
           value={formatCurrency(kpis?.totalRevenue || 0)}
           icon={DollarSign}
           color="brand"
         />
         <StatCard
-          title="Đơn hàng thành công"
-          value={`${kpis?.paidOrders || 0} / ${kpis?.totalOrders || 0}`}
+          title="Đơn mới chờ xác nhận"
+          value={kpis?.pendingOrders || 0}
           icon={ShoppingBag}
+          color="amber"
+        />
+        <StatCard
+          title="Lợi nhuận gộp theo giá vốn đã ghi nhận"
+          value={formatCurrency(kpis?.grossProfit || 0)}
+          icon={DollarSign}
           color="green"
-          trend={{ value: `${Math.round(paymentRate)}% thanh toán`, positive: true }}
+          trend={{ value: `${(kpis?.profitCoverage ?? 0).toFixed(0)}% doanh số có giá vốn`, positive: (kpis?.profitCoverage ?? 0) > 0 }}
         />
         <StatCard
           title="Giá trị đơn trung bình (AOV)"
           value={formatCurrency(aov)}
           icon={TrendingUp}
           color="blue"
-          trend={{ value: 'Dựa trên đơn đã thanh toán', positive: true }}
+          trend={{ value: 'Dựa trên tổng tiền của các đơn đã thanh toán', positive: true }}
         />
         <StatCard
           title="Tỷ lệ thanh toán thành công"
           value={`${paymentRate.toFixed(1)}%`}
           icon={Percent}
           color="purple"
-          trend={{ value: 'Cổng PayOS & Chuyển khoản', positive: true }}
+          trend={{ value: 'Đã thanh toán / tổng đơn đã tạo', positive: true }}
         />
       </div>
 
@@ -198,7 +208,7 @@ export default function AnalyticsPage() {
                 Xu hướng doanh thu ({timeRange} ngày gần nhất)
               </h2>
               <p className="text-xs text-stone-500 mt-0.5">
-                Tổng doanh thu kỳ: <span className="font-semibold text-stone-800">{formatCurrency(totalPeriodRevenue)}</span> • {totalPeriodOrders} đơn hàng
+                Tổng tiền các đơn đã thanh toán: <span className="font-semibold text-stone-800">{formatCurrency(totalPeriodRevenue)}</span> • {totalPeriodPaidOrders} đơn. Đơn cũ dùng ngày tạo làm mốc ước tính.
               </p>
             </div>
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-pink-600 bg-pink-50 px-2.5 py-1 rounded-full border border-pink-100">
@@ -362,7 +372,7 @@ export default function AnalyticsPage() {
                     fontSize: '12px',
                   }}
                 />
-                <Bar dataKey="orders" fill="#F472B6" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                <Bar dataKey="createdOrders" fill="#F472B6" radius={[4, 4, 0, 0]} maxBarSize={40} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -374,10 +384,10 @@ export default function AnalyticsPage() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-base font-semibold text-stone-900">
-                  Hạt vòng bán chạy nhất
+                  Sản phẩm bán chạy nhất
                 </h2>
                 <p className="text-xs text-stone-500 mt-0.5">
-                  Xếp hạng theo số lượng hạt được khách chọn trong cấu hình
+                  Xếp hạng theo số lượng sản phẩm trong các đơn đã thanh toán
                 </p>
               </div>
               <Award className="w-5 h-5 text-amber-500" />
@@ -388,9 +398,10 @@ export default function AnalyticsPage() {
                 <thead>
                   <tr className="border-b border-stone-200 text-stone-500">
                     <th className="pb-2.5 font-medium">Xếp hạng</th>
-                    <th className="pb-2.5 font-medium">Tên hạt</th>
+                    <th className="pb-2.5 font-medium">Sản phẩm</th>
                     <th className="pb-2.5 font-medium text-right">Đã bán</th>
-                    <th className="pb-2.5 font-medium text-right">Doanh số hạt</th>
+                    <th className="pb-2.5 font-medium text-right">Doanh số</th>
+                    <th className="pb-2.5 font-medium text-right">Lợi nhuận gộp</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100">
@@ -407,19 +418,22 @@ export default function AnalyticsPage() {
                         </span>
                       </td>
                       <td className="py-2.5 font-medium text-stone-900">
-                        {prod.name}
+                        {prod.name} <span className="font-normal text-stone-500">({prod.type})</span>
                       </td>
                       <td className="py-2.5 text-right font-medium text-stone-700">
-                        {formatNumber(prod.sold)} hạt
+                        {formatNumber(prod.sold)} sản phẩm
                       </td>
                       <td className="py-2.5 text-right font-semibold text-pink-600">
                         {formatCurrency(prod.revenue)}
+                      </td>
+                      <td className="py-2.5 text-right font-semibold text-emerald-700">
+                        {formatCurrency(prod.grossProfit)}{prod.profitCoverage < 100 && <span className="ml-1 text-amber-700">({prod.profitCoverage.toFixed(0)}%)</span>}
                       </td>
                     </tr>
                   ))}
                   {topProducts.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="py-6 text-center text-stone-400">
+                      <td colSpan={5} className="py-6 text-center text-stone-400">
                         Chưa có dữ liệu sản phẩm bán ra
                       </td>
                     </tr>
@@ -430,8 +444,8 @@ export default function AnalyticsPage() {
           </div>
 
           <div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between text-xs text-stone-500">
-            <span>Dữ liệu tính từ các đơn hàng thành công</span>
-            <span className="font-medium text-stone-700">{topProducts.length} loại hạt thịnh hành</span>
+            <span>Số liệu lấy từ đơn đã thanh toán; lợi nhuận gộp chỉ tính phần có giá vốn</span>
+            <span className="font-medium text-stone-700">{topProducts.length} sản phẩm nổi bật</span>
           </div>
         </div>
       </div>

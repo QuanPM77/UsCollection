@@ -10,6 +10,8 @@ export interface AdminBeadProduct extends BeadType {
   type: 'bead';
   status: ProductStatus;
   stock: number;
+  costPrice: number | null;
+  lowStockThreshold?: number;
   sku: string;
   description?: string;
   updatedAt: string;
@@ -27,6 +29,8 @@ export interface AdminBraceletProduct {
   price: number;
   status: ProductStatus;
   stock: number;
+  costPrice: number | null;
+  lowStockThreshold?: number;
   sku: string;
   imageUrl?: string;
   updatedAt: string;
@@ -41,6 +45,7 @@ export interface BeadProductFormData {
   material: BeadMaterial;
   color: string;
   price: number;
+  costPrice: number;
   metalness: number;
   roughness: number;
   stock: number;
@@ -54,6 +59,7 @@ export interface BraceletProductFormData {
   beadTypeIds: string[];
   wristCircumference: number;
   price: number;
+  costPrice: number;
   stock: number;
   status: ProductStatus;
   description?: string;
@@ -62,9 +68,9 @@ export interface BraceletProductFormData {
 
 export const LOW_STOCK_THRESHOLD = 10;
 
-export function getStockStatus(stock: number): StockStatus {
+export function getStockStatus(stock: number, threshold = LOW_STOCK_THRESHOLD): StockStatus {
   if (stock === 0) return 'out_of_stock';
-  if (stock <= LOW_STOCK_THRESHOLD) return 'low_stock';
+  if (stock <= threshold) return 'low_stock';
   return 'in_stock';
 }
 

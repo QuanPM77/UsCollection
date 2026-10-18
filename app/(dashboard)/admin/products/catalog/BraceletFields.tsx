@@ -9,6 +9,7 @@ type BraceletProductFieldsData = {
   sku: string;
   description: string | null;
   price: number;
+  cost_price: number | null;
   stock: number;
   status: "active" | "inactive" | "draft";
   images: Array<{ path: string; url: string }>;
@@ -94,6 +95,9 @@ export default function BraceletFields({ product }: { product?: BraceletProductF
     </label>
     <label className="text-sm font-medium text-gray-700">Giá (VND) *
       <input name="price" type="number" required min={1} step={1} defaultValue={product?.price ?? ""} className={`${fieldClass} mt-1.5`} />
+    </label>
+    <label className="text-sm font-medium text-gray-700">Giá vốn (VND) *
+      <input name="costPrice" type="number" required min={0} step={1} defaultValue={product?.cost_price ?? ""} className={`${fieldClass} mt-1.5`} />
     </label>
     <label className="text-sm font-medium text-gray-700">Tồn kho *
       <input name="stock" type="number" required min={0} step={1} defaultValue={product?.stock ?? 0} className={`${fieldClass} mt-1.5`} />
