@@ -167,8 +167,8 @@ export default function BraceletCanvas() {
 
       <Canvas
         camera={{ position: [0, 3, 7], fov: 45 }}
-        shadows
-        gl={{ antialias: true, alpha: true }}
+        dpr={[1, 1.5]}
+        gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
         style={{ background: "transparent" }}
       >
         <Suspense fallback={null}>

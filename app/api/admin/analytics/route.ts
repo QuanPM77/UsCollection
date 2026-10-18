@@ -20,34 +20,44 @@ export async function GET(request: Request) {
   const day = Number(todayParts.find((part) => part.type === "day")?.value);
   const firstDay = Date.UTC(year, month - 1, day) - 7 * 60 * 60 * 1000 - (days - 1) * 86400000;
   const endDay = firstDay + days * 86400000;
-  const [totalOrders, paidOrders, successfulPayments, pendingOrders, processingOrders, products, orderGroups, createdOrders] = await Promise.all([
+  const [totalOrders, paidSummary, successfulPayments, pendingOrders, processingOrders, products, orderGroups, createdOrders, paidOrders] = await Promise.all([
     prisma.order.count(),
-    prisma.order.findMany({ where: { paymentStatus: "paid" }, select: { totalPrice: true, createdAt: true } }),
+    prisma.order.aggregate({ where: { paymentStatus: "paid" }, _sum: { totalPrice: true } }),
     prisma.order.count({ where: { paymentStatus: "paid" } }),
     prisma.order.count({ where: { order_status: "new", paymentStatus: "paid" } }),
     prisma.order.count({ where: { order_status: { in: ["confirmed", "processing", "shipping"] } } }),
     prisma.products.findMany({ where: { status: "active" }, select: { id: true, name: true, stock: true, status: true } }),
     prisma.order.groupBy({ by: ["order_status"], _count: { _all: true } }),
     prisma.order.findMany({ where: { createdAt: { gte: new Date(firstDay), lt: new Date(endDay) } }, select: { createdAt: true } }),
+    prisma.order.findMany({ where: { paymentStatus: "paid", createdAt: { gte: new Date(firstDay), lt: new Date(endDay) } }, select: { totalPrice: true, createdAt: true } }),
   ]);
 
-  type PaidItem = { product_id: string | null; product_name: string; product_type: string; quantity: number; line_total: number; unit_cost: number | null };
+  type PaidItem = { product_id: string | null; product_name: string; product_type: string; quantity: number | bigint; line_total: number | bigint; costed_line_total: number | bigint; total_cost: number | bigint; has_cost: boolean };
   let paidItems: PaidItem[];
   try {
     // Read the snapshot cost without relying on a possibly stale generated Prisma model.
     paidItems = await prisma.$queryRaw<PaidItem[]>`
-      SELECT oi.product_id, oi.product_name, oi.product_type, oi.quantity, oi.line_total, oi.unit_cost
+      SELECT oi.product_id, oi.product_name, oi.product_type, SUM(oi.quantity)::bigint AS quantity,
+        SUM(oi.line_total)::bigint AS line_total,
+        COALESCE(SUM(oi.line_total) FILTER (WHERE oi.unit_cost IS NOT NULL), 0)::bigint AS costed_line_total,
+        COALESCE(SUM(oi.unit_cost * oi.quantity) FILTER (WHERE oi.unit_cost IS NOT NULL), 0)::bigint AS total_cost,
+        BOOL_OR(oi.unit_cost IS NOT NULL) AS has_cost
       FROM order_items AS oi
       INNER JOIN orders AS o ON o.id = oi.order_id
       WHERE o.payment_status = 'paid'
+      GROUP BY oi.product_id, oi.product_name, oi.product_type
     `;
   } catch (error) {
     console.warn("Order item cost snapshot is unavailable; profit metrics will show incomplete coverage:", error);
-    const items = await prisma.order_items.findMany({
-      where: { orders: { paymentStatus: "paid" } },
-      select: { product_id: true, product_name: true, product_type: true, quantity: true, line_total: true },
-    });
-    paidItems = items.map((item) => ({ ...item, unit_cost: null }));
+    paidItems = await prisma.$queryRaw<PaidItem[]>`
+      SELECT oi.product_id, oi.product_name, oi.product_type, SUM(oi.quantity)::bigint AS quantity,
+        SUM(oi.line_total)::bigint AS line_total, 0::bigint AS costed_line_total,
+        0::bigint AS total_cost, FALSE AS has_cost
+      FROM order_items AS oi
+      INNER JOIN orders AS o ON o.id = oi.order_id
+      WHERE o.payment_status = 'paid'
+      GROUP BY oi.product_id, oi.product_name, oi.product_type
+    `;
   }
 
   const revenueByDay = Array.from({ length: days }, (_, index) => {
@@ -72,19 +82,19 @@ export async function GET(request: Request) {
   const activeProducts = products.filter((product) => product.status === "active");
   const lowStockProducts = activeProducts.filter((product) => product.stock > 0 && product.stock <= threshold).length;
   const outOfStockProducts = activeProducts.filter((product) => product.stock === 0).length;
-  const totalRevenue = paidOrders.reduce((sum, order) => sum + order.totalPrice, 0);
-  const costedItems = paidItems.filter((item) => item.unit_cost !== null);
-  const costedRevenue = costedItems.reduce((sum, item) => sum + item.line_total, 0);
-  const grossProfit = costedItems.reduce((sum, item) => sum + item.line_total - item.unit_cost! * item.quantity, 0);
+  const totalRevenue = paidSummary._sum.totalPrice ?? 0;
+  const costedItems = paidItems.filter((item) => item.has_cost);
+  const costedRevenue = costedItems.reduce((sum, item) => sum + Number(item.costed_line_total), 0);
+  const grossProfit = costedItems.reduce((sum, item) => sum + Number(item.costed_line_total) - Number(item.total_cost), 0);
   const productTotals = new Map<string, { id: string; name: string; type: string; sold: number; revenue: number; costedRevenue: number; grossProfit: number }>();
   for (const item of paidItems) {
     const id = item.product_id ?? `${item.product_type}:${item.product_name}`;
     const current = productTotals.get(id) ?? { id, name: item.product_name, type: item.product_type === "bead" ? "Hạt" : "Vòng tay", sold: 0, revenue: 0, costedRevenue: 0, grossProfit: 0 };
-    current.sold += item.quantity;
-    current.revenue += item.line_total;
-    if (item.unit_cost !== null) {
-      current.costedRevenue += item.line_total;
-      current.grossProfit += item.line_total - item.unit_cost * item.quantity;
+    current.sold += Number(item.quantity);
+    current.revenue += Number(item.line_total);
+    if (item.has_cost) {
+      current.costedRevenue += Number(item.costed_line_total);
+      current.grossProfit += Number(item.costed_line_total) - Number(item.total_cost);
     }
     productTotals.set(id, current);
   }

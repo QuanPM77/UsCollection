@@ -69,12 +69,10 @@ function productObjectPath(imageRef: string) {
 export async function productImageDisplayUrl(imageRef: string) {
   const path = productObjectPath(imageRef);
   if (!path) return imageRef;
-
-  const bucket = getStorageClient().storage.from(AVATAR_BUCKET);
-  const { data, error } = await bucket.createSignedUrl(path, 60 * 60);
-  if (!error && data?.signedUrl) return data.signedUrl;
-  console.error("Could not create a signed product image URL", error);
-  return bucket.getPublicUrl(path).data.publicUrl;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
+  if (!supabaseUrl) throw new Error("Thiếu cấu hình URL Supabase để hiển thị ảnh sản phẩm.");
+  const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+  return `${supabaseUrl.replace(/\/$/, "")}/storage/v1/object/public/${AVATAR_BUCKET}/${encodedPath}`;
 }
 
 export async function uploadProductImage(adminId: string, bytes: Buffer) {

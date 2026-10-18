@@ -83,26 +83,26 @@ export default function ProductCatalog({ products }: { products: CatalogProduct[
         </div>
       </div>
 
-    {filteredProducts.length ? <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-      {filteredProducts.map((product) => <article key={product.id} className="group overflow-hidden rounded-3xl border border-pink-mid/25 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-        <div className="relative aspect-square overflow-hidden bg-white">
-          <Link href={`/buy/${product.id}`} aria-label={`Xem ${product.name}`} className="block h-full w-full">
-            {product.image ? <img src={product.image} alt={product.name} className="h-full w-full object-contain" /> : <div className="flex h-full items-center justify-center text-6xl">💎</div>}
-          </Link>
-          <FavoriteButton productId={product.id} />
-        </div>
-        <Link href={`/buy/${product.id}`} className="block p-5">
-          <h2 className="font-semibold text-pink-text">{product.name}</h2>
-          {Array.isArray(product.styles) && product.styles.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{PRODUCT_STYLES.filter((style) => product.styles?.includes(style.key)).map((style) => <span key={style.key} className="rounded-full bg-pink-light px-2 py-1 text-[10px] font-medium text-pink-deep">{style.label}</span>)}</div>}
-          <p className="mt-2 text-lg font-bold text-pink-deep">{currency.format(product.price)}</p>
-          <div className="mt-2 flex items-center gap-1.5 text-xs text-pink-text/60">
-            {product.averageRating !== null ? <><span className="text-amber-500">★</span><span>{product.averageRating.toFixed(1)} ({product.reviewCount} đánh giá)</span></> : <span>Chưa có đánh giá</span>}
+      {filteredProducts.length ? <div className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        {filteredProducts.map((product) => <article key={product.id} className="group overflow-hidden rounded-3xl border border-pink-mid/25 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+          <div className="relative aspect-square overflow-hidden bg-white">
+            <Link href={`/buy/${product.id}`} aria-label={`Xem ${product.name}`} className="block h-full w-full">
+              {product.image ? <img src={product.image} alt={product.name} loading="lazy" decoding="async" className="h-full w-full object-contain" /> : <div className="flex h-full items-center justify-center text-6xl">💎</div>}
+            </Link>
+            <FavoriteButton productId={product.id} />
           </div>
-        </Link>
-      </article>)}
-    </div> : <div className="mt-6 rounded-3xl border border-pink-mid/25 bg-white p-10 text-center">
-      {products.length ? <><h2 className="text-lg font-bold">Không tìm thấy vòng phù hợp</h2><p className="mt-2 text-sm text-pink-text/60">Thử đổi từ khóa hoặc khoảng giá.</p></> : <><div className="text-5xl">🛍️</div><h2 className="mt-4 text-xl font-bold">Sản phẩm sắp được cập nhật</h2><p className="mt-2 text-sm text-pink-text/60">Các mẫu vòng bán sẵn sẽ xuất hiện tại đây.</p><Link href="/customizer" className="mt-6 inline-flex rounded-xl bg-pink-deep px-5 py-3 text-sm font-semibold text-white hover:bg-pink-text">Tự thiết kế vòng tay</Link></>}
-    </div>}
+          <Link href={`/buy/${product.id}`} className="block p-5">
+            <h2 className="font-semibold text-pink-text">{product.name}</h2>
+            {Array.isArray(product.styles) && product.styles.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{PRODUCT_STYLES.filter((style) => product.styles?.includes(style.key)).map((style) => <span key={style.key} className="rounded-full bg-pink-light px-2 py-1 text-[10px] font-medium text-pink-deep">{style.label}</span>)}</div>}
+            <p className="mt-2 text-lg font-bold text-pink-deep">{currency.format(product.price)}</p>
+            <div className="mt-2 flex items-center gap-1.5 text-xs text-pink-text/60">
+              {product.averageRating !== null ? <><span className="text-amber-500">★</span><span>{product.averageRating.toFixed(1)} ({product.reviewCount} đánh giá)</span></> : <span>Chưa có đánh giá</span>}
+            </div>
+          </Link>
+        </article>)}
+      </div> : <div className="mt-6 rounded-3xl border border-pink-mid/25 bg-white p-10 text-center">
+        {products.length ? <><h2 className="text-lg font-bold">Không tìm thấy vòng phù hợp</h2><p className="mt-2 text-sm text-pink-text/60">Thử đổi từ khóa hoặc khoảng giá.</p></> : <><div className="text-5xl">🛍️</div><h2 className="mt-4 text-xl font-bold">Sản phẩm sắp được cập nhật</h2><p className="mt-2 text-sm text-pink-text/60">Các mẫu vòng bán sẵn sẽ xuất hiện tại đây.</p><Link href="/customizer" className="mt-6 inline-flex rounded-xl bg-pink-deep px-5 py-3 text-sm font-semibold text-white hover:bg-pink-text">Tự thiết kế vòng tay</Link></>}
+      </div>}
     </section>
   </div>;
 }
