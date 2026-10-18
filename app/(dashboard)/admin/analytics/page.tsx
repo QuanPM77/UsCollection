@@ -164,7 +164,6 @@ export default function AnalyticsPage() {
           value={formatCurrency(kpis?.totalRevenue || 0)}
           icon={DollarSign}
           color="brand"
-          trend={{ value: '+12.5% so với tháng trước', positive: true }}
         />
         <StatCard
           title="Đơn hàng thành công"

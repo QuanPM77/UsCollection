@@ -117,15 +117,7 @@ export default function ProductsPage() {
           placeholder="Tìm tên, SKU..."
           className="w-full sm:w-72"
         />
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`inline-flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg border transition-colors
-              ${showFilters ? 'bg-brand-50 border-brand-200 text-brand-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-          >
-            <Filter className="w-4 h-4" />
-            Lọc
-          </button>
+        <div className="flex w-full sm:w-auto sm:ml-auto items-center justify-end gap-2">
           {hasActiveFilters && (
             <button onClick={clearFilters} className="inline-flex items-center gap-1 px-3 py-2.5 text-sm text-gray-500 hover:text-gray-700">
               <X className="w-4 h-4" /> Xóa lọc
@@ -138,6 +130,14 @@ export default function ProductsPage() {
             <Plus className="w-4 h-4" />
             Thêm sản phẩm
           </Link>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`inline-flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg border transition-colors
+              ${showFilters ? 'bg-brand-50 border-brand-200 text-brand-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+          >
+            <Filter className="w-4 h-4" />
+            Lọc
+          </button>
         </div>
       </div>
 

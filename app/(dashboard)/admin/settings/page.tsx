@@ -5,16 +5,15 @@ import {
   Save,
   RotateCcw,
   Store,
-  Bell,
-  Layers,
-  Server,
-  Database,
-  CheckCircle2,
+  UserRound,
+  Upload,
+  Trash2,
 } from 'lucide-react';
 import { settingsService } from '@/lib/admin/services';
 import { StoreSettings, DEFAULT_SETTINGS } from '@/lib/admin/types/settings';
 import { useToastStore } from '@/stores/admin/toast.store';
 import { ConfirmDialog } from '@/components/admin/ui/ConfirmDialog';
+import { getAdminAvatar, setAdminAvatar } from '@/lib/admin/avatar';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<StoreSettings>(DEFAULT_SETTINGS);
@@ -22,10 +21,12 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [adminAvatar, setAvatar] = useState<string | null>(null);
 
   const { addToast } = useToastStore();
 
   useEffect(() => {
+    setAvatar(getAdminAvatar());
     async function loadSettings() {
       try {
         const data = await settingsService.getSettings();
@@ -162,6 +163,50 @@ export default function SettingsPage() {
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
+        {/* Admin profile image */}
+        <section className="bg-white border border-stone-200 rounded-xl p-6 shadow-xs">
+          <div className="flex items-center gap-2.5 pb-4 mb-4 border-b border-stone-100">
+            <div className="p-2 bg-pink-50 text-pink-600 rounded-lg"><UserRound className="w-5 h-5" /></div>
+            <div>
+              <h2 className="text-base font-semibold text-stone-900">Ảnh đại diện admin</h2>
+              <p className="text-xs text-stone-500">Ảnh được lưu trên trình duyệt này và hiển thị ở thanh bên.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-pink-100 overflow-hidden flex items-center justify-center text-pink-700 font-bold">
+              {adminAvatar ? <img src={adminAvatar} alt="Ảnh đại diện admin" className="w-full h-full object-cover" /> : 'A'}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <label className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-stone-700 bg-white border border-stone-200 rounded-lg hover:bg-stone-50 cursor-pointer">
+                <Upload className="w-3.5 h-3.5" /> Chọn ảnh
+                <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) return;
+                  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 1024 * 1024) {
+                    addToast('error', 'Chọn ảnh PNG, JPG hoặc WebP nhỏ hơn 1 MB');
+                    event.target.value = '';
+                    return;
+                  }
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    if (typeof reader.result !== 'string') return;
+                    try {
+                      setAdminAvatar(reader.result);
+                      setAvatar(reader.result);
+                      addToast('success', 'Đã cập nhật ảnh đại diện');
+                    } catch {
+                      addToast('error', 'Không thể lưu ảnh trên trình duyệt này');
+                    }
+                  };
+                  reader.readAsDataURL(file);
+                  event.target.value = '';
+                }} />
+              </label>
+              {adminAvatar && <button type="button" onClick={() => { setAdminAvatar(null); setAvatar(null); }} className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50"><Trash2 className="w-3.5 h-3.5" /> Xóa ảnh</button>}
+            </div>
+          </div>
+        </section>
+
         {/* Section 1: Store Information */}
         <div className="bg-white border border-stone-200 rounded-xl p-6 shadow-xs">
           <div className="flex items-center gap-2.5 pb-4 mb-4 border-b border-stone-100">
@@ -261,143 +306,6 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Section 2: Inventory & Order Settings */}
-        <div className="bg-white border border-stone-200 rounded-xl p-6 shadow-xs">
-          <div className="flex items-center gap-2.5 pb-4 mb-4 border-b border-stone-100">
-            <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
-              <Bell className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-stone-900">
-                Kho hàng & Xử lý đơn
-              </h2>
-              <p className="text-xs text-stone-500">
-                Quy định cảnh báo tồn kho và trạng thái đơn hàng tự động
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-stone-700 mb-1">
-                Ngưỡng cảnh báo sắp hết hạt (hạt) <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="500"
-                value={settings.lowStockThreshold}
-                onChange={(e) => handleChange('lowStockThreshold', parseInt(e.target.value, 10) || 0)}
-                className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 ${
-                  errors.lowStockThreshold ? 'border-red-400' : 'border-stone-200'
-                }`}
-              />
-              <p className="text-[11px] text-stone-400 mt-1">
-                Hệ thống sẽ gắn cờ cảnh báo màu vàng khi số lượng hạt dưới mức này.
-              </p>
-              {errors.lowStockThreshold && (
-                <p className="text-xs text-red-500 mt-1">{errors.lowStockThreshold}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-stone-700 mb-1">
-                Đơn vị tiền tệ hiển thị
-              </label>
-              <select
-                value={settings.currency}
-                onChange={(e) => handleChange('currency', e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-white border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500"
-              >
-                <option value="VND">VND (₫) - Việt Nam Đồng</option>
-                <option value="USD">USD ($) - US Dollar</option>
-              </select>
-            </div>
-
-            <div className="sm:col-span-2 pt-2">
-              <label className="flex items-start gap-3 p-3 rounded-lg border border-stone-200 hover:bg-stone-50/50 cursor-pointer transition-colors">
-                <input
-                  type="checkbox"
-                  checked={settings.orderAutoConfirm}
-                  onChange={(e) => handleChange('orderAutoConfirm', e.target.checked)}
-                  className="mt-1 h-4 w-4 rounded border-stone-300 text-pink-600 focus:ring-pink-500"
-                />
-                <div>
-                  <span className="text-sm font-medium text-stone-900">
-                    Tự động xác nhận đơn hàng khi thanh toán PayOS hoàn tất
-                  </span>
-                  <p className="text-xs text-stone-500 mt-0.5">
-                    Nếu bật, các đơn hàng thanh toán thành công qua PayOS sẽ tự động chuyển sang trạng thái &quot;Đã xác nhận&quot; mà không cần admin duyệt thủ công.
-                  </p>
-                </div>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        {/* Section 3: Architecture & Integration Roadmap */}
-        <div className="bg-stone-50 border border-stone-200 rounded-xl p-6 shadow-xs">
-          <div className="flex items-center gap-2.5 pb-4 mb-4 border-b border-stone-200">
-            <div className="p-2 bg-stone-200 text-stone-700 rounded-lg">
-              <Layers className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-stone-900">
-                Kiến trúc hạ tầng & Lộ trình tích hợp (Roadmap)
-              </h2>
-              <p className="text-xs text-stone-500">
-                Tình trạng kết nối các dịch vụ trong giai đoạn Foundation
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="bg-white p-3.5 rounded-lg border border-stone-200">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-semibold text-stone-700 flex items-center gap-1.5">
-                  <Server className="w-3.5 h-3.5 text-blue-500" />
-                  Service Layer
-                </span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  Hoạt động
-                </span>
-              </div>
-              <p className="text-xs text-stone-500">
-                Tầng trừu tượng hóa dịch vụ độc lập, sẵn sàng trỏ API
-              </p>
-            </div>
-
-            <div className="bg-white p-3.5 rounded-lg border border-stone-200">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-semibold text-stone-700 flex items-center gap-1.5">
-                  <Database className="w-3.5 h-3.5 text-amber-500" />
-                  Database
-                </span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
-                  Lộ trình Phase 3
-                </span>
-              </div>
-              <p className="text-xs text-stone-500">
-                AWS DynamoDB & S3 lưu trữ mô hình và media
-              </p>
-            </div>
-
-            <div className="bg-white p-3.5 rounded-lg border border-stone-200">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-semibold text-stone-700 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-pink-500" />
-                  Cổng PayOS
-                </span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                  Strategy Mock
-                </span>
-              </div>
-              <p className="text-xs text-stone-500">
-                Tích hợp sẵn luồng thanh toán và cập nhật đơn
-              </p>
-            </div>
-          </div>
-        </div>
       </form>
 
       {/* Reset Confirmation Dialog */}
