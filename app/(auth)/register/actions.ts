@@ -38,5 +38,5 @@ export async function registerUser(_: FormState, fd: FormData): Promise<FormStat
     if ((e as { code?: string }).code === "P2002") return { error: "Số điện thoại này đã được đăng ký. Hãy đăng nhập." };
     throw e;
   }
-  redirect("/login?registered=1");
+  redirect(`/login?registered=1&phone=${encodeURIComponent(phone)}`);
 }

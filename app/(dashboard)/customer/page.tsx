@@ -99,10 +99,14 @@ export default async function CustomerPage({
               <input id="fullName" name="fullName" required minLength={2} maxLength={100} defaultValue={user.fullName ?? ""} className={inputClass} />
             </div>
             <div>
-              <label className={labelClass} htmlFor="email">Email (không bắt buộc)</label>
-              <div className="relative">
-                <input id="email" name="profileEmail" type="email" defaultValue={user.email ?? ""} autoComplete="off" spellCheck={false} className={inputClass} />
-                {user.email && user.emailVerifiedAt && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500" title="Email đã xác thực">✔</span>}
+              <label className={labelClass} htmlFor="email">Email</label>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="relative min-w-0 flex-1">
+                  <input id="email" type="email" value={user.email ?? ""} readOnly autoComplete="off" spellCheck={false} className={`${inputClass} cursor-not-allowed bg-pink-light/60`} />
+                </div>
+                <Link href="/customer/change-email" className="inline-flex shrink-0 items-center justify-center rounded-xl border border-pink-mid/50 bg-white px-5 py-3 text-sm font-semibold text-pink-deep transition hover:bg-pink-light">
+                  Đổi email
+                </Link>
               </div>
               {user.email && !user.emailVerifiedAt && (
                 <div className="mt-2 flex items-center gap-2">
@@ -110,7 +114,6 @@ export default async function CustomerPage({
                   <EmailVerifyButton action={sendVerifyEmail} />
                 </div>
               )}
-              {user.email && user.emailVerifiedAt && <p className="mt-1 text-xs text-emerald-600">Email đã được xác thực.</p>}
             </div>
             <div className="grid gap-3 rounded-2xl bg-pink-light/60 p-4 text-sm sm:col-span-2 sm:grid-cols-3">
               <p><span className="block text-xs text-pink-text/55">Trạng thái tài khoản</span><strong>{user.status === "active" ? "Đang hoạt động" : "Đã khóa"}</strong></p>

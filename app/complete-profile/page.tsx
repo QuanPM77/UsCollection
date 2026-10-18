@@ -11,25 +11,29 @@ export default async function CompleteProfilePage() {
   const session = await auth();
   if (!session?.user.id) redirect("/login");
   if (session.user.role !== "customer") redirect("/post-login");
-  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { fullName: true, phone: true, email: true, profileCompletedAt: true } });
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      fullName: true,
+      phone: true,
+      emailVerifiedAt: true,
+      profileCompletedAt: true,
+      addresses: { where: { isDefault: true }, take: 1, select: { addressLine: true, province: true } },
+    },
+  });
   if (!user) redirect("/login");
-  if (user.profileCompletedAt) redirect("/customer");
+  if (user.profileCompletedAt && user.emailVerifiedAt) redirect("/customer");
 
   return (
     <AuthShell title="Hoàn thiện thông tin cá nhân">
-      <p className="mb-6 text-sm leading-6 text-rose-900/70">Vui lòng điền đầy đủ thông tin để tiếp tục sử dụng tài khoản và giao hàng chính xác.</p>
+      <p className="mb-6 text-sm leading-6 text-rose-900/70">Vui lòng điền đầy đủ thông tin để tiếp tục sử dụng tài khoản và giao hàng chính xác. Sau bước này, bạn sẽ nhập email và xác minh riêng.</p>
       <form action={completeProfile} className="space-y-4">
         <div>
           <label htmlFor="fullName" className="mb-1.5 block text-xs font-semibold text-pink-text">Họ và tên *</label>
           <input id="fullName" name="fullName" required minLength={2} maxLength={100} defaultValue={user.fullName ?? ""} autoComplete="name" className={fieldClass} />
         </div>
-        <div>
-          <label htmlFor="email" className="mb-1.5 block text-xs font-semibold text-pink-text">Email (không bắt buộc)</label>
-          <input id="email" name="email" type="email" defaultValue={user.email ?? ""} autoComplete="email" placeholder="ban@email.com" className={fieldClass} />
-          <p className="mt-1 text-xs text-pink-text/60">Email giúp bạn nhận liên kết đặt lại mật khẩu khi cần.</p>
-        </div>
         <p className="text-sm text-pink-text/70">Số điện thoại đăng nhập: <strong>{user.phone}</strong></p>
-        <AddressFields idPrefix="complete-profile" streetName="street" provinceName="province" wardName="ward" inputClass={fieldClass} labelClass="mb-1.5 block text-xs font-semibold text-pink-text" />
+        <AddressFields idPrefix="complete-profile" streetName="street" provinceName="province" wardName="ward" initialAddressLine={user.addresses[0]?.addressLine ?? ""} initialProvince={user.addresses[0]?.province ?? ""} inputClass={fieldClass} labelClass="mb-1.5 block text-xs font-semibold text-pink-text" />
         <button className="w-full rounded-xl bg-pink-deep px-5 py-3 text-sm font-semibold text-white transition hover:bg-pink-text">Lưu thông tin và tiếp tục</button>
       </form>
     </AuthShell>

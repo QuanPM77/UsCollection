@@ -2,6 +2,7 @@ import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { hashToken } from "@/lib/token";
 import { clientIp, clearLimit, progressiveFailureLimit, recordProgressiveFailure } from "@/lib/ratelimit";
 
 class TooMany extends CredentialsSignin { code = "rate_limited"; }
@@ -48,6 +49,38 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         await Promise.all([clearLimit(perAccount), clearLimit(perIp)]);
         // avatarUrl có thể là data URI Base64 lớn; không đưa ảnh vào JWT cookie.
         return { id: user.id, email: user.email ?? undefined, name: user.fullName };
+      },
+    }),
+    Credentials({
+      id: "email-verification",
+      name: "Email verification link",
+      credentials: { token: {} },
+      async authorize(c) {
+        const token = String(c?.token ?? "");
+        if (!token) return null;
+        const tokenHash = hashToken(token);
+        return prisma.$transaction(async (tx) => {
+          const verification = await tx.emailVerificationToken.findFirst({
+            where: { tokenHash, expiresAt: { gt: new Date() } },
+            select: { id: true, userId: true, email: true },
+          });
+          if (!verification) return null;
+
+          const user = await tx.user.findUnique({
+            where: { id: verification.userId },
+            select: { id: true, email: true, fullName: true, role: true, status: true, passwordHash: true, emailVerifiedAt: true },
+          });
+          if (!user || !user.passwordHash || user.status !== "active" || user.role !== "customer") return null;
+          const email = verification.email ?? user.email;
+          if (!email) return null;
+          const duplicate = await tx.user.findFirst({ where: { email, id: { not: user.id } }, select: { id: true } });
+          if (duplicate) return null;
+          const consumed = await tx.emailVerificationToken.deleteMany({ where: { id: verification.id } });
+          if (consumed.count !== 1) return null;
+
+          await tx.user.update({ where: { id: user.id }, data: { email, emailVerifiedAt: new Date() } });
+          return { id: user.id, email, name: user.fullName };
+        });
       },
     }),
   ],

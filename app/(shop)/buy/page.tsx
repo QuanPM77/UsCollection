@@ -39,7 +39,6 @@ export default async function BuyPage() {
       <section className="w-full px-5 py-10 sm:px-8">
         <p className="text-sm font-semibold text-pink-deep">Bộ sưu tập UsStory</p>
         <h1 className="mt-1 font-display text-3xl font-bold sm:text-4xl">Vòng tay bán sẵn</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-pink-text/65">Khám phá những mẫu vòng được chế tác thủ công. Chọn một sản phẩm để xem hình ảnh và thông tin chi tiết.</p>
 
         <ProductCatalog products={catalog} />
       </section>

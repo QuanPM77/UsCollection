@@ -5,7 +5,7 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { inputCls, primaryCls, Notice } from "@/components/AuthShell";
 
-export default function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
+export default function LoginForm({ callbackUrl, initialPhone }: { callbackUrl?: string; initialPhone?: string }) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,8 +27,8 @@ export default function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
   return (
     <>
       <form onSubmit={onSubmit} className="space-y-4">
-        <input name="phone" type="tel" required placeholder="Số điện thoại" autoComplete="username" className={inputCls} />
-        <input name="password" type="password" required placeholder="Mật khẩu" autoComplete="current-password" className={inputCls} />
+        <input name="phone" type="tel" required defaultValue={initialPhone} placeholder="Số điện thoại" autoComplete="username" className={inputCls} />
+        <input name="password" type="password" required autoFocus placeholder="Mật khẩu" autoComplete="current-password" className={inputCls} />
         <div className="text-right text-sm">
           <Link href="/forgot-password" className="text-rose-600 hover:underline">Quên mật khẩu?</Link>
         </div>

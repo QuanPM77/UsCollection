@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/guard";
-import { isEmail } from "@/lib/form";
 import bcrypt from "bcryptjs";
 import { removeAvatar, uploadAvatar } from "@/lib/supabase-storage";
 import { isValidVietnamWard } from "@/lib/vietnam-addresses";
@@ -40,61 +39,41 @@ export async function changePassword(formData: FormData) {
 export async function updateProfile(formData: FormData) {
   const session = await requireRole("customer");
   const fullName = value(formData, "fullName");
-  const email = value(formData, "profileEmail").toLowerCase();
 
   if (fullName.length < 2 || fullName.length > 100) throw new Error("Họ tên cần từ 2 đến 100 ký tự.");
-  if (email && !isEmail(email)) throw new Error("Email không hợp lệ.");
 
-  const emailValue = email || null;
-  const [existing, duplicate] = await Promise.all([
-    prisma.user.findUnique({ where: { id: session.user.id }, select: { email: true } }),
-    emailValue
-      ? prisma.user.findFirst({ where: { email: emailValue, id: { not: session.user.id } }, select: { id: true } })
-      : Promise.resolve(null),
-  ]);
-  if (duplicate) throw new Error("Email này đã được sử dụng bởi tài khoản khác.");
-
-  try {
-    await prisma.$transaction(async (tx) => {
-      await tx.user.update({
-        where: { id: session.user.id },
-        data: {
-          fullName,
-          email: emailValue,
-          ...(existing?.email !== emailValue ? { emailVerifiedAt: null } : {}),
-        },
-      });
-
-      const addresses = await tx.userAddress.findMany({
-        where: { userId: session.user.id },
-        select: { id: true, isDefault: true },
-      });
-      const selectedDefaultId = String(formData.get("defaultAddressId") ?? "");
-      if (selectedDefaultId && !addresses.some((address) => address.id === selectedDefaultId && !address.isDefault)) {
-        throw new Error("Địa chỉ mặc định không hợp lệ.");
-      }
-
-      if (selectedDefaultId) {
-        await tx.userAddress.updateMany({ where: { userId: session.user.id }, data: { isDefault: false } });
-        await tx.userAddress.update({ where: { id: selectedDefaultId }, data: { isDefault: true } });
-      }
-
-      for (const address of addresses) {
-        const street = String(formData.get(`street_${address.id}`) ?? "").trim();
-        const province = String(formData.get(`province_${address.id}`) ?? "").trim();
-        const ward = String(formData.get(`ward_${address.id}`) ?? "").trim();
-        if (street.length < 3) throw new Error("Vui lòng nhập số nhà và tên đường.");
-        if (!isValidVietnamWard(province, ward)) throw new Error("Vui lòng chọn tỉnh/thành phố và phường/xã hợp lệ.");
-        await tx.userAddress.update({
-          where: { id: address.id },
-          data: { addressLine: `${street}, ${ward}`, province },
-        });
-      }
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: session.user.id },
+      data: { fullName },
     });
-  } catch (error: unknown) {
-    if ((error as { code?: string }).code === "P2002") throw new Error("Email này đã được sử dụng bởi tài khoản khác.");
-    throw error;
-  }
+
+    const addresses = await tx.userAddress.findMany({
+      where: { userId: session.user.id },
+      select: { id: true, isDefault: true },
+    });
+    const selectedDefaultId = String(formData.get("defaultAddressId") ?? "");
+    if (selectedDefaultId && !addresses.some((address) => address.id === selectedDefaultId && !address.isDefault)) {
+      throw new Error("Địa chỉ mặc định không hợp lệ.");
+    }
+
+    if (selectedDefaultId) {
+      await tx.userAddress.updateMany({ where: { userId: session.user.id }, data: { isDefault: false } });
+      await tx.userAddress.update({ where: { id: selectedDefaultId }, data: { isDefault: true } });
+    }
+
+    for (const address of addresses) {
+      const street = String(formData.get(`street_${address.id}`) ?? "").trim();
+      const province = String(formData.get(`province_${address.id}`) ?? "").trim();
+      const ward = String(formData.get(`ward_${address.id}`) ?? "").trim();
+      if (street.length < 3) throw new Error("Vui lòng nhập số nhà và tên đường.");
+      if (!isValidVietnamWard(province, ward)) throw new Error("Vui lòng chọn tỉnh/thành phố và phường/xã hợp lệ.");
+      await tx.userAddress.update({
+        where: { id: address.id },
+        data: { addressLine: `${street}, ${ward}`, province },
+      });
+    }
+  });
   finish("profile");
 }
 

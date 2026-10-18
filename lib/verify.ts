@@ -7,7 +7,7 @@ export async function sendVerificationEmail(userId: string, email: string) {
   await prisma.$transaction([
     prisma.emailVerificationToken.deleteMany({ where: { userId } }),
     prisma.emailVerificationToken.create({
-      data: { userId, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) },
+      data: { userId, email, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) },
     }),
   ]);
   const link = `${process.env.APP_URL ?? "http://localhost:3000"}/verify-email?token=${token}`;
