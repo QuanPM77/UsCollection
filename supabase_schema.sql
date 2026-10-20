@@ -49,6 +49,7 @@ CREATE TYPE "template_status" AS ENUM ('draft', 'published');
 CREATE TABLE "users" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "email" TEXT,
+    "google_id" TEXT,
     "password_hash" TEXT,
     "email_verified_at" TIMESTAMPTZ(6),
     "full_name" TEXT,
@@ -245,6 +246,9 @@ CREATE TABLE "store_settings" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "users_google_id_key" ON "users"("google_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "users_phone_key" ON "users"("phone");

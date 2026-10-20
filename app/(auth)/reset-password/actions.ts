@@ -22,11 +22,20 @@ export async function resetPassword(_: FormState, fd: FormData): Promise<FormSta
   if (!rec || rec.expiresAt < new Date()) {
     return { error: "Liên kết không hợp lệ hoặc đã hết hạn. Hãy yêu cầu liên kết mới." };
   }
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: rec.userId }, data: { passwordHash: await bcrypt.hash(password, 10) } }),
+  const reset = await prisma.$transaction(async (tx) => {
+    const updated = await tx.user.updateMany({
+      where: { id: rec.userId, googleId: null },
+      data: { passwordHash: await bcrypt.hash(password, 10) },
+    });
+    if (updated.count !== 1) {
+      await tx.passwordResetToken.deleteMany({ where: { userId: rec.userId } });
+      return false;
+    }
     // Nhận được email đặt lại nghĩa là đã chứng minh sở hữu email
-    prisma.user.updateMany({ where: { id: rec.userId, emailVerifiedAt: null }, data: { emailVerifiedAt: new Date() } }),
-    prisma.passwordResetToken.deleteMany({ where: { userId: rec.userId } }),
-  ]);
+    await tx.user.updateMany({ where: { id: rec.userId, emailVerifiedAt: null }, data: { emailVerifiedAt: new Date() } });
+    await tx.passwordResetToken.deleteMany({ where: { userId: rec.userId } });
+    return true;
+  });
+  if (!reset) return { error: "Liên kết không hợp lệ hoặc đã hết hạn. Hãy đăng nhập bằng Google." };
   redirect("/login?reset=1");
 }

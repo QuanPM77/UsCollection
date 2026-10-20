@@ -1,5 +1,6 @@
 import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { hashToken } from "@/lib/token";
@@ -14,12 +15,21 @@ class TooMany extends CredentialsSignin {
 }
 class AccountLocked extends CredentialsSignin { code = "account_locked"; }
 
+function hasVerifiedGoogleEmail(profile: unknown) {
+  if (!profile || typeof profile !== "object") return false;
+  const verified = (profile as { email_verified?: unknown }).email_verified;
+  return verified === true || verified === "true";
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // Phiên trượt: mỗi lần ứng dụng xác nhận session, thời hạn 30 phút được làm mới.
   session: { strategy: "jwt", maxAge: 30 * 60 },
   jwt: { maxAge: 30 * 60 },
   pages: { signIn: "/login" },
   providers: [
+    ...(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET
+      ? [Google({ clientId: process.env.AUTH_GOOGLE_ID, clientSecret: process.env.AUTH_GOOGLE_SECRET })]
+      : []),
     Credentials({
       credentials: { phone: {}, password: {} },
       async authorize(c, request) {
@@ -34,7 +44,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!a.ok || !b.ok) throw new TooMany(Math.max(a.retryAfterSec, b.retryAfterSec));
 
         const user = await prisma.user.findUnique({ where: { phone } });
-        if (!user) {
+        if (!user || user.googleId) {
           await Promise.all([
             recordProgressiveFailure(perAccount, 3),
             recordProgressiveFailure(perIp, 3),
@@ -75,9 +85,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
           const user = await tx.user.findUnique({
             where: { id: verification.userId },
-            select: { id: true, email: true, fullName: true, role: true, status: true, passwordHash: true, emailVerifiedAt: true },
+            select: { id: true, email: true, googleId: true, fullName: true, role: true, status: true, passwordHash: true, emailVerifiedAt: true },
           });
-          if (!user || !user.passwordHash || user.status !== "active" || user.role !== "customer") return null;
+          if (!user || user.googleId || !user.passwordHash || user.status !== "active" || user.role !== "customer") return null;
           const email = verification.email ?? user.email;
           if (!email) return null;
           const duplicate = await tx.user.findFirst({ where: { email, id: { not: user.id } }, select: { id: true } });
@@ -92,10 +102,43 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async signIn({ user, account, profile }) {
+      if (account?.provider !== "google") return true;
+      const email = user.email?.trim().toLowerCase();
+      if (!email) return "/login?error=GoogleEmailMissing";
+      if (!hasVerifiedGoogleEmail(profile)) return "/login?error=GoogleEmailUnverified";
+      const existingUser = await prisma.user.findUnique({ where: { googleId: account.providerAccountId }, select: { id: true, role: true, status: true, googleId: true } })
+        ?? await prisma.user.findUnique({ where: { email }, select: { id: true, role: true, status: true, googleId: true } });
+      if (existingUser?.status === "locked") return "/login?error=GoogleAccountLocked";
+      if (existingUser?.googleId && existingUser.googleId !== account.providerAccountId) return "/login?error=GoogleAccountConflict";
+      return true;
+    },
+    async jwt({ token, user, account, profile }) {
       // Loại bỏ ảnh khỏi cả token mới lẫn token cũ được làm mới.
       delete token.picture;
-      if (user?.id) {
+      if (account?.provider === "google") {
+        const email = user?.email?.trim().toLowerCase();
+        if (!email || !hasVerifiedGoogleEmail(profile)) return null;
+
+        const googleId = account.providerAccountId;
+        const existingUser = await prisma.user.findUnique({ where: { googleId } })
+          ?? await prisma.user.findUnique({ where: { email } });
+        if (existingUser?.status === "locked") return null;
+        if (existingUser?.googleId && existingUser.googleId !== googleId) return null;
+        const emailOwner = existingUser?.email === email ? null : await prisma.user.findUnique({ where: { email }, select: { id: true } });
+        if (emailOwner && emailOwner.id !== existingUser?.id) return null;
+        const appUser = existingUser
+          ? await prisma.user.update({
+              where: { id: existingUser.id },
+              data: { email, googleId, emailVerifiedAt: existingUser.emailVerifiedAt ?? new Date(), lastLoginAt: new Date() },
+            })
+          : await prisma.user.create({
+              data: { email, googleId, emailVerifiedAt: new Date(), fullName: user?.name?.trim() || null, lastLoginAt: new Date() },
+            });
+        await prisma.passwordResetToken.deleteMany({ where: { userId: appUser.id } });
+        token.uid = appUser.id;
+        token.role = appUser.role;
+      } else if (user?.id) {
         const u = await prisma.user.update({
           where: { id: user.id },
           data: { lastLoginAt: new Date() },

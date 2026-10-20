@@ -6,8 +6,8 @@ export default async function PostLoginPage() {
   const session = await auth();
   if (!session) redirect('/login');
   if (session.user.role === 'customer') {
-    const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { email: true, emailVerifiedAt: true, profileCompletedAt: true } });
-    if (!user?.profileCompletedAt) redirect('/complete-profile');
+    const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { email: true, emailVerifiedAt: true, profileCompletedAt: true, phone: true } });
+    if (!user?.profileCompletedAt || !user.phone) redirect('/complete-profile');
     if (!user.email || !user.emailVerifiedAt) redirect('/verify-required');
   }
   redirect('/');

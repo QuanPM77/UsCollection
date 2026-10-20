@@ -20,10 +20,11 @@ export async function requestVerificationEmail(_: FormState, formData: FormData)
   if (lim) return { error: lim };
 
   const [user, duplicate] = await Promise.all([
-    prisma.user.findUnique({ where: { id: session.user.id }, select: { email: true, emailVerifiedAt: true, profileCompletedAt: true } }),
+    prisma.user.findUnique({ where: { id: session.user.id }, select: { email: true, emailVerifiedAt: true, profileCompletedAt: true, googleId: true } }),
     prisma.user.findFirst({ where: { email, id: { not: session.user.id } }, select: { id: true } }),
   ]);
   if (!user?.profileCompletedAt) return { error: "Hãy hoàn tất thông tin tài khoản trước." };
+  if (user.googleId) return { error: "Email đã liên kết với Google và không thể thay đổi." };
   if (duplicate) return { error: "Email này đã được sử dụng bởi tài khoản khác." };
   if (user.email === email && user.emailVerifiedAt) return { ok: true };
 

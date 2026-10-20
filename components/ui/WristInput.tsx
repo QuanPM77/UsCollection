@@ -47,7 +47,7 @@ export default function WristInput() {
   ];
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
       <h3 className="text-sm font-semibold text-pink-text uppercase tracking-wider">
         Chu vi cổ tay
       </h3>
@@ -77,7 +77,7 @@ export default function WristInput() {
       </div>
 
       {/* Custom input */}
-      <div className="flex items-center gap-2 bg-white/70 rounded-xl px-3 py-2 border border-pink-mid/40">
+      <div className="flex items-center gap-2 bg-white/70 rounded-xl px-3 py-1.5 border border-pink-mid/40">
         <input
           type="number"
           value={inputValue}

@@ -11,7 +11,8 @@ export async function requestEmailChange(_: FormState, formData: FormData): Prom
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!isEmail(email)) return { error: "Nhập email hợp lệ." };
 
-  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { email: true } });
+  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { email: true, googleId: true } });
+  if (user?.googleId) return { error: "Email đã liên kết với Google và không thể thay đổi." };
   if (user?.email?.toLowerCase() === email) return { error: "Đây đã là email hiện tại của bạn." };
   const duplicate = await prisma.user.findFirst({ where: { email, id: { not: session.user.id } }, select: { id: true } });
   if (duplicate) return { error: "Email này đã được sử dụng bởi tài khoản khác." };

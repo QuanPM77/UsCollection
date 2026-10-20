@@ -8,10 +8,10 @@ export default function CustomizerPanel() {
   return (
     <div
       className="
-        h-full flex flex-col gap-5 overflow-y-auto
+        h-full flex flex-col gap-3 overflow-y-auto
         bg-cream/80 backdrop-blur-md
         border-l border-pink-mid/30
-        p-5
+        p-3 sm:p-4
       "
     >
       {/* Header */}

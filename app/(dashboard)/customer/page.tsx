@@ -23,6 +23,7 @@ const savedMessages: Record<string, string> = {
 };
 
 const passwordErrors: Record<string, string> = {
+  google: "Tài khoản này đăng nhập bằng Google và không sử dụng mật khẩu riêng.",
   incorrect: "Mật khẩu hiện tại không đúng. Mật khẩu chưa được thay đổi.",
   "too-short": "Mật khẩu mới cần có ít nhất 8 ký tự.",
   mismatch: "Mật khẩu mới và phần nhập lại không khớp.",
@@ -98,15 +99,19 @@ export default async function CustomerPage({
               <label className={labelClass} htmlFor="fullName">Họ và tên *</label>
               <input id="fullName" name="fullName" required minLength={2} maxLength={100} defaultValue={user.fullName ?? ""} className={inputClass} />
             </div>
-            <div>
+            <div className={user.googleId ? "sm:col-span-2" : ""}>
               <label className={labelClass} htmlFor="email">Email</label>
-              <div className="flex flex-col gap-2 sm:flex-row">
+              <div className={`flex flex-col gap-2 ${user.googleId ? "" : "sm:flex-row"}`}>
                 <div className="relative min-w-0 flex-1">
                   <input id="email" type="email" value={user.email ?? ""} readOnly autoComplete="off" spellCheck={false} className={`${inputClass} cursor-not-allowed bg-pink-light/60`} />
                 </div>
-                <Link href="/customer/change-email" className="inline-flex shrink-0 items-center justify-center rounded-xl border border-pink-mid/50 bg-white px-5 py-3 text-sm font-semibold text-pink-deep transition hover:bg-pink-light">
-                  Đổi email
-                </Link>
+                {user.googleId ? (
+                  <p className="text-xs text-pink-text/60">Email được liên kết với Google và không thể đổi tại đây.</p>
+                ) : (
+                  <Link href="/customer/change-email" className="inline-flex shrink-0 items-center justify-center rounded-xl border border-pink-mid/50 bg-white px-5 py-3 text-sm font-semibold text-pink-deep transition hover:bg-pink-light">
+                    Đổi email
+                  </Link>
+                )}
               </div>
               {user.email && !user.emailVerifiedAt && (
                 <div className="mt-2 flex items-center gap-2">
@@ -185,7 +190,7 @@ export default async function CustomerPage({
         </div>
         </div>
 
-        <details className="mt-7 border-t border-pink-mid/25 pt-6">
+        {!user.googleId && <details className="mt-7 border-t border-pink-mid/25 pt-6">
           <summary className="cursor-pointer font-semibold text-pink-deep">Đổi mật khẩu</summary>
           <form action={changePassword} className="mt-5 grid gap-4 sm:grid-cols-3">
             <div>
@@ -204,7 +209,7 @@ export default async function CustomerPage({
               <button className={buttonClass}>Cập nhật mật khẩu</button>
             </div>
           </form>
-        </details>
+        </details>}
 
         <div className="mt-6 flex justify-end">
           <button form="profile-form" className={buttonClass}>Lưu thông tin</button>

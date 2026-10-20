@@ -4,19 +4,15 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { FormState } from "@/lib/form";
-import { clientIp, limitError, progressiveFailureLimit, rateLimit, setTemporaryLock } from "@/lib/ratelimit";
+import { clientIp, limitError, progressiveFailureLimit, recordProgressiveFailure } from "@/lib/ratelimit";
 
 export async function registerUser(_: FormState, fd: FormData): Promise<FormState> {
   const ip = clientIp(await headers());
-  const lockKey = `register:spam-lock:${ip}`;
-  const lock = await progressiveFailureLimit(lockKey);
+  const perIp = `register:fail:ip:${ip}`;
+  const lock = await progressiveFailureLimit(perIp);
   if (!lock.ok) return { error: limitError(lock)! };
-
-  const attempts = await rateLimit(`register:spam-window:${ip}`, 5, 60);
-  if (!attempts.ok) {
-    await setTemporaryLock(lockKey, 10 * 60);
-    return { error: "Bạn gửi yêu cầu đăng ký liên tục. Vui lòng thử lại sau 10 phút." };
-  }
+  // Cho phép 5 lần như yêu cầu, sau đó áp dụng thời gian chờ tăng dần như đăng nhập.
+  await recordProgressiveFailure(perIp, 5);
 
   const phone = String(fd.get("phone") ?? "").replace(/\s/g, "");
   const password = String(fd.get("password") ?? "");

@@ -28,7 +28,8 @@ export async function changePassword(formData: FormData) {
   if (newPassword.length < 8) redirect("/customer?passwordError=too-short");
   if (newPassword !== confirmPassword) redirect("/customer?passwordError=mismatch");
 
-  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { passwordHash: true } });
+  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { passwordHash: true, googleId: true } });
+  if (user?.googleId) redirect("/customer?passwordError=google");
   if (!user?.passwordHash || !(await bcrypt.compare(currentPassword, user.passwordHash))) {
     redirect("/customer?passwordError=incorrect");
   }

@@ -57,6 +57,8 @@ Tạo bucket public tên `avatars` trong Supabase Storage, giới hạn kích th
 
 Điền thêm các biến NextAuth, PayOS, SMTP và Supabase trong `.env.local` tùy theo tính năng cần dùng. Không đưa khóa bí mật vào repository. Để cập nhật database theo Prisma migration:
 
+Để bật đăng nhập Google, tạo OAuth client dạng Web application trong Google Cloud Console, thêm `AUTH_GOOGLE_ID` và `AUTH_GOOGLE_SECRET` vào `.env.local` hoặc Environment Variables của nơi deploy. Đặt Authorized redirect URI là `http://localhost:3000/api/auth/callback/google` khi phát triển và `https://<domain-cua-ban>/api/auth/callback/google` khi chạy thật. Nút Google chỉ hiện khi cả hai biến đã được cấu hình. Email đăng nhập Google đã xác minh sẽ được lưu làm email tài khoản và không cần xác minh email thêm. Tài khoản mới được tạo với vai trò khách và phải hoàn thiện hồ sơ, nhập số điện thoại trước khi tiếp tục; tài khoản đang có giữ nguyên vai trò hiện tại. Tài khoản bị khóa không thể đăng nhập.
+
 ```bash
 npx prisma migrate deploy
 npx prisma generate

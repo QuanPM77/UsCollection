@@ -39,10 +39,10 @@ export default function BraceletControls() {
   const maxCapacity = mounted ? Math.round(wristCircumference / 8) : 20;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       {/* Stats */}
       <div className="grid grid-cols-2 gap-2">
-        <div className="bg-white/70 rounded-xl p-3 border border-pink-mid/30">
+        <div className="bg-white/70 rounded-xl p-2.5 border border-pink-mid/30">
           <div className="text-xs text-pink-text/60 mb-0.5">Hạt đã đặt</div>
           <div className="text-lg font-bold text-pink-text">
             {filled}
@@ -50,7 +50,7 @@ export default function BraceletControls() {
           </div>
         </div>
 
-        <div className="bg-white/70 rounded-xl p-3 border border-pink-mid/30">
+        <div className="bg-white/70 rounded-xl p-2.5 border border-pink-mid/30">
           <div className="text-xs text-pink-text/60 mb-0.5">Tổng tiền</div>
           <div className="text-base font-bold text-pink-deep">
             {formatPrice(total)}
@@ -60,7 +60,7 @@ export default function BraceletControls() {
 
       {/* List of placed beads with individual Delete buttons */}
       {mounted && slots.length > 0 && (
-        <div className="bg-white/60 rounded-xl p-3 border border-pink-mid/30 flex flex-col gap-2 max-h-40 overflow-y-auto">
+        <div className="bg-white/60 rounded-xl p-2.5 border border-pink-mid/30 flex flex-col gap-2 max-h-32 overflow-y-auto">
           <div className="text-xs font-semibold text-pink-text mb-1 flex justify-between items-center">
             <span>Danh sách hạt ({slots.length})</span>
             <span className="text-[10px] text-pink-text/50 font-normal">Click ✕ để xóa hạt</span>
