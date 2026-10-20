@@ -2,21 +2,24 @@
 
 export interface StoreSettings {
   storeName: string;
-  storeDescription: string;
   contactPhone: string;
   contactEmail: string;
-  address: string;
+  socialLinks: StoreSocialLink[];
   lowStockThreshold: number;
   currency: string;
   orderAutoConfirm: boolean;
 }
 
+export interface StoreSocialLink {
+  name: string;
+  url: string;
+}
+
 export const DEFAULT_SETTINGS: StoreSettings = {
   storeName: 'UsStory',
-  storeDescription: 'Cửa hàng vòng tay thủ công handmade',
   contactPhone: '',
   contactEmail: '',
-  address: '',
+  socialLinks: [],
   lowStockThreshold: 5,
   currency: 'VND',
   orderAutoConfirm: false,

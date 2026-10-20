@@ -23,12 +23,13 @@ export default function ProductCatalog({ products }: { products: CatalogProduct[
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
+  const [priceOrder, setPriceOrder] = useState<"default" | "asc" | "desc">("default");
 
   const filteredProducts = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase("vi");
     const min = minPrice === "" ? null : Number(minPrice);
     const max = maxPrice === "" ? null : Number(maxPrice);
-    return products.filter((product) => {
+    const result = products.filter((product) => {
       if (normalizedQuery && !product.name.toLocaleLowerCase("vi").includes(normalizedQuery)) return false;
       if (min !== null && product.price < min) return false;
       if (max !== null && product.price > max) return false;
@@ -36,17 +37,13 @@ export default function ProductCatalog({ products }: { products: CatalogProduct[
       if (selectedStyles.length && !selectedStyles.some((style) => styles.includes(style))) return false;
       return true;
     });
-  }, [products, query, minPrice, maxPrice, selectedStyles]);
+    if (priceOrder === "asc") result.sort((a, b) => a.price - b.price);
+    if (priceOrder === "desc") result.sort((a, b) => b.price - a.price);
+    return result;
+  }, [products, query, minPrice, maxPrice, selectedStyles, priceOrder]);
 
   function toggleStyle(style: string) {
     setSelectedStyles((current) => current.includes(style) ? current.filter((item) => item !== style) : [...current, style]);
-  }
-
-  function clearFilters() {
-    setQuery("");
-    setMinPrice("");
-    setMaxPrice("");
-    setSelectedStyles([]);
   }
 
   return <div className="mt-8 grid items-start gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
@@ -79,7 +76,15 @@ export default function ProductCatalog({ products }: { products: CatalogProduct[
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-pink-mid/20 pt-4">
           <p aria-live="polite" className="text-sm text-pink-text/65">Hiển thị <strong className="text-pink-text">{filteredProducts.length}</strong> / {products.length} sản phẩm</p>
-          {(query || minPrice || maxPrice || selectedStyles.length > 0) && <button type="button" onClick={clearFilters} className="text-sm font-semibold text-pink-deep hover:underline">Xóa bộ lọc</button>}
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex shrink-0 items-center gap-2 whitespace-nowrap text-xs font-semibold text-pink-text">Sắp xếp giá
+              <select value={priceOrder} onChange={(event) => setPriceOrder(event.target.value as typeof priceOrder)} className="min-w-48 rounded-xl border border-pink-mid/40 bg-white px-3 py-2.5 text-sm font-normal text-pink-text outline-none focus:border-pink-deep focus:ring-2 focus:ring-pink-mid/25">
+                <option value="default">Mặc định</option>
+                <option value="asc">Giá tăng dần</option>
+                <option value="desc">Giá giảm dần</option>
+              </select>
+            </label>
+          </div>
         </div>
       </div>
 

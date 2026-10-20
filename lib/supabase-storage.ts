@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const AVATAR_BUCKET = "avatars";
+const PRODUCT_BUCKET = "product-images";
 let storageClient: SupabaseClient | undefined;
 
 function getStorageClient() {
@@ -48,18 +49,22 @@ export async function uploadAvatar(userId: string, bytes: Buffer) {
   return path;
 }
 
-function productObjectPath(imageRef: string) {
+function productObjectLocation(imageRef: string) {
   if (!/^https?:\/\//i.test(imageRef)) {
     const path = imageRef.replace(/^\/+/, "");
-    return path.startsWith("products/") ? path : null;
+    if (path.startsWith("catalog/")) return { bucketName: PRODUCT_BUCKET, path };
+    if (path.startsWith("products/")) return { bucketName: AVATAR_BUCKET, path };
+    return null;
   }
 
   try {
     const pathname = new URL(imageRef).pathname;
-    for (const visibility of ["public", "sign", "authenticated"]) {
-      const prefix = `/storage/v1/object/${visibility}/${AVATAR_BUCKET}/products/`;
-      if (pathname.startsWith(prefix)) return decodeURIComponent(pathname.slice(`/storage/v1/object/${visibility}/${AVATAR_BUCKET}/`.length));
-    }
+    const match = pathname.match(/^\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+)$/);
+    if (!match) return null;
+    const bucketName = match[1];
+    const path = decodeURIComponent(match[2]);
+    if (bucketName === PRODUCT_BUCKET && path.startsWith("catalog/")) return { bucketName, path };
+    if (bucketName === AVATAR_BUCKET && path.startsWith("products/")) return { bucketName, path };
   } catch {
     return null;
   }
@@ -67,36 +72,28 @@ function productObjectPath(imageRef: string) {
 }
 
 export async function productImageDisplayUrl(imageRef: string) {
-  const path = productObjectPath(imageRef);
-  if (!path) return imageRef;
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
-  if (!supabaseUrl) throw new Error("Thiếu cấu hình URL Supabase để hiển thị ảnh sản phẩm.");
-  const encodedPath = path.split("/").map(encodeURIComponent).join("/");
-  return `${supabaseUrl.replace(/\/$/, "")}/storage/v1/object/public/${AVATAR_BUCKET}/${encodedPath}`;
+  const location = productObjectLocation(imageRef);
+  if (!location) return imageRef;
+  return getStorageClient().storage.from(location.bucketName).getPublicUrl(location.path).data.publicUrl;
 }
 
 export async function uploadProductImage(adminId: string, bytes: Buffer) {
-  const path = `products/${adminId}/${randomUUID()}.webp`;
-  const bucket = getStorageClient().storage.from(AVATAR_BUCKET);
+  const path = `catalog/${adminId}/${randomUUID()}.webp`;
+  const bucket = getStorageClient().storage.from(PRODUCT_BUCKET);
   const { error } = await bucket.upload(path, bytes, {
     contentType: "image/webp",
     cacheControl: "31536000",
     upsert: false,
   });
   if (error) throw new Error(`Không thể tải ảnh sản phẩm lên Supabase Storage: ${error.message}`);
-  const { data, error: signedUrlError } = await bucket.createSignedUrl(path, 60 * 60);
-  if (signedUrlError || !data?.signedUrl) {
-    await bucket.remove([path]).catch(() => undefined);
-    throw new Error(`Không thể tạo link xem ảnh Supabase: ${signedUrlError?.message ?? "không nhận được URL"}`);
-  }
-  return { path, url: data.signedUrl };
+  return { path, url: bucket.getPublicUrl(path).data.publicUrl };
 }
 
 export async function removeProductImage(imageRef: string) {
-  const path = productObjectPath(imageRef);
-  if (!path) return;
+  const location = productObjectLocation(imageRef);
+  if (!location) return;
 
-  const { error } = await getStorageClient().storage.from(AVATAR_BUCKET).remove([path]);
+  const { error } = await getStorageClient().storage.from(location.bucketName).remove([location.path]);
   if (error) throw new Error(`Không thể xóa ảnh sản phẩm khỏi Supabase Storage: ${error.message}`);
 }
 

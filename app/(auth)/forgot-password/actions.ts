@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/mail";
 import { newToken, hashToken } from "@/lib/token";
 import { FormState, isEmail } from "@/lib/form";
-import { clientIp, limitError, progressiveFailureLimit, recordProgressiveFailure } from "@/lib/ratelimit";
+import { clearLimit, clientIp, limitError, progressiveFailureLimit, recordProgressiveFailure } from "@/lib/ratelimit";
 import { createActionEmail } from "@/lib/email-template";
 
 export async function requestReset(_: FormState, fd: FormData): Promise<FormState> {
@@ -49,6 +49,7 @@ export async function requestReset(_: FormState, fd: FormData): Promise<FormStat
       securityNote: "Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này. Mật khẩu hiện tại của bạn sẽ không thay đổi.",
     });
     await sendMail(email, "Đặt lại mật khẩu | UsStory", message.html, message.text);
+    await Promise.all([clearLimit(perEmail), clearLimit(perIp)]);
   }
   return { ok: true };
 }

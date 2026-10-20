@@ -229,6 +229,31 @@ CREATE TABLE "product_reviews" (
 );
 
 -- CreateTable
+CREATE TABLE "support_conversations" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "customer_id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "support_conversations_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "support_messages" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "conversation_id" UUID NOT NULL,
+    "sender_id" UUID,
+    "sender_role" VARCHAR(16) NOT NULL,
+    "body" VARCHAR(2000) NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "read_at" TIMESTAMPTZ(6),
+
+    CONSTRAINT "support_messages_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "support_messages_sender_role_check" CHECK ("sender_role" IN ('customer', 'admin')),
+    CONSTRAINT "support_messages_admin_sender_check" CHECK ("sender_role" <> 'admin' OR "sender_id" IS NOT NULL)
+);
+
+-- CreateTable
 CREATE TABLE "store_settings" (
     "id" SMALLINT NOT NULL DEFAULT 1,
     "store_name" TEXT NOT NULL DEFAULT 'UsStory',
@@ -242,6 +267,17 @@ CREATE TABLE "store_settings" (
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "store_settings_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "store_social_links" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "name" VARCHAR(100) NOT NULL,
+    "url" VARCHAR(2048) NOT NULL,
+    "sort_order" INTEGER NOT NULL DEFAULT 0,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "store_social_links_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -316,6 +352,11 @@ CREATE INDEX "idx_product_reviews_product_created" ON "product_reviews"("product
 -- CreateIndex
 CREATE UNIQUE INDEX "product_reviews_product_id_user_id_key" ON "product_reviews"("product_id", "user_id");
 
+CREATE UNIQUE INDEX "support_conversations_customer_id_key" ON "support_conversations"("customer_id");
+CREATE INDEX "idx_support_messages_conversation_created" ON "support_messages"("conversation_id", "created_at");
+CREATE INDEX "idx_support_messages_unread" ON "support_messages"("sender_role", "read_at");
+CREATE INDEX "idx_store_social_links_sort_order" ON "store_social_links"("sort_order", "created_at");
+
 -- AddForeignKey
 ALTER TABLE "user_addresses" ADD CONSTRAINT "user_addresses_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
 
@@ -360,6 +401,10 @@ ALTER TABLE "product_reviews" ADD CONSTRAINT "product_reviews_product_id_fkey" F
 
 -- AddForeignKey
 ALTER TABLE "product_reviews" ADD CONSTRAINT "product_reviews_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+
+ALTER TABLE "support_conversations" ADD CONSTRAINT "support_conversations_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+ALTER TABLE "support_messages" ADD CONSTRAINT "support_messages_conversation_id_fkey" FOREIGN KEY ("conversation_id") REFERENCES "support_conversations"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+ALTER TABLE "support_messages" ADD CONSTRAINT "support_messages_sender_id_fkey" FOREIGN KEY ("sender_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE NO ACTION;
 
 -- Application-level invariants enforced by the database as well.
 ALTER TABLE "products"
@@ -431,13 +476,23 @@ ALTER TABLE "inventory_movements" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "order_items" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "products" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "product_reviews" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "support_conversations" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "support_messages" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "store_settings" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "store_social_links" ENABLE ROW LEVEL SECURITY;
 
--- Public read-only product images/avatars; uploads and deletes use the server-only
--- SUPABASE_SERVICE_ROLE_KEY. Do not expose that key to the browser.
+-- Public read-only avatar and product images; uploads and deletes use the
+-- server-only SUPABASE_SERVICE_ROLE_KEY. Do not expose that key to the browser.
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES ('avatars', 'avatars', TRUE, 153600, ARRAY['image/webp']::text[])
 ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('product-images', 'product-images', TRUE, 153600, ARRAY['image/webp']::text[])
+ON CONFLICT (id) DO UPDATE SET
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
 
 -- The site needs one settings row; admin API also upserts it if it is missing.
 INSERT INTO "store_settings" ("id") VALUES (1) ON CONFLICT ("id") DO NOTHING;

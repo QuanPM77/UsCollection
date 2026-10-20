@@ -7,8 +7,8 @@ type Bead = {
   id: string; name: string; description: string; price: number; costPrice: number | null; stock: number; status: "active" | "inactive" | "draft";
   material: BeadMaterial; color: string; emissive: string; metalness: number; roughness: number; diameter: number;
 };
-type FormValues = Omit<Bead, "id" | "status">;
-const blank: FormValues = { name: "", description: "", price: 15000, costPrice: null, stock: 0, material: "crystal", color: "#F4A7B9", emissive: "", metalness: 0.1, roughness: 0.3, diameter: 8 };
+type FormValues = Omit<Bead, "id" | "status" | "price" | "stock"> & { price: string; stock: string };
+const blank: FormValues = { name: "", description: "", price: "15000", costPrice: null, stock: "0", material: "crystal", color: "#F4A7B9", emissive: "", metalness: 0.1, roughness: 0.3, diameter: 8 };
 const currency = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 });
 const materialLabels: Record<BeadMaterial, string> = { glass: "Thủy tinh", crystal: "Pha lê", wood: "Gỗ", stone: "Đá", pearl: "Ngọc trai" };
 const slugify = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/đ/g, "d").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -44,7 +44,7 @@ export default function BeadTypesPage() {
   const startCreate = () => { setEditing(null); setValues(blank); setShowForm(true); setMessage(""); };
   const startEdit = (bead: Bead) => {
     setEditing(bead);
-    setValues({ name: bead.name, description: bead.description, price: bead.price, costPrice: bead.costPrice, stock: bead.stock, material: bead.material, color: bead.color, emissive: bead.emissive, metalness: bead.metalness, roughness: bead.roughness, diameter: bead.diameter });
+    setValues({ name: bead.name, description: bead.description, price: String(bead.price), costPrice: bead.costPrice, stock: String(bead.stock), material: bead.material, color: bead.color, emissive: bead.emissive, metalness: bead.metalness, roughness: bead.roughness, diameter: bead.diameter });
     setShowForm(true); setMessage("");
   };
 
@@ -54,7 +54,7 @@ export default function BeadTypesPage() {
     try {
       const response = await fetch(editing ? `/api/admin/bead-types/${encodeURIComponent(id)}` : "/api/admin/bead-types", {
         method: editing ? "PATCH" : "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...values, id }),
+        body: JSON.stringify({ ...values, price: Number(values.price || "0"), stock: Number(values.stock || "0"), id }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Không thể lưu loại hạt.");
@@ -112,9 +112,9 @@ export default function BeadTypesPage() {
           <label className="text-sm font-medium text-gray-700">Tên hạt<input required minLength={2} maxLength={100} value={values.name} onChange={(e) => setValues({ ...values, name: e.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label>
           <label className="text-sm font-medium text-gray-700">Mã hạt<input readOnly value={editing?.id ?? (slugify(values.name) || "tu-dong-tao-tu-ten")} className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-gray-500" /></label>
           <label className="text-sm font-medium text-gray-700">Chất liệu<select value={values.material} onChange={(e) => setValues({ ...values, material: e.target.value as BeadMaterial })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2">{Object.entries(materialLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
-          <label className="text-sm font-medium text-gray-700">Giá bán mỗi hạt (VND)<input required type="number" min={1} step={1} value={values.price} onChange={(e) => setValues({ ...values, price: Number(e.target.value) })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label>
+          <label className="text-sm font-medium text-gray-700">Giá bán mỗi hạt (VND)<input required type="text" inputMode="numeric" pattern="[0-9]*" value={values.price} onChange={(e) => setValues({ ...values, price: e.target.value.replace(/\D/g, "").replace(/^0+(?=\d)/, "") })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label>
           <label className="text-sm font-medium text-gray-700">Giá vốn mỗi hạt (VND)<input required type="number" min={0} step={1} value={values.costPrice ?? ""} onChange={(e) => setValues({ ...values, costPrice: e.target.value === "" ? null : Number(e.target.value) })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label>
-          <label className="text-sm font-medium text-gray-700">Tồn kho<input required type="number" min={0} step={1} value={values.stock} onChange={(e) => setValues({ ...values, stock: Number(e.target.value) })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label>
+          <label className="text-sm font-medium text-gray-700">Tồn kho<input required type="text" inputMode="numeric" pattern="[0-9]*" value={values.stock} onChange={(e) => setValues({ ...values, stock: e.target.value.replace(/\D/g, "").replace(/^0+(?=\d)/, "") })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label>
           <label className="text-sm font-medium text-gray-700">Màu hạt<input required type="color" value={values.color} onChange={(e) => setValues({ ...values, color: e.target.value })} className="mt-1 h-10 w-full rounded-lg border border-gray-300 p-1" /></label>
           <div className="text-sm font-medium text-gray-700"><span>Màu phát sáng (tùy chọn)</span><label className="mt-2 flex items-center gap-2 text-xs font-normal"><input type="checkbox" checked={Boolean(values.emissive)} onChange={(e) => setValues({ ...values, emissive: e.target.checked ? "#ffffff" : "" })} /> Bật hiệu ứng phát sáng</label>{values.emissive && <input aria-label="Màu phát sáng" type="color" value={values.emissive} onChange={(e) => setValues({ ...values, emissive: e.target.value })} className="mt-2 h-10 w-full rounded-lg border border-gray-300 p-1" />}</div>
           <label className="text-sm font-medium text-gray-700">Đường kính (mm)<input required type="number" min={2} max={30} value={values.diameter} onChange={(e) => setValues({ ...values, diameter: Number(e.target.value) })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label>

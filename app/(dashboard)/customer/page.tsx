@@ -93,7 +93,9 @@ export default async function CustomerPage({
             <div>
               <label className={labelClass} htmlFor="phone">Số điện thoại đăng ký</label>
               <input id="phone" type="tel" value={user.phone ?? ""} readOnly className={`${inputClass} cursor-not-allowed bg-pink-light/60`} />
-              <p className="mt-1 text-xs text-pink-text/55">Số điện thoại dùng để đăng nhập và không thể thay đổi.</p>
+              {!user.googleId && (
+                <p className="mt-1 text-xs text-pink-text/55">Số điện thoại dùng để đăng nhập và không thể thay đổi.</p>
+              )}
             </div>
             <div>
               <label className={labelClass} htmlFor="fullName">Họ và tên *</label>

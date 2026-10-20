@@ -1,12 +1,13 @@
-import { StoreSettings, DEFAULT_SETTINGS } from '../types/settings';
+import { StoreSettings, StoreSocialLink, DEFAULT_SETTINGS } from '../types/settings';
 
 type DatabaseSettings = {
-  store_name: string; store_description: string; contact_phone: string; contact_email: string;
-  address: string; low_stock_threshold: number; currency: string; order_auto_confirm: boolean;
+  store_name: string; contact_phone: string; contact_email: string;
+  low_stock_threshold: number; currency: string; order_auto_confirm: boolean;
+  socialLinks: StoreSocialLink[];
 };
 function fromDatabase(value: DatabaseSettings): StoreSettings {
-  return { storeName: value.store_name, storeDescription: value.store_description, contactPhone: value.contact_phone,
-    contactEmail: value.contact_email, address: value.address, lowStockThreshold: value.low_stock_threshold,
+  return { storeName: value.store_name, contactPhone: value.contact_phone,
+    contactEmail: value.contact_email, socialLinks: value.socialLinks ?? [], lowStockThreshold: value.low_stock_threshold,
     currency: value.currency, orderAutoConfirm: value.order_auto_confirm };
 }
 async function save(settings: StoreSettings): Promise<StoreSettings> {

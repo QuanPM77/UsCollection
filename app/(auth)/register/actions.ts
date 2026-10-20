@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { FormState } from "@/lib/form";
-import { clientIp, limitError, progressiveFailureLimit, recordProgressiveFailure } from "@/lib/ratelimit";
+import { clearLimit, clientIp, limitError, progressiveFailureLimit, recordProgressiveFailure } from "@/lib/ratelimit";
 
 export async function registerUser(_: FormState, fd: FormData): Promise<FormState> {
   const ip = clientIp(await headers());
@@ -34,5 +34,6 @@ export async function registerUser(_: FormState, fd: FormData): Promise<FormStat
     if ((e as { code?: string }).code === "P2002") return { error: "Số điện thoại này đã được đăng ký. Hãy đăng nhập." };
     throw e;
   }
+  await clearLimit(perIp);
   redirect(`/login?registered=1&phone=${encodeURIComponent(phone)}`);
 }

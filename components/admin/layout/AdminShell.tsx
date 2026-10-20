@@ -1,12 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { AdminSidebar } from '@/components/admin/layout/AdminSidebar';
 import { AdminHeader } from '@/components/admin/layout/AdminHeader';
 import { ToastContainer } from '@/components/admin/ui/Toast';
+import AdminSupportChat from '@/components/admin/support/AdminSupportChat';
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
     <div className="flex h-screen bg-[#FFF5F7] overflow-hidden">
@@ -18,6 +21,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         </main>
       </div>
       <ToastContainer />
+      {pathname !== '/admin/settings' && <AdminSupportChat />}
     </div>
   );
 }

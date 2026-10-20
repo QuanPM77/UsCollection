@@ -29,7 +29,7 @@ function readProduct(formData: FormData) {
   if (!Number.isSafeInteger(wristCircumference) || wristCircumference < 100 || wristCircumference > 250) {
     throw new Error("Chu vi vòng cần từ 100 đến 250 mm.");
   }
-  if (images.length > 10 || images.some((image) => !/^https?:\/\//i.test(image) && !image.startsWith("products/"))) {
+  if (images.length > 10 || images.some((image) => !/^https?:\/\//i.test(image) && !image.startsWith("catalog/") && !image.startsWith("products/"))) {
     throw new Error("Tối đa 10 ảnh; ảnh cần được tải lên Storage hoặc dùng URL http(s).");
   }
   if (details.length > 30 || details.some((line) => line.length > 300)) {

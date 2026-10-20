@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { LoginPromptProvider } from "@/components/LoginPromptProvider";
+import CustomerChatVisibility from "@/components/support/CustomerChatVisibility";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -23,7 +24,10 @@ export default async function RootLayout({
   const session = await auth();
   return (
     <html lang="vi">
-      <body><LoginPromptProvider isAuthenticated={Boolean(session?.user)}>{children}</LoginPromptProvider></body>
+      <body>
+        <LoginPromptProvider isAuthenticated={Boolean(session?.user)}>{children}</LoginPromptProvider>
+        {session?.user?.role === "customer" && <CustomerChatVisibility />}
+      </body>
     </html>
   );
 }
