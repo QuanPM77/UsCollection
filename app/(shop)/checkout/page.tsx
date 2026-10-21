@@ -251,6 +251,9 @@ export default function CheckoutPage() {
             {submitError && (
               <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-500 text-xs">
                 {submitError}
+                <Link href="/customizer" className="mt-2 block font-semibold text-pink-deep underline">
+                  Quay lại chỉnh sửa thiết kế
+                </Link>
               </div>
             )}
 

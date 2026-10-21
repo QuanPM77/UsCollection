@@ -7,6 +7,7 @@ export interface BeadType {
   name: string;
   material: BeadMaterial;
   color: string;
+  emissive?: string;
   metalness: number;
   roughness: number;
   price: number;

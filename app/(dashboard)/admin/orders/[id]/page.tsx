@@ -8,7 +8,6 @@ import { ConfirmDialog } from '@/components/admin/ui/ConfirmDialog';
 import { LoadingState } from '@/components/admin/ui/LoadingState';
 import { ErrorState } from '@/components/admin/ui/ErrorState';
 import { orderService } from '@/lib/admin/services/order.service';
-import { productService } from '@/lib/admin/services/product.service';
 import {
   AdminOrder,
   ORDER_STATUS_LABELS,
@@ -16,7 +15,7 @@ import {
   PAYMENT_METHOD_LABELS,
   OrderStatus,
 } from '@/lib/admin/types/order';
-import { AdminBeadProduct } from '@/lib/admin/types/product';
+import { BeadType } from '@/lib/store/types';
 import { formatCurrency, formatDateTime } from '@/lib/admin/utils/formatters';
 import { useToastStore } from '@/stores/admin/toast.store';
 
@@ -38,7 +37,7 @@ const PAYMENT_STATUS_VARIANT: Record<string, 'success' | 'warning' | 'error'> = 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [order, setOrder] = useState<AdminOrder | null>(null);
-  const [beadMap, setBeadMap] = useState<Record<string, AdminBeadProduct>>({});
+  const [beadMap, setBeadMap] = useState<Record<string, BeadType>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [statusDialog, setStatusDialog] = useState<{ open: boolean; status: OrderStatus | null }>({
@@ -57,7 +56,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           return;
         }
         setOrder(orderData);
-        setBeadMap(await productService.getBeadTypeMap());
+        setBeadMap(orderData.beadCatalog ?? {});
       } catch {
         setError(true);
       } finally {
@@ -221,7 +220,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900">{bead?.name || beadId}</p>
                     <p className="text-xs text-gray-400">
-                      {bead?.material ? `${bead.material}` : ''} · {formatCurrency(bead?.price || 0)}/hạt
+                      {bead
+                        ? `${bead.material} · ${bead.diameter} mm · màu ${bead.color} · kim loại ${bead.metalness} · độ nhám ${bead.roughness}${bead.emissive ? ` · phát sáng ${bead.emissive}` : ''} · ${formatCurrency(bead.price)}/hạt`
+                        : beadId}
                     </p>
                   </div>
                   <span className="text-sm font-semibold text-gray-600">×{count}</span>
@@ -233,14 +234,15 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             {order.orderType === 'custom_design' && <div className="mt-4 p-4 rounded-lg bg-gray-50">
               <p className="text-xs text-gray-500 mb-2">Thứ tự hạt trên vòng</p>
               <div className="flex flex-wrap gap-1.5">
-              {(order.braceletConfig.slots ?? []).filter((slot) => slot.beadTypeId).map((slot, i) => {
+              {(order.braceletConfig.slots ?? []).map((slot) => {
+                  if (!slot.beadTypeId) return null;
                   const bead = beadMap[slot.beadTypeId];
                   return (
                     <div
-                      key={i}
+                      key={slot.index ?? slot.position}
                       className="w-7 h-7 rounded-full border-2 border-white shadow-sm"
                       style={{ backgroundColor: bead?.color || '#ccc' }}
-                      title={`Vị trí ${i + 1}: ${bead?.name || slot.beadTypeId}`}
+                      title={`Vị trí ${(slot.index ?? slot.position ?? 0) + 1}: ${bead?.name || slot.beadTypeId}`}
                     />
                   );
                 })}

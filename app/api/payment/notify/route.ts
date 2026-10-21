@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
         }
 
         await tx.order.update({ where: { id: current.id }, data: { paymentStatus: "paid", paidAt: new Date() } });
-      });
+      }, { maxWait: 5_000, timeout: 15_000 });
     }
     return NextResponse.json({ message: "OK" });
   } catch (error) {

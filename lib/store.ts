@@ -6,10 +6,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { BraceletSlot, BeadType } from "@/types";
-import {
-  calculateBeadCount,
-  calculateTotalPrice,
-} from "@/lib/braceletMath";
+import { calculateTotalPrice } from "@/lib/braceletMath";
 
 export type CanvasTheme = "pink" | "white" | "dark";
 

@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
     } else {
       if (!braceletConfig || !Number.isInteger(braceletConfig.wristCircumference) ||
         braceletConfig.wristCircumference < 100 || braceletConfig.wristCircumference > 250 ||
-        !Array.isArray(braceletConfig.slots) || braceletConfig.slots.length < 6 || braceletConfig.slots.length > 32 ||
+        !Array.isArray(braceletConfig.slots) ||
         braceletConfig.slots.some((slot, index) => slot.index !== index ||
           (slot.beadTypeId !== null && (typeof slot.beadTypeId !== "string" || slot.beadTypeId.length > 64)))) {
         return NextResponse.json({ success: false, message: "Thông tin đơn hàng không hợp lệ." }, { status: 400 });
@@ -126,8 +126,16 @@ export async function POST(req: NextRequest) {
       const selectedIds = braceletConfig.slots.flatMap((slot) => slot.beadTypeId ? [slot.beadTypeId] : []);
       if (!selectedIds.length) return NextResponse.json({ success: false, message: "Vui lòng chọn ít nhất một hạt." }, { status: 400 });
       const catalogBeads = await prisma.products.findMany({
-        where: { type: "bead", status: "active", sku: { in: [...new Set(selectedIds)] } },
-        select: { id: true, sku: true, name: true, price: true, cost_price: true },
+        where: {
+          type: "bead", status: "active", sku: { in: [...new Set(selectedIds)] },
+          bead_product_details: { isNot: null },
+        },
+        select: {
+          id: true, sku: true, name: true, price: true, cost_price: true,
+          bead_product_details: {
+            select: { material: true, color: true, emissive_color: true, metalness: true, roughness: true, diameter: true },
+          },
+        },
       });
       const beadBySku = new Map(catalogBeads.map((bead) => [bead.sku, bead]));
       const selectedBeads = selectedIds.map((sku) => beadBySku.get(sku)).filter((bead) => bead !== undefined);
@@ -136,6 +144,10 @@ export async function POST(req: NextRequest) {
       }
       if (selectedBeads.some((bead) => bead.cost_price === null)) {
         return NextResponse.json({ success: false, message: "Một hoặc nhiều loại hạt chưa được cập nhật giá vốn. Vui lòng liên hệ cửa hàng để hoàn tất đơn hàng." }, { status: 409 });
+      }
+      const braceletLength = selectedBeads.reduce((sum, bead) => sum + (bead.bead_product_details?.diameter ?? 8), 0);
+      if (braceletLength > braceletConfig.wristCircumference + 2) {
+        return NextResponse.json({ success: false, message: "Tổng kích thước hạt vượt quá chu vi cổ tay đã chọn. Vui lòng điều chỉnh kích thước hoặc thiết kế." }, { status: 400 });
       }
       amount = selectedBeads.reduce((sum, bead) => sum + bead.price, 0);
       payItemName = "Vòng tay thiết kế";
@@ -158,7 +170,10 @@ export async function POST(req: NextRequest) {
                 AND o.payment_status = 'pending'
                 AND o.created_at > ${reservedUntil}
             `;
-            if (lockedBead.stock - Number(reservation?.reserved ?? 0) < quantity) throw new ProductStockUnavailableError("Một hoặc nhiều loại hạt đã hết tồn kho. Vui lòng cập nhật thiết kế.");
+            const available = Math.max(0, lockedBead.stock - Number(reservation?.reserved ?? 0));
+            if (available < quantity) {
+              throw new ProductStockUnavailableError(`Hạt “${bead.name}” cần ${quantity} hạt nhưng hiện chỉ còn đặt được ${available}. Hãy xóa bớt hạt này hoặc chọn loại khác.`);
+            }
           }
           return tx.order.create({ data: {
             orderCode: BigInt(orderCode),
@@ -168,10 +183,21 @@ export async function POST(req: NextRequest) {
             totalPrice: amount,
             order_items: { create: [...quantities.entries()].map(([sku, quantity]) => {
               const bead = beadBySku.get(sku)!;
-              return { product_id: bead.id, product_name: bead.name, sku: bead.sku, product_type: "bead", quantity, unit_price: bead.price, unit_cost: bead.cost_price, line_total: bead.price * quantity };
+              return {
+                product_id: bead.id, product_name: bead.name, sku: bead.sku, product_type: "bead",
+                quantity, unit_price: bead.price, unit_cost: bead.cost_price, line_total: bead.price * quantity,
+                details: bead.bead_product_details ? {
+                  material: bead.bead_product_details.material,
+                  color: bead.bead_product_details.color,
+                  emissive: bead.bead_product_details.emissive_color,
+                  metalness: bead.bead_product_details.metalness,
+                  roughness: bead.bead_product_details.roughness,
+                  diameter: bead.bead_product_details.diameter,
+                } : undefined,
+              };
             }) },
           } });
-        });
+        }, { maxWait: 5_000, timeout: 15_000 });
       } catch (error) {
         if (error instanceof ProductStockUnavailableError) return NextResponse.json({ success: false, message: error.message }, { status: 409 });
         throw error;

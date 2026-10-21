@@ -7,6 +7,7 @@ import { useBraceletStore } from "@/lib/store";
 export default function BeadSelector() {
   const { selectedBeadType } = useBraceletStore();
   const { catalog, loading, error } = useBeadCatalog();
+  const activeCatalog = catalog.filter((bead) => bead.is_active !== false);
 
   return (
     <div className="flex flex-col gap-2">
@@ -30,8 +31,8 @@ export default function BeadSelector() {
       <div className="grid max-h-[min(25vh,240px)] grid-cols-3 gap-2 overflow-y-auto pr-1 scrollbar-thin">
         {loading && <p className="col-span-3 py-6 text-center text-xs text-pink-text/60">Đang tải loại hạt...</p>}
         {error && <p className="col-span-3 py-6 text-center text-xs text-red-600">Không tải được loại hạt. Vui lòng tải lại trang.</p>}
-        {!loading && !error && catalog.filter((bead) => bead.is_active !== false && (bead.stock ?? 0) > 0).length === 0 && <p className="col-span-3 py-6 text-center text-xs text-pink-text/60">Hiện không có loại hạt nào còn hàng.</p>}
-        {catalog.filter((bead) => bead.is_active !== false && (bead.stock ?? 0) > 0).map((bead) => (
+        {!loading && !error && activeCatalog.length === 0 && <p className="col-span-3 py-6 text-center text-xs text-pink-text/60">Hiện không có loại hạt đang bán.</p>}
+        {activeCatalog.map((bead) => (
           <BeadCard key={bead.id} bead={bead} />
         ))}
       </div>

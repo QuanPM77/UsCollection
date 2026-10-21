@@ -19,6 +19,49 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
   const order = await prisma.order.findUnique({ where: { id }, include: { order_items: true } });
   if (!order) return NextResponse.json({ message: "Không tìm thấy đơn hàng." }, { status: 404 });
+  const beadSkus = order.order_items.filter((item) => item.product_type === "bead" && item.sku).map((item) => item.sku!);
+  const beadProducts = beadSkus.length ? await prisma.products.findMany({
+    where: { sku: { in: beadSkus }, type: "bead" },
+    include: { bead_product_details: true },
+  }) : [];
+  const beadCatalog: Record<string, {
+    id: string; name: string; material: string; color: string; emissive?: string;
+    metalness: number; roughness: number; price: number; diameter: number;
+  }> = Object.fromEntries(beadProducts.map((product) => {
+    const details = product.bead_product_details;
+    return [product.sku, {
+      id: product.sku,
+      name: product.name,
+      material: details?.material ?? "glass",
+      color: details?.color ?? "#cccccc",
+      emissive: details?.emissive_color ?? undefined,
+      metalness: details?.metalness ?? 0,
+      roughness: details?.roughness ?? 0.5,
+      price: product.price,
+      diameter: details?.diameter ?? 8,
+    }];
+  }));
+  for (const item of order.order_items) {
+    if (item.product_type !== "bead" || !item.sku) continue;
+    const snapshot = item.details && typeof item.details === "object" && !Array.isArray(item.details)
+      ? item.details as Record<string, unknown>
+      : null;
+    const existing = beadCatalog[item.sku] ?? {
+      id: item.sku, name: item.product_name, material: "glass", color: "#cccccc",
+      metalness: 0, roughness: 0.5, price: item.unit_price, diameter: 8,
+    };
+    beadCatalog[item.sku] = {
+      ...existing,
+      name: item.product_name,
+      price: item.unit_price,
+      ...(typeof snapshot?.material === "string" ? { material: snapshot.material } : {}),
+      ...(typeof snapshot?.color === "string" ? { color: snapshot.color } : {}),
+      ...(typeof snapshot?.emissive === "string" ? { emissive: snapshot.emissive } : {}),
+      ...(typeof snapshot?.metalness === "number" ? { metalness: snapshot.metalness } : {}),
+      ...(typeof snapshot?.roughness === "number" ? { roughness: snapshot.roughness } : {}),
+      ...(typeof snapshot?.diameter === "number" ? { diameter: snapshot.diameter } : {}),
+    };
+  }
   return NextResponse.json({
     id: order.id,
     orderCode: String(order.orderCode),
@@ -26,6 +69,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     productName: order.order_items.map((item) => item.product_name).filter((name, index, list) => list.indexOf(name) === index).join(", ") || "Vòng tay thiết kế 3D",
     customer: { fullName: order.customerName, phone: order.customerPhone, address: order.customerAddress },
     braceletConfig: order.braceletConfig,
+    beadCatalog,
     paymentMethod: order.payment_method,
     paymentStatus: order.paymentStatus,
     orderStatus: order.order_status,
