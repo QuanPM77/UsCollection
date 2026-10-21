@@ -1,8 +1,8 @@
 # 📚 TÀI LIỆU CƠ SỞ DỮ LIỆU USCOLLECTION (DATABASE DATA DICTIONARY)
 
 **Dự án**: UsCollection — Ứng dụng E-Commerce Vòng Tay Thủ Công 3D  
-**Hệ CSDL**: NoSQL Document Database (JSON-Based File Architecture)  
-**Kiến trúc**: 12 Bảng / Collections theo sơ đồ ERD chuẩn  
+**Hệ CSDL đang chạy**: PostgreSQL qua Prisma
+**Lưu ý**: Phần sơ đồ và các bảng JSON bên dưới là tài liệu kiến trúc cũ, không còn mô tả database hiện tại. Schema chuẩn nằm trong [`prisma/schema.prisma`](./prisma/schema.prisma) và [`supabase_schema.sql`](./supabase_schema.sql). Các API JSON cũ đã bị tắt; xem [`SUPABASE_SETUP.md`](./SUPABASE_SETUP.md) để khởi tạo database.
 
 ---
 
@@ -14,7 +14,7 @@ erDiagram
   users ||--o{ orders : "đặt"
   users ||--o{ favorites : "yêu thích"
   users ||--o{ custom_designs : "tự thiết kế"
-  users ||--o{ bracelet_templates : "tạo (manager)"
+  users ||--o{ bracelet_templates : "tạo (staff)"
   users ||--o{ admin_audit_logs : "thực hiện"
   bracelet_templates ||--o{ bracelet_template_slots : "gồm"
   custom_designs ||--o{ custom_design_slots : "gồm"
@@ -44,7 +44,7 @@ Lưu trữ toàn bộ tài khoản trong hệ thống với phân quyền 3 Role
 | `full_name` | `VARCHAR` | | Họ và tên người dùng |
 | `phone` | `VARCHAR` | | Số điện thoại liên hệ |
 | `avatar_url` | `VARCHAR` | NULL | Ảnh đại diện (nếu có) |
-| `role` | `ENUM` | | Phân quyền: `customer`, `manager`, `admin` |
+| `role` | `ENUM` | | Phân quyền: `customer`, `staff`, `admin` |
 | `status` | `ENUM` | | Trạng thái: `active`, `locked` |
 | `last_login_at` | `TIMESTAMP` | NULL | Thời điểm đăng nhập gần nhất |
 | `created_at` / `updated_at` | `TIMESTAMP` | | Ngày tạo và ngày cập nhật bản ghi |
@@ -90,7 +90,7 @@ Quản lý các loại hạt 3D, giá bán, giá vốn và tồn kho.
 ---
 
 ### 2.4 Bảng `bracelet_templates` — Mẫu vòng tay có sẵn
-Danh sách các mẫu vòng tay thiết kế sẵn do Quản lý (Manager) tạo và xuất bản.
+Danh sách các mẫu vòng tay thiết kế sẵn do nhân viên hoặc admin tạo và xuất bản.
 
 | Cột | Kiểu Dữ Liệu | Khóa | Ghi Chú / Mô Tả |
 |---|---|---|---|
@@ -203,7 +203,7 @@ Thư viện thiết kế riêng do Khách hàng tự phối hạt 3D và lưu l�
 | Cột | Kiểu Dữ Liệu | Khóa | Ghi Chú / Mô Tả |
 |---|---|---|---|
 | `id` | `VARCHAR/UUID` | **PK** | Mã log nhật ký |
-| `admin_id` | `VARCHAR/UUID` | **FK → users`** | Người thực hiện (Manager / Admin) |
+| `admin_id` | `VARCHAR/UUID` | **FK → users`** | Người thực hiện (staff / admin) |
 | `action` | `VARCHAR` | | Hành động (ví dụ: `update_bead_price`, `publish_template`) |
 | `target_table` | `VARCHAR` | | Bảng bị tác động |
 | `target_id` | `VARCHAR` | | ID bản ghi bị tác động |
@@ -235,5 +235,5 @@ ORDER BY 1;
 
 1. **Khởi tạo dữ liệu mẫu (Seeder API)**: `POST /api/db/seed` (Tự động nạp lại dữ liệu chuẩn 12 bảng cho cả nhóm test).
 2. **Sao lưu CSDL (Backup API)**: `GET /api/db/backup` (Tải về toàn bộ 12 collections CSDL thành file JSON).
-3. **Báo cáo Tài chính (Financials API)**: `GET /api/manager/financials` (Trả về báo cáo doanh thu & lợi nhuận).
+3. **Báo cáo tài chính** hiện nằm trong trang quản trị và dùng API Prisma; endpoint JSON cũ `/api/manager/financials` đã bị tắt.
 4. **Nhật ký Giám sát (Audit Logs API)**: `GET /api/admin/audit-logs` (Hiển thị nhật ký thao tác).

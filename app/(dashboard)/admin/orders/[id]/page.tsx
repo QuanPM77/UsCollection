@@ -14,8 +14,8 @@ import {
   PAYMENT_STATUS_LABELS,
   PAYMENT_METHOD_LABELS,
   OrderStatus,
+  OrderBeadSnapshot,
 } from '@/lib/admin/types/order';
-import { BeadType } from '@/lib/store/types';
 import { formatCurrency, formatDateTime } from '@/lib/admin/utils/formatters';
 import { useToastStore } from '@/stores/admin/toast.store';
 
@@ -37,7 +37,7 @@ const PAYMENT_STATUS_VARIANT: Record<string, 'success' | 'warning' | 'error'> = 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [order, setOrder] = useState<AdminOrder | null>(null);
-  const [beadMap, setBeadMap] = useState<Record<string, BeadType>>({});
+  const [beadMap, setBeadMap] = useState<Record<string, OrderBeadSnapshot>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [statusDialog, setStatusDialog] = useState<{ open: boolean; status: OrderStatus | null }>({
@@ -86,7 +86,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       const updated = await orderService.cancelOrder(order.id);
       if (updated) {
         setOrder(updated);
-        addToast('success', 'Đã hủy đơn hàng');
+        addToast('success', 'Đã hủy đơn hàng và đóng liên kết thanh toán');
       }
     } catch (err) {
       addToast('error', err instanceof Error ? err.message : 'Không thể hủy đơn hàng');
@@ -94,19 +94,33 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     setCancelDialog(false);
   };
 
+  const handleResolveInventoryReview = async () => {
+    if (!order) return;
+    try {
+      const updated = await orderService.resolveInventoryReview(order.id);
+      if (updated) {
+        setOrder(updated);
+        addToast('success', 'Đã đóng cảnh báo tồn kho sau khi đối soát');
+      }
+    } catch (err) {
+      addToast('error', err instanceof Error ? err.message : 'Không thể cập nhật cảnh báo tồn kho');
+    }
+  };
+
   if (loading) return <LoadingState message="Đang tải thông tin đơn hàng..." />;
   if (error || !order) {
     return <ErrorState title="Không tìm thấy đơn hàng" message="Đơn hàng không tồn tại hoặc đã bị xóa." />;
   }
 
-  const validTransitions = orderService.getValidTransitions(order.orderStatus);
+  const validTransitions = orderService.getValidTransitions(order.orderStatus).filter((status) => status !== 'cancelled');
+  const canCancel = order.paymentStatus !== 'paid' && !['completed', 'cancelled'].includes(order.orderStatus);
   const costedItems = (order.items ?? []).filter((item) => item.unitCost !== null);
   const costedRevenue = costedItems.reduce((sum, item) => sum + item.lineTotal, 0);
   const costTotal = costedItems.reduce((sum, item) => sum + item.unitCost! * item.quantity, 0);
   const grossProfit = costedRevenue - costTotal;
 
   // Summarize bead configuration
-  const beadSummary: { beadId: string; bead: AdminBeadProduct | undefined; count: number }[] = [];
+  const beadSummary: { beadId: string; bead: OrderBeadSnapshot | undefined; count: number }[] = [];
   const beadCounts: Record<string, number> = {};
   for (const slot of order.braceletConfig.slots ?? []) {
     if (!slot.beadTypeId) continue;
@@ -289,11 +303,11 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               </div>
             </div>
 
-            {validTransitions.length > 0 && (
+            {(validTransitions.length > 0 || canCancel) && (
               <div>
                 <p className="text-xs text-gray-500 mb-2">Chuyển sang</p>
                 <div className="flex flex-wrap gap-2">
-                  {validTransitions.filter(s => s !== 'cancelled').map((status) => (
+                  {validTransitions.map((status) => (
                     <button
                       key={status}
                       onClick={() => setStatusDialog({ open: true, status })}
@@ -302,7 +316,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                       {ORDER_STATUS_LABELS[status]}
                     </button>
                   ))}
-                  {validTransitions.includes('cancelled') && (
+                  {canCancel && (
                     <button
                       onClick={() => setCancelDialog(true)}
                       className="px-3 py-1.5 text-sm font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
@@ -311,6 +325,19 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                     </button>
                   )}
                 </div>
+              </div>
+            )}
+
+            {order.paymentStatus === 'paid' && !['completed', 'cancelled'].includes(order.orderStatus) && (
+              <p className="text-sm text-amber-700">
+                Đơn đã thanh toán. Hệ thống chưa hỗ trợ hoàn tiền nên không thể hủy đơn; hãy tiếp tục xử lý đơn hàng.
+              </p>
+            )}
+
+            {order.inventoryReviewRequired && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                <p>Thanh toán đã hoàn tất nhưng tồn kho không đủ để trừ tự động. Hãy đối soát tồn kho và cập nhật thủ công trước khi đóng cảnh báo.</p>
+                <button type="button" onClick={handleResolveInventoryReview} className="mt-3 rounded-lg border border-amber-500 px-3 py-1.5 text-xs font-semibold hover:bg-amber-100">Đã đối soát tồn kho</button>
               </div>
             )}
 
@@ -335,7 +362,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       <ConfirmDialog
         open={cancelDialog}
         title="Hủy đơn hàng"
-        message={`Bạn có chắc muốn hủy đơn hàng ${order.orderCode}? Hành động này không thể hoàn tác.`}
+        message={`Đơn đang chờ thanh toán sẽ được đóng trên PayOS trước khi hủy. Xác nhận hủy đơn ${order.orderCode}?`}
         confirmText="Hủy đơn"
         variant="danger"
         onConfirm={handleCancel}

@@ -3,6 +3,7 @@ import { BeadType, CustomerInfo, PaymentMethod, PaymentStatus } from '@/lib/stor
 
 export type OrderStatus = 'new' | 'confirmed' | 'processing' | 'shipping' | 'completed' | 'cancelled';
 export type AdminOrderType = 'catalog_product' | 'custom_design';
+export type OrderBeadSnapshot = BeadType & { diameter: number };
 
 export interface AdminOrder {
   id: string;
@@ -18,9 +19,10 @@ export interface AdminOrder {
     quantity?: number;
   };
   items?: { productName: string; productType: string; sku?: string | null; quantity: number; unitPrice: number; unitCost: number | null; lineTotal: number; details?: unknown }[];
-  beadCatalog?: Record<string, BeadType>;
+  beadCatalog?: Record<string, OrderBeadSnapshot>;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
+  inventoryReviewRequired?: boolean;
   orderStatus: OrderStatus;
   totalPrice: number;
   note?: string;

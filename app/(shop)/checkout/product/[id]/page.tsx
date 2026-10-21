@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { productImageDisplayUrl } from "@/lib/supabase-storage";
+import { getAvailableProductStock } from "@/lib/product-availability";
 import ProductCheckoutForm from "./ProductCheckoutForm";
 
 export default async function ProductCheckoutPage({ params }: { params: Promise<{ id: string }> }) {
@@ -22,6 +23,7 @@ export default async function ProductCheckoutPage({ params }: { params: Promise<
     }) : Promise.resolve(null),
   ]);
   if (!product) notFound();
+  const availableStock = await getAvailableProductStock(product.id, product.stock, session?.user.id);
   const image = product.images[0] ? await productImageDisplayUrl(product.images[0]) : null;
   const savedAddress = user?.addresses[0];
   const initialValues = {
@@ -36,6 +38,6 @@ export default async function ProductCheckoutPage({ params }: { params: Promise<
       <Link href={`/buy/${product.id}`} className="text-sm text-pink-deep hover:underline">← Quay lại sản phẩm</Link>
       <span className="font-display font-bold">Thanh toán</span>
     </nav>
-    <ProductCheckoutForm productId={product.id} productName={product.name} sku={product.sku} unitPrice={product.price} stock={product.stock} image={image} initialValues={initialValues} />
+    <ProductCheckoutForm productId={product.id} productName={product.name} sku={product.sku} unitPrice={product.price} stock={availableStock} image={image} initialValues={initialValues} />
   </main>;
 }

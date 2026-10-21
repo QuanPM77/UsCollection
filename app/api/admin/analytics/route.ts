@@ -29,7 +29,10 @@ export async function GET(request: Request) {
     prisma.products.findMany({ where: { status: "active" }, select: { id: true, name: true, stock: true, status: true } }),
     prisma.order.groupBy({ by: ["order_status"], _count: { _all: true } }),
     prisma.order.findMany({ where: { createdAt: { gte: new Date(firstDay), lt: new Date(endDay) } }, select: { createdAt: true } }),
-    prisma.order.findMany({ where: { paymentStatus: "paid", createdAt: { gte: new Date(firstDay), lt: new Date(endDay) } }, select: { totalPrice: true, createdAt: true } }),
+    prisma.order.findMany({ where: { paymentStatus: "paid", OR: [
+      { paidAt: { gte: new Date(firstDay), lt: new Date(endDay) } },
+      { paidAt: null, createdAt: { gte: new Date(firstDay), lt: new Date(endDay) } },
+    ] }, select: { totalPrice: true, paidAt: true, createdAt: true } }),
   ]);
 
   type PaidItem = { product_id: string | null; product_name: string; product_type: string; quantity: number | bigint; line_total: number | bigint; costed_line_total: number | bigint; total_cost: number | bigint; has_cost: boolean };
@@ -64,9 +67,7 @@ export async function GET(request: Request) {
     const date = new Date(firstDay + index * 86400000);
     const nextDate = new Date(date.getTime() + 86400000);
     const dayOrders = paidOrders.filter((order) => {
-      // Use createdAt here so analytics remains compatible with existing generated clients
-      // that predate the optional paidAt field. Orders are paid at checkout in this flow.
-      const paidDate = order.createdAt;
+      const paidDate = order.paidAt ?? order.createdAt;
       return paidDate >= date && paidDate < nextDate;
     });
     const dayCreatedOrders = createdOrders.filter((order) => order.createdAt >= date && order.createdAt < nextDate);

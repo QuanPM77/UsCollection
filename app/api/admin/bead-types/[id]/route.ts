@@ -33,6 +33,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     await tx.$queryRaw`SELECT id FROM products WHERE id = ${current.id}::uuid FOR UPDATE`;
     const locked = await tx.products.findUnique({ where: { id: current.id }, select: { stock: true } });
     if (!locked) throw new Error("Không tìm thấy loại hạt.");
+    const [reservation] = await tx.$queryRaw<Array<{ reserved: number }>>`
+      SELECT COALESCE(SUM(oi.quantity), 0)::int AS reserved
+      FROM order_items oi JOIN orders o ON o.id = oi.order_id
+      WHERE oi.product_id = ${current.id}::uuid AND o.payment_status = 'pending'
+        AND o.created_at > ${new Date(Date.now() - 15 * 60 * 1000)}
+    `;
+    if (body.stock! < Number(reservation?.reserved ?? 0)) {
+      throw new Error(`Không thể giảm tồn kho dưới ${reservation?.reserved ?? 0} hạt đang được giữ cho đơn chờ thanh toán.`);
+    }
     const product = await tx.products.update({ where: { id: current.id }, data: {
       name: body.name!.trim(), description: body.description!.trim(), price: body.price!, cost_price: body.costPrice!, stock: body.stock!,
       bead_product_details: { upsert: {

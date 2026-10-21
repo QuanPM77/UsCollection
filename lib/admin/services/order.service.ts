@@ -56,5 +56,11 @@ export const orderService = {
   },
 
   async cancelOrder(id: string) { return this.updateOrderStatus(id, 'cancelled'); },
+  async resolveInventoryReview(id: string): Promise<AdminOrder | null> {
+    await request(`/api/admin/orders/${encodeURIComponent(id)}`, {
+      method: 'PATCH', body: JSON.stringify({ inventoryReviewRequired: false }),
+    });
+    return this.getById(id);
+  },
   getValidTransitions(currentStatus: OrderStatus) { return VALID_ORDER_TRANSITIONS[currentStatus] ?? []; },
 };

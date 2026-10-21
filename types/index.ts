@@ -36,7 +36,7 @@ export interface BraceletConfig {
 
 export type PaymentStatus = "pending" | "paid" | "failed";
 export type FulfillmentStatus = "pending" | "processing" | "completed" | "cancelled";
-export type UserRole = "customer" | "manager" | "admin";
+export type UserRole = "customer" | "staff" | "admin";
 export type UserStatus = "active" | "locked";
 
 // ─── Payment Strategy ─────────────────────────────────────────────────────────
@@ -49,6 +49,10 @@ export interface PaymentPayload {
 export interface PaymentResult {
   success: boolean;
   payUrl?: string;
+  amount?: number;
+  orderId?: string;
+  reused?: boolean;
+  expiresAt?: number;
   message?: string;
 }
 

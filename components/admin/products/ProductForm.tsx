@@ -20,6 +20,7 @@ const DEFAULT_DATA: BeadProductFormData = {
   price: 0,
   metalness: 0.3,
   roughness: 0.3,
+  costPrice: 0,
   stock: 0,
   status: 'draft',
   description: '',

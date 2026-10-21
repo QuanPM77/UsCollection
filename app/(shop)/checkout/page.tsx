@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useBraceletStore } from "@/lib/store";
@@ -39,12 +39,103 @@ export default function CheckoutPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [loading, setLoading] = useState(false);
   const [payUrl, setPayUrl] = useState<string | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<number | null>(null);
+  const [remainingSeconds, setRemainingSeconds] = useState(0);
+  const [paymentOpened, setPaymentOpened] = useState(false);
+  const [canceling, setCanceling] = useState(false);
+  const [serverAmount, setServerAmount] = useState<number | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const paymentWindow = useRef<Window | null>(null);
+  const cancelInProgress = useRef(false);
 
   const total = totalPrice();
   const filled = filledCount();
 
   const filledSlots = slots.filter((s) => s.beadTypeId !== null);
+
+  const finishCancellation = useCallback((message: string) => {
+    paymentWindow.current?.close();
+    paymentWindow.current = null;
+    setPayUrl(null);
+    setOrderId(null);
+    setExpiresAt(null);
+    setRemainingSeconds(0);
+    setPaymentOpened(false);
+    setServerAmount(null);
+    setNotice(message);
+    setCanceling(false);
+    cancelInProgress.current = false;
+  }, []);
+
+  const cancelCurrentOrder = useCallback(async (expired: boolean) => {
+    if (!orderId || cancelInProgress.current) return;
+    cancelInProgress.current = true;
+    setCanceling(true);
+    try {
+      const response = await fetch("/api/payment/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message ?? "Chưa thể hủy thanh toán.");
+      if (result.paymentStatus === "paid") {
+        paymentWindow.current?.close();
+        window.location.assign(`/checkout/result?orderId=${encodeURIComponent(orderId)}`);
+        return;
+      }
+      setSubmitError(null);
+      finishCancellation(expired ? "Mã thanh toán đã hết hạn" : "Đơn đã hủy");
+    } catch (cause) {
+      setSubmitError(cause instanceof Error ? cause.message : "Chưa thể hủy thanh toán");
+      setCanceling(false);
+      cancelInProgress.current = false;
+    }
+  }, [finishCancellation, orderId]);
+
+  useEffect(() => {
+    if (!orderId || !payUrl || !expiresAt) return;
+    const popup = paymentWindow.current;
+    let checkingStatus = false;
+    let cancellationTriggered = false;
+    const countdownTimer = window.setInterval(() => {
+      const seconds = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+      setRemainingSeconds(seconds);
+      if (!cancellationTriggered && popup?.closed) {
+        cancellationTriggered = true;
+        void cancelCurrentOrder(false);
+      } else if (!cancellationTriggered && seconds === 0) {
+        cancellationTriggered = true;
+        void cancelCurrentOrder(true);
+      }
+    }, 500);
+    const statusTimer = window.setInterval(async () => {
+      if (checkingStatus || cancelInProgress.current) return;
+      checkingStatus = true;
+      try {
+        const response = await fetch(`/api/payment/status?orderId=${encodeURIComponent(orderId)}`);
+        if (response.ok) {
+          const result = await response.json();
+          if (result.paymentStatus === "paid") {
+            popup?.close();
+            window.location.assign(`/checkout/result?orderId=${encodeURIComponent(orderId)}`);
+          } else if (result.paymentStatus === "failed") {
+            finishCancellation("Thanh toán đã hủy");
+          }
+        }
+      } catch {
+        // Keep checking; the payment link still expires on the server.
+      } finally {
+        checkingStatus = false;
+      }
+    }, 2500);
+    return () => {
+      window.clearInterval(countdownTimer);
+      window.clearInterval(statusTimer);
+    };
+  }, [cancelCurrentOrder, expiresAt, finishCancellation, orderId, payUrl]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -72,19 +163,35 @@ export default function CheckoutPage() {
     }
 
     setLoading(true);
+    paymentWindow.current = window.open("about:blank", "_blank");
+    setPaymentOpened(Boolean(paymentWindow.current));
 
-    // The server calculates the price from the catalog and creates the order.
-    const result = await paymentCtx.execute({
-      customer: { name: form.name.trim(), phone: form.phone.replace(/\s/g, ""), address: [addressParts.street.trim(), addressParts.ward, addressParts.province].join(", ") },
-      braceletConfig: { wristCircumference, slots },
-    });
-
-    setLoading(false);
-
-    if (result.success && result.payUrl) {
-      setPayUrl(result.payUrl);
-    } else {
-      setSubmitError(result.message ?? "Lỗi thanh toán, vui lòng thử lại.");
+    try {
+      // The server calculates the price from the catalog and creates the order.
+      const result = await paymentCtx.execute({
+        customer: { name: form.name.trim(), phone: form.phone.replace(/\s/g, ""), address: [addressParts.street.trim(), addressParts.ward, addressParts.province].join(", ") },
+        braceletConfig: { wristCircumference, slots },
+      });
+      if (result.success && result.payUrl) {
+        if (result.orderId) setOrderId(result.orderId);
+        if (typeof result.expiresAt === "number") {
+          setExpiresAt(result.expiresAt);
+          setRemainingSeconds(Math.max(0, Math.ceil((result.expiresAt - Date.now()) / 1000)));
+        }
+        setPayUrl(result.payUrl);
+        if (paymentWindow.current) paymentWindow.current.location.href = result.payUrl;
+        if (typeof result.amount === "number") setServerAmount(result.amount);
+      } else {
+        paymentWindow.current?.close();
+        paymentWindow.current = null;
+        setSubmitError(result.message ?? "Lỗi thanh toán, vui lòng thử lại.");
+      }
+    } catch {
+      paymentWindow.current?.close();
+      paymentWindow.current = null;
+      setSubmitError("Không thể kết nối cổng thanh toán. Vui lòng thử lại.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -97,10 +204,9 @@ export default function CheckoutPage() {
           <h2 className="font-display text-2xl font-bold text-pink-text mb-2">
             Đơn hàng đã tạo!
           </h2>
-          <p className="text-pink-text/60 text-sm mb-6">
-            Bấm nút bên dưới để thanh toán qua PayOS.
-          </p>
-          <a
+          <p className="text-pink-text/60 text-sm mb-3">Giữ trang cửa hàng mở. Khi hủy hoặc hết giờ, link PayOS sẽ bị đóng</p>
+          <p role="timer" className="mb-4 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-800">Mã PayOS còn hiệu lực: {String(Math.floor(remainingSeconds / 60)).padStart(2, "0")}:{String(remainingSeconds % 60).padStart(2, "0")}</p>
+          {paymentOpened ? <p className="text-pink-text/60 text-sm mb-6">PayOS đã mở trong tab mới.</p> : <a
             href={payUrl}
             target="_blank"
             rel="noopener noreferrer"
@@ -111,9 +217,10 @@ export default function CheckoutPage() {
             "
           >
             <span className="text-xl">💜</span>
-             Thanh toán PayOS — {formatPrice(total)}
-          </a>
-          <p className="mt-4 text-xs text-pink-text/40">Bạn sẽ được chuyển tới cổng thanh toán PayOS.</p>
+            Thanh toán PayOS — {formatPrice(serverAmount ?? total)}
+          </a>}
+          {submitError && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">{submitError}</p>}
+          <button type="button" onClick={() => void cancelCurrentOrder(false)} disabled={canceling} className="mt-3 w-full rounded-xl border border-pink-mid/40 px-4 py-3 text-sm font-semibold text-pink-deep disabled:opacity-50">{canceling ? "Đang hủy và quay lại…" : "Hủy thanh toán và quay lại trang đặt hàng"}</button>
           <Link href="/" className="block mt-4 text-xs text-pink-deep hover:underline">
             Về trang chủ
           </Link>
@@ -248,6 +355,7 @@ export default function CheckoutPage() {
               )}
             </div>
 
+            {notice && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</div>}
             {submitError && (
               <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-500 text-xs">
                 {submitError}

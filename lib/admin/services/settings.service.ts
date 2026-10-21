@@ -2,13 +2,13 @@ import { StoreSettings, StoreSocialLink, DEFAULT_SETTINGS } from '../types/setti
 
 type DatabaseSettings = {
   store_name: string; contact_phone: string; contact_email: string;
-  low_stock_threshold: number; currency: string; order_auto_confirm: boolean;
+  low_stock_threshold: number; currency: string;
   socialLinks: StoreSocialLink[];
 };
 function fromDatabase(value: DatabaseSettings): StoreSettings {
   return { storeName: value.store_name, contactPhone: value.contact_phone,
     contactEmail: value.contact_email, socialLinks: value.socialLinks ?? [], lowStockThreshold: value.low_stock_threshold,
-    currency: value.currency, orderAutoConfirm: value.order_auto_confirm };
+    currency: value.currency };
 }
 async function save(settings: StoreSettings): Promise<StoreSettings> {
   const response = await fetch('/api/admin/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings) });

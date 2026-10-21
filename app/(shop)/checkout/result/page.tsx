@@ -11,23 +11,34 @@ function ResultContent() {
   const [paymentStatus, setPaymentStatus] = useState<"pending" | "paid" | "failed">("pending");
   const [orderCode, setOrderCode] = useState<string | null>(null);
   const [orderType, setOrderType] = useState<"catalog_product" | "custom_design" | null>(null);
+  const [inventoryReviewRequired, setInventoryReviewRequired] = useState(false);
   useEffect(() => {
     if (orderId === "unknown") return;
     let active = true;
+    let timer: number | undefined;
+    let syncPayOSOnNextRequest = wasCancelled;
     const refresh = async () => {
       try {
-        const response = await fetch(`/api/payment/status?orderId=${encodeURIComponent(orderId)}`);
+        const shouldSyncPayOS = syncPayOSOnNextRequest;
+        syncPayOSOnNextRequest = false;
+        const response = await fetch(`/api/payment/status?orderId=${encodeURIComponent(orderId)}${shouldSyncPayOS ? "&syncPayOS=1" : ""}`);
         if (!response.ok) return;
         const result = await response.json();
-        if (active && ["pending", "paid", "failed"].includes(result.paymentStatus)) setPaymentStatus(result.paymentStatus);
+        if (active && ["pending", "paid", "failed"].includes(result.paymentStatus)) {
+          setPaymentStatus(result.paymentStatus);
+          if (result.paymentStatus !== "pending" && timer !== undefined) window.clearInterval(timer);
+        }
         if (active && typeof result.orderCode === "string") setOrderCode(result.orderCode);
         if (active && ["catalog_product", "custom_design"].includes(result.orderType)) setOrderType(result.orderType);
+        if (active) setInventoryReviewRequired(result.inventoryReviewRequired === true);
       } catch { /* Retry while this page remains open. */ }
     };
     void refresh();
-    const timer = window.setInterval(refresh, 2500);
+    timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refresh();
+    }, 2500);
     return () => { active = false; window.clearInterval(timer); };
-  }, [orderId]);
+  }, [orderId, wasCancelled]);
 
   const success = paymentStatus === "paid";
   const pending = paymentStatus === "pending";
@@ -35,24 +46,28 @@ function ResultContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-light to-cream flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-pink-lg p-10 max-w-md w-full text-center">
-        <div className="text-6xl mb-6">{success ? "🎀" : pending ? "⏳" : "😕"}</div>
+        <div className="text-6xl mb-6">{success ? (inventoryReviewRequired ? "⚠️" : "🎀") : pending ? "⏳" : "😕"}</div>
         <h1 className="font-display text-2xl font-bold text-pink-text mb-2">
-          {success ? "Thanh toán thành công!" : wasCancelled ? "Bạn đã hủy thanh toán" : pending ? "Đang chờ xác nhận thanh toán" : "Thanh toán thất bại"}
+          {success ? (inventoryReviewRequired ? "Đơn hàng cần xác nhận tồn kho" : "Thanh toán thành công!") : pending ? "Đang chờ xác nhận thanh toán" : wasCancelled ? "Thanh toán chưa hoàn tất" : "Thanh toán thất bại"}
         </h1>
         <p className="text-pink-text/60 text-sm mb-2">
           Mã đơn hàng: <span className="font-mono font-medium text-pink-deep">{orderCode ?? "Đang tải..."}</span>
         </p>
         {orderType && <p className="text-pink-text/60 text-xs mb-4">{orderType === "catalog_product" ? "Vòng tay có sẵn" : "Vòng tay thiết kế 3D"}</p>}
-        {success ? (
+        {success && inventoryReviewRequired ? (
+          <p className="text-amber-800 text-sm mb-8">
+            PayOS đã xác nhận khoản thanh toán, nhưng sản phẩm vừa hết tồn kho do đơn khác được thanh toán trước. Cửa hàng sẽ liên hệ bạn để xử lý đơn hàng.
+          </p>
+        ) : success ? (
           <p className="text-pink-text/60 text-sm mb-8">
             Cảm ơn bạn! Chúng tôi sẽ liên hệ xác nhận trong vòng 24h.
           </p>
-        ) : wasCancelled ? (
-          <p className="text-pink-text/60 text-sm mb-8">Đơn hàng chưa được thanh toán. Bạn có thể quay lại đặt hàng để thử lại.</p>
         ) : pending ? (
           <p className="text-pink-text/60 text-sm mb-8">
-            Trạng thái sẽ tự cập nhật sau khi PayOS xác nhận giao dịch. Vui lòng giữ trang này mở trong giây lát.
+            {wasCancelled ? "Yêu cầu hủy đã được gửi. Đang chờ PayOS xác nhận trạng thái giao dịch." : "Trạng thái sẽ tự cập nhật sau khi PayOS xác nhận giao dịch. Vui lòng giữ trang này mở trong giây lát."}
           </p>
+        ) : wasCancelled ? (
+          <p className="text-pink-text/60 text-sm mb-8">Giao dịch chưa được ghi nhận thành công. Bạn có thể quay lại đặt hàng để thử lại.</p>
         ) : (
           <p className="text-pink-text/60 text-sm mb-8">
             Giao dịch không thành công. Vui lòng thử lại.
@@ -60,7 +75,7 @@ function ResultContent() {
         )}
 
         <div className="flex flex-col gap-3">
-          {!success && (!pending || wasCancelled) && (
+          {!success && !pending && (
             <Link
               href="/checkout"
               className="py-3 rounded-2xl bg-pink-deep text-white font-semibold text-sm hover:opacity-90 transition-opacity"

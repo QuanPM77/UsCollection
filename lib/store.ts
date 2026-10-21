@@ -177,7 +177,7 @@ export const useBraceletStore = create<BraceletStore>()(
         if (!selectedBeadType) return;
         
         const beadDiameter = selectedBeadType.diameter ?? 8;
-        const count = Math.min(Math.round(wristCircumference / beadDiameter), selectedBeadType.stock ?? Number.MAX_SAFE_INTEGER);
+        const count = Math.min(Math.floor(wristCircumference / beadDiameter), selectedBeadType.stock ?? Number.MAX_SAFE_INTEGER);
         if (count < 1) return;
         const newSlots = Array.from({ length: count }, (_, i) => ({
           index: i,

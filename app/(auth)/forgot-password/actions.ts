@@ -1,6 +1,5 @@
 "use server";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/mail";
 import { newToken, hashToken } from "@/lib/token";
@@ -27,9 +26,6 @@ export async function requestReset(_: FormState, fd: FormData): Promise<FormStat
   ]);
 
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) redirect("/login?forgot=not-found");
-  if (user.googleId) redirect("/login?forgot=google");
-  if (user.status !== "active") redirect("/login?forgot=locked");
   if (user && !user.googleId && user.status === "active") {
     const token = newToken();
     await prisma.$transaction([

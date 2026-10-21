@@ -18,14 +18,20 @@ export async function resetPassword(_: FormState, fd: FormData): Promise<FormSta
   const lim = limitError(await rateLimit(`reset:ip:${ip}`, 10, 3600));
   if (lim) return { error: lim };
 
-  const rec = await prisma.passwordResetToken.findUnique({ where: { tokenHash: hashToken(token) } });
+  const tokenHash = hashToken(token);
+  const rec = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
   if (!rec || rec.expiresAt < new Date()) {
     return { error: "Liên kết không hợp lệ hoặc đã hết hạn. Hãy yêu cầu liên kết mới." };
   }
+  const passwordHash = await bcrypt.hash(password, 10);
   const reset = await prisma.$transaction(async (tx) => {
+    const consumed = await tx.passwordResetToken.deleteMany({
+      where: { id: rec.id, tokenHash, expiresAt: { gt: new Date() } },
+    });
+    if (consumed.count !== 1) return false;
     const updated = await tx.user.updateMany({
       where: { id: rec.userId, googleId: null },
-      data: { passwordHash: await bcrypt.hash(password, 10) },
+      data: { passwordHash },
     });
     if (updated.count !== 1) {
       await tx.passwordResetToken.deleteMany({ where: { userId: rec.userId } });

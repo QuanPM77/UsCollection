@@ -9,7 +9,7 @@ export default function ForgotPage() {
   return (
     <AuthShell title="Quên mật khẩu" subtitle="Chúng tôi sẽ gửi liên kết đặt lại mật khẩu qua email">
       {state?.ok ? (
-        <Notice kind="ok">Đã gửi liên kết đặt lại mật khẩu. Vui lòng kiểm tra hộp thư đến và thư rác. Liên kết có hiệu lực trong 5 phút.</Notice>
+        <Notice kind="ok">Nếu email này thuộc tài khoản có thể đặt lại mật khẩu, hướng dẫn sẽ được gửi. Vui lòng kiểm tra hộp thư đến và thư rác.</Notice>
       ) : (
         <form action={action} className="space-y-4">
           <input name="email" type="email" required placeholder="ban@email.com" autoComplete="email" className={inputCls} />

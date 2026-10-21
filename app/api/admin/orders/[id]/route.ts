@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { PayOS } from "@payos/node";
 
 const transitions: Record<string, string[]> = {
   new: ["confirmed", "cancelled"],
@@ -72,6 +73,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     beadCatalog,
     paymentMethod: order.payment_method,
     paymentStatus: order.paymentStatus,
+    inventoryReviewRequired: order.inventoryReviewRequired,
     orderStatus: order.order_status,
     totalPrice: order.totalPrice,
     note: order.note,
@@ -87,31 +89,68 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ message: "Không có quyền truy cập." }, { status: 403 });
   }
   const { id } = await params;
-  const body = await request.json().catch(() => null) as { orderStatus?: string } | null;
-  if (!body?.orderStatus || !Object.hasOwn(transitions, body.orderStatus)) {
+  const body = await request.json().catch(() => null) as { orderStatus?: string; inventoryReviewRequired?: boolean } | null;
+  if (body?.inventoryReviewRequired === false && body.orderStatus === undefined) {
+    const cleared = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM orders WHERE id = ${id}::uuid FOR UPDATE`;
+      return tx.order.updateMany({
+        where: { id, paymentStatus: "paid", inventoryReviewRequired: true },
+        data: { inventoryReviewRequired: false },
+      });
+    });
+    if (cleared.count !== 1) return NextResponse.json({ message: "Đơn không có cảnh báo tồn kho cần đóng." }, { status: 409 });
+    return NextResponse.json({ inventoryReviewRequired: false });
+  }
+  if (!body?.orderStatus || body.inventoryReviewRequired !== undefined || !Object.hasOwn(transitions, body.orderStatus)) {
     return NextResponse.json({ message: "Trạng thái đơn hàng không hợp lệ." }, { status: 400 });
   }
-  const current = await prisma.order.findUnique({ where: { id }, include: { order_items: true } });
+  const current = await prisma.order.findUnique({ where: { id } });
   if (!current) return NextResponse.json({ message: "Không tìm thấy đơn hàng." }, { status: 404 });
   if (!transitions[current.order_status].includes(body.orderStatus)) {
     return NextResponse.json({ message: "Không thể chuyển sang trạng thái này." }, { status: 409 });
+  }
+  if (body.orderStatus !== "cancelled" && current.paymentStatus !== "paid") {
+    return NextResponse.json({ message: "Chỉ được xử lý đơn hàng sau khi thanh toán thành công." }, { status: 409 });
+  }
+  if (body.orderStatus === "cancelled") {
+    if (current.paymentStatus === "paid") {
+      return NextResponse.json({ message: "Hệ thống chưa hỗ trợ hoàn tiền nên không thể hủy đơn đã thanh toán." }, { status: 409 });
+    }
+    if (current.paymentStatus === "pending") {
+      if (!current.paymentLinkId) return NextResponse.json({ message: "Liên kết thanh toán đang được tạo. Vui lòng thử lại sau." }, { status: 409 });
+      if (!process.env.PAYOS_CLIENT_ID || !process.env.PAYOS_API_KEY || !process.env.PAYOS_CHECKSUM_KEY) {
+        return NextResponse.json({ message: "PayOS chưa được cấu hình; không thể đóng liên kết thanh toán." }, { status: 503 });
+      }
+      const payos = new PayOS({ clientId: process.env.PAYOS_CLIENT_ID, apiKey: process.env.PAYOS_API_KEY, checksumKey: process.env.PAYOS_CHECKSUM_KEY });
+      try {
+        const cancelledLink = await payos.paymentRequests.cancel(Number(current.orderCode), "Đơn hàng được quản trị viên hủy");
+        if (cancelledLink.status === "PAID") {
+          return NextResponse.json({ message: "Thanh toán vừa hoàn tất. Hệ thống chưa hỗ trợ hoàn tiền nên đơn chưa bị hủy." }, { status: 409 });
+        }
+        if (!["CANCELLED", "EXPIRED", "FAILED"].includes(cancelledLink.status)) {
+          return NextResponse.json({ message: "PayOS chưa xác nhận đóng liên kết thanh toán. Đơn hàng chưa bị hủy." }, { status: 502 });
+        }
+      } catch {
+        try {
+          const latest = await prisma.order.findUnique({ where: { id }, select: { paymentStatus: true } });
+          if (latest?.paymentStatus === "paid") return NextResponse.json({ message: "Thanh toán vừa hoàn tất. Hệ thống chưa hỗ trợ hoàn tiền nên đơn chưa bị hủy." }, { status: 409 });
+          const paymentLink = await payos.paymentRequests.get(Number(current.orderCode));
+          if (!["CANCELLED", "EXPIRED", "FAILED"].includes(paymentLink.status)) {
+            return NextResponse.json({ message: "Không thể đóng liên kết thanh toán trên PayOS. Đơn hàng chưa bị hủy." }, { status: 502 });
+          }
+        } catch {
+          return NextResponse.json({ message: "Không xác minh được trạng thái liên kết PayOS. Đơn hàng chưa bị hủy." }, { status: 502 });
+        }
+      }
+    }
   }
   const updated = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM orders WHERE id = ${id}::uuid FOR UPDATE`;
     const locked = await tx.order.findUnique({ where: { id }, include: { order_items: true } });
     if (!locked) throw new Error("Không tìm thấy đơn hàng.");
     if (!transitions[locked.order_status].includes(body.orderStatus!)) throw new Error("Không thể chuyển sang trạng thái này.");
-    if (body.orderStatus === "cancelled" && locked.paymentStatus === "paid") {
-      const stockedItems = locked.order_items.filter((item) => item.product_id).sort((a, b) => a.product_id!.localeCompare(b.product_id!));
-      for (const item of stockedItems) {
-        await tx.$queryRaw`SELECT id FROM products WHERE id = ${item.product_id}::uuid FOR UPDATE`;
-        await tx.products.update({ where: { id: item.product_id! }, data: { stock: { increment: item.quantity } } });
-        await tx.inventory_movements.create({ data: {
-          product_id: item.product_id!, changed_by: session.user.id, order_id: locked.id,
-          quantity_delta: item.quantity, reason: "cancelled_order_return",
-        } });
-      }
-    }
+    if (body.orderStatus !== "cancelled" && locked.paymentStatus !== "paid") throw new Error("Chỉ được xử lý đơn hàng sau khi thanh toán thành công.");
+    if (body.orderStatus === "cancelled" && locked.paymentStatus === "paid") throw new Error("Hệ thống chưa hỗ trợ hoàn tiền nên không thể hủy đơn đã thanh toán.");
     return tx.order.update({
       where: { id },
       data: { order_status: body.orderStatus as "new" | "confirmed" | "processing" | "shipping" | "completed" | "cancelled" },
@@ -120,9 +159,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }).catch((error: unknown) => {
     if (error instanceof Error && error.message === "Không tìm thấy đơn hàng.") return null;
     if (error instanceof Error && error.message === "Không thể chuyển sang trạng thái này.") return false;
+    if (error instanceof Error && error.message === "Hệ thống chưa hỗ trợ hoàn tiền nên không thể hủy đơn đã thanh toán.") return "paid";
     throw error;
   });
   if (updated === null) return NextResponse.json({ message: "Không tìm thấy đơn hàng." }, { status: 404 });
   if (updated === false) return NextResponse.json({ message: "Không thể chuyển sang trạng thái này." }, { status: 409 });
+  if (updated === "paid") return NextResponse.json({ message: "Thanh toán vừa hoàn tất. Hệ thống chưa hỗ trợ hoàn tiền nên đơn chưa bị hủy." }, { status: 409 });
   return NextResponse.json({ orderStatus: updated.order_status, updatedAt: updated.updatedAt.toISOString() });
 }

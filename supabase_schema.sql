@@ -13,7 +13,7 @@ SET search_path TO "public";
 CREATE SCHEMA IF NOT EXISTS "public";
 
 -- CreateEnum
-CREATE TYPE "user_role" AS ENUM ('customer', 'manager', 'admin');
+CREATE TYPE "user_role" AS ENUM ('customer', 'staff', 'admin');
 
 -- CreateEnum
 CREATE TYPE "user_status" AS ENUM ('active', 'locked');
@@ -123,9 +123,11 @@ CREATE TABLE "orders" (
     "total_price" INTEGER NOT NULL,
     "paid_at" TIMESTAMPTZ(6),
     "payment_status" TEXT NOT NULL DEFAULT 'pending',
+    "inventory_review_required" BOOLEAN NOT NULL DEFAULT false,
     "order_status" "order_status" NOT NULL DEFAULT 'new',
     "payment_method" "payment_method" NOT NULL DEFAULT 'payos',
     "payment_link_id" TEXT,
+    "payment_checkout_url" TEXT,
     "note" TEXT,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -263,7 +265,6 @@ CREATE TABLE "store_settings" (
     "address" TEXT NOT NULL DEFAULT '',
     "low_stock_threshold" INTEGER NOT NULL DEFAULT 5,
     "currency" TEXT NOT NULL DEFAULT 'VND',
-    "order_auto_confirm" BOOLEAN NOT NULL DEFAULT false,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "store_settings_pkey" PRIMARY KEY ("id")

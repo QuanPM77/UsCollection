@@ -121,9 +121,11 @@ model Order {
   totalPrice          Int                   @map("total_price")
   paidAt              DateTime?             @map("paid_at") @db.Timestamptz(6)
   paymentStatus       String                @default("pending") @map("payment_status")
+  inventoryReviewRequired Boolean           @default(false) @map("inventory_review_required")
   order_status        order_status          @default(new)
   payment_method      payment_method        @default(payos)
   paymentLinkId       String?               @map("payment_link_id")
+  paymentCheckoutUrl  String?               @map("payment_checkout_url")
   note                String?
   createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -270,7 +272,6 @@ model store_settings {
   address             String   @default("")
   low_stock_threshold Int      @default(5)
   currency            String   @default("VND")
-  order_auto_confirm  Boolean  @default(false)
   updated_at          DateTime @default(now()) @db.Timestamptz(6)
 }
 
@@ -286,7 +287,7 @@ model store_social_links {
 
 enum Role {
   customer
-  manager
+  staff
   admin
 
   @@map("user_role")

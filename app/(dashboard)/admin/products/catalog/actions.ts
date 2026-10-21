@@ -87,6 +87,15 @@ export async function updateBracelet(productId: string, formData: FormData) {
     await tx.$queryRaw`SELECT id FROM products WHERE id = ${productId}::uuid FOR UPDATE`;
     const current = await tx.products.findUnique({ where: { id: productId }, select: { stock: true } });
     if (!current) redirect("/admin/products/catalog");
+    const [reservation] = await tx.$queryRaw<Array<{ reserved: number }>>`
+      SELECT COALESCE(SUM(oi.quantity), 0)::int AS reserved
+      FROM order_items oi JOIN orders o ON o.id = oi.order_id
+      WHERE oi.product_id = ${productId}::uuid AND o.payment_status = 'pending'
+        AND o.created_at > ${new Date(Date.now() - 15 * 60 * 1000)}
+    `;
+    if (data.stock < Number(reservation?.reserved ?? 0)) {
+      throw new Error(`Không thể giảm tồn kho dưới ${reservation?.reserved ?? 0} sản phẩm đang được giữ cho đơn chờ thanh toán.`);
+    }
     await tx.products.update({
       where: { id: productId, type: "bracelet" },
       data: {

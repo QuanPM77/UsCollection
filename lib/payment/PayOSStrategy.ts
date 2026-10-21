@@ -32,6 +32,10 @@ export class PayOSStrategy implements PaymentStrategy {
       return {
         success: true,
         payUrl: data.payUrl,
+        amount: typeof data.amount === "number" ? data.amount : undefined,
+        orderId: typeof data.orderId === "string" ? data.orderId : undefined,
+        reused: data.reused === true,
+        expiresAt: typeof data.expiresAt === "number" ? data.expiresAt : undefined,
       };
     } catch (error) {
       return {

@@ -57,6 +57,7 @@ export async function GET(request: Request) {
       braceletConfig: order.braceletConfig,
       paymentMethod: order.payment_method,
       paymentStatus: order.paymentStatus,
+      inventoryReviewRequired: order.inventoryReviewRequired,
       orderStatus: order.order_status,
       totalPrice: order.totalPrice,
       note: order.note,

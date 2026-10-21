@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { uploadProductImage } from "@/lib/supabase-storage";
+import { normalizeWebpImage } from "@/lib/image-validation";
 
 export const runtime = "nodejs";
 
@@ -16,7 +17,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const image = await uploadProductImage(session.user.id, Buffer.from(await file.arrayBuffer()));
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const normalized = await normalizeWebpImage(bytes).catch(() => null);
+    if (!normalized || normalized.byteLength === 0 || normalized.byteLength > 150_000) {
+      return NextResponse.json({ error: "Nội dung ảnh không hợp lệ hoặc ảnh WebP sau khi chuẩn hóa vượt quá 150 KB." }, { status: 400 });
+    }
+    const image = await uploadProductImage(session.user.id, normalized);
     return NextResponse.json(image);
   } catch (error) {
     console.error("Product image upload failed", error);

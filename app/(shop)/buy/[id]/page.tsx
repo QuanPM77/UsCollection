@@ -5,6 +5,7 @@ import MainMenu from "@/components/MainMenu";
 import { prisma } from "@/lib/prisma";
 import { avatarDisplayUrl, productImageDisplayUrl } from "@/lib/supabase-storage";
 import { productStyleLabel } from "@/lib/product-styles";
+import { getAvailableProductStock } from "@/lib/product-availability";
 import ProductGallery from "./ProductGallery";
 import ReviewForm from "./ReviewForm";
 import FavoriteButton from "../FavoriteButton";
@@ -33,6 +34,7 @@ export default async function BraceletDetailPage({
     },
   });
   if (!product) notFound();
+  const availableStock = await getAvailableProductStock(product.id, product.stock, session?.user.id);
 
   const productStyles = Array.isArray(product.styles) ? product.styles : [];
   const myReview = session?.user.id ? product.reviews.find((review) => review.userId === session.user.id) : undefined;
@@ -59,11 +61,11 @@ export default async function BraceletDetailPage({
             <h1 className="mt-2 font-display text-3xl font-bold sm:text-4xl">{product.name}</h1>
             <p className="mt-4 text-2xl font-bold text-pink-deep">{currency.format(product.price)}</p>
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-pink-text/65">
-              <span>{product.stock > 0 ? `Còn ${product.stock} sản phẩm` : "Tạm hết hàng"}</span>
+              <span>{availableStock > 0 ? `Còn ${availableStock} sản phẩm có thể đặt` : "Tạm hết hàng"}</span>
               {averageRating !== null && <a href="#reviews" className="text-amber-600 hover:underline">★ {averageRating.toFixed(1)} · {product.reviews.length} đánh giá</a>}
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
-              <PurchaseLink href={`/checkout/product/${product.id}`} disabled={product.stock < 1} className={`inline-flex min-w-40 flex-1 items-center justify-center rounded-2xl px-5 py-4 text-sm font-bold text-white shadow-lg transition ${product.stock > 0 ? "bg-pink-deep hover:-translate-y-0.5 hover:bg-pink-text" : "pointer-events-none bg-pink-mid/50"}`}>
+              <PurchaseLink href={`/checkout/product/${product.id}`} disabled={availableStock < 1} className={`inline-flex min-w-40 flex-1 items-center justify-center rounded-2xl px-5 py-4 text-sm font-bold text-white shadow-lg transition ${availableStock > 0 ? "bg-pink-deep hover:-translate-y-0.5 hover:bg-pink-text" : "pointer-events-none bg-pink-mid/50"}`}>
                 Mua ngay
               </PurchaseLink>
               <FavoriteButton productId={product.id} variant="label" />

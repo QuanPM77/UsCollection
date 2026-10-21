@@ -10,6 +10,7 @@ import { isValidVietnamWard } from "@/lib/vietnam-addresses";
 import { sendVerificationEmail } from "@/lib/verify";
 import { headers } from "next/headers";
 import { clientIp, rateLimit, limitError } from "@/lib/ratelimit";
+import { normalizeWebpImage } from "@/lib/image-validation";
 
 function value(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -81,12 +82,13 @@ export async function updateProfile(formData: FormData) {
 export async function saveAvatar(formData: FormData) {
   const session = await requireRole("customer");
   const avatarData = value(formData, "avatarData");
-  const match = avatarData.match(/^data:image\/(webp|jpeg|png);base64,([A-Za-z0-9+/]+={0,2})$/);
+  const match = avatarData.match(/^data:image\/webp;base64,([A-Za-z0-9+/]+={0,2})$/);
   if (!match || Buffer.byteLength(avatarData, "utf8") > 200_000) {
     throw new Error("Ảnh không hợp lệ hoặc quá lớn. Vui lòng chọn ảnh khác.");
   }
-  const imageBytes = Buffer.from(match[2], "base64");
-  if (imageBytes.byteLength > 150_000) throw new Error("Ảnh sau khi nén cần nhỏ hơn 150 KB.");
+  const originalBytes = Buffer.from(match[1], "base64");
+  const imageBytes = await normalizeWebpImage(originalBytes).catch(() => null);
+  if (!imageBytes || imageBytes.byteLength > 150_000) throw new Error("Ảnh sau khi nén cần là WebP hợp lệ và nhỏ hơn 150 KB.");
   const previous = await prisma.user.findUnique({ where: { id: session.user.id }, select: { avatarUrl: true } });
   if (!previous) throw new Error("Không tìm thấy tài khoản.");
   const uploadedPath = await uploadAvatar(session.user.id, imageBytes);

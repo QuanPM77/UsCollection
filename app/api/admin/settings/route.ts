@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
-const defaults = { store_name: "UsStory", store_description: "", contact_phone: "", contact_email: "", address: "", low_stock_threshold: 5, currency: "VND", order_auto_confirm: false };
+const defaults = { store_name: "UsStory", store_description: "", contact_phone: "", contact_email: "", address: "", low_stock_threshold: 5, currency: "VND" };
 type SocialLink = { name: string; url: string };
 type SavedSocialLink = SocialLink & { id: string; sort_order: number; created_at: Date };
 const settingsSelect = {
@@ -12,7 +12,6 @@ const settingsSelect = {
   contact_email: true,
   low_stock_threshold: true,
   currency: true,
-  order_auto_confirm: true,
 } as const;
 
 async function requireAdmin() {
@@ -57,8 +56,7 @@ export async function PUT(request: Request) {
   if (!body || typeof body.storeName !== "string" || !body.storeName.trim() || body.storeName.length > 150 ||
     typeof body.contactPhone !== "string" || body.contactPhone.length > 50 ||
     typeof body.contactEmail !== "string" || !body.contactEmail.includes("@") || body.contactEmail.length > 254 ||
-    !validLinks || !Number.isSafeInteger(body.lowStockThreshold) || Number(body.lowStockThreshold) < 1 ||
-    typeof body.orderAutoConfirm !== "boolean") {
+    !validLinks || !Number.isSafeInteger(body.lowStockThreshold) || Number(body.lowStockThreshold) < 1) {
     return NextResponse.json({ message: "Thông tin cài đặt không hợp lệ." }, { status: 400 });
   }
 
@@ -66,7 +64,6 @@ export async function PUT(request: Request) {
   const contactPhone = (body.contactPhone as string).trim();
   const contactEmail = (body.contactEmail as string).trim();
   const lowStockThreshold = Number(body.lowStockThreshold);
-  const orderAutoConfirm = body.orderAutoConfirm as boolean;
   const socialLinks = (links as SocialLink[]).map((link) => ({ name: link.name.trim(), url: link.url.trim() }));
   const result = await prisma.$transaction(async (tx) => {
     const settings = await tx.store_settings.upsert({
@@ -78,14 +75,12 @@ export async function PUT(request: Request) {
         contact_phone: contactPhone,
         contact_email: contactEmail,
         low_stock_threshold: lowStockThreshold,
-        order_auto_confirm: orderAutoConfirm,
       },
       update: {
         store_name: storeName,
         contact_phone: contactPhone,
         contact_email: contactEmail,
         low_stock_threshold: lowStockThreshold,
-        order_auto_confirm: orderAutoConfirm,
       },
       select: settingsSelect,
     });

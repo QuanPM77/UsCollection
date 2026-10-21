@@ -45,9 +45,17 @@ npx prisma migrate resolve --applied 20261016020000_add_product_styles
 npx prisma migrate resolve --applied 20261018000000_add_email_to_verification_tokens
 npx prisma migrate resolve --applied 20261018010000_add_3d_bead_catalog
 npx prisma migrate resolve --applied 20261018020000_financial_metrics
+npx prisma migrate resolve --applied 20261020000000_add_google_account_link
+npx prisma migrate resolve --applied 20261020010000_create_product_images_bucket
+npx prisma migrate resolve --applied 20261020020000_add_support_chat
+npx prisma migrate resolve --applied 20261020030000_remove_guest_support_chat
+npx prisma migrate resolve --applied 20261020040000_add_store_social_links
+npx prisma migrate resolve --applied 20261021000000_remove_legacy_role_and_auto_confirm
 ```
 
-Các migration trên được đánh dấu đã áp dụng vì SQL đầy đủ đã tạo cấu trúc và dữ liệu hạt tương ứng. Sau đó, các migration mới có thể chạy bằng `npx prisma migrate deploy`.
+Đánh dấu tất cả migration hiện có là đã áp dụng vì schema đầy đủ đã tạo cấu trúc tương ứng. Nếu sau này có migration mới, chạy `npx prisma migrate deploy` để triển khai.
+
+Nếu database đã được tạo bằng phiên bản cũ của `supabase_schema.sql` và trước đó chỉ đánh dấu migration đến `20261018020000`, hãy đánh dấu thêm các migration `20261020000000_add_google_account_link`, `20261020010000_create_product_images_bucket`, `20261020020000_add_support_chat`, `20261020030000_remove_guest_support_chat` và `20261020040000_add_store_social_links` là applied (các cấu trúc này đã có trong schema đầy đủ cũ), sau đó chạy `npx prisma migrate deploy` để áp dụng migration mới. Không đánh dấu migration `20261021000000_remove_legacy_role_and_auto_confirm` là applied trên database cũ.
 
 ## 4. Nhập số tồn và giá vốn thật
 
@@ -58,6 +66,6 @@ Schema không tạo dữ liệu khách hàng, đơn hàng, giá vốn, số tồ
 ## Ghi chú đối chiếu code và database
 
 - Các luồng đăng nhập, hồ sơ, catalog sản phẩm/hạt, đơn thanh toán PayOS, webhook, kho, đánh giá, thông báo và cài đặt hiện dùng Prisma và được bao phủ trong schema này.
-- Các API cũ như `/api/orders`, `/api/auth`, `/api/favorites`, `/api/custom-designs`, `/api/bracelet-templates`, `/api/manager/financials` vẫn đọc/ghi JSON qua `lib/db/fileDb.ts`; chúng không dùng các bảng Supabase trong file này. Không dùng các API cũ làm nguồn dữ liệu sản xuất nếu chưa chuyển chúng sang Prisma.
-- Database giữ role `manager` vì enum Prisma đang định nghĩa role đó, nhưng guard hiện tại của ứng dụng dùng `staff` thay vì `manager`. Tạo tài khoản quản trị bằng role `admin`; cần đồng bộ role trước khi sử dụng tài khoản manager.
+- Các endpoint JSON cũ (`/api/orders`, `/api/auth`, `/api/favorites`, `/api/custom-designs`, `/api/bracelet-templates`, `/api/charms`, `/api/khach-hang`, `/api/vong-tay-mau`, `/api/manager/financials`, `/api/db/seed`) đã trả HTTP 410 và không còn được dùng. Luồng hiện tại dùng Prisma; `/api/db/backup` chỉ dành cho admin và loại bỏ trường hash mật khẩu.
+- Các vai trò hiện dùng là `customer`, `staff` và `admin`. Migration cuối chuyển tài khoản `manager` cũ thành `staff`; tài khoản admin vẫn được tạo/cấp quyền bằng role `admin`.
 - Báo cáo lợi nhuận chỉ chính xác từ các đơn có `order_items.unit_cost`. Đơn cũ không có snapshot giá vốn sẽ không thể khôi phục lãi lịch sử nếu không có sổ giá vốn riêng.

@@ -145,15 +145,14 @@ Các segment trong ngoặc đơn, ví dụ `(auth)`, chỉ dùng nhóm file và 
 
 | URL | Page | Mục đích |
 |---|---|---|
-| `/admin` | `app/(dashboard)/admin/page.tsx` | Dashboard KPI, doanh thu, đơn gần đây và cảnh báo tồn kho. Dữ liệu hiện lấy từ service mock. |
-| `/admin/analytics` | `app/(dashboard)/admin/analytics/page.tsx` | Biểu đồ và thống kê quản trị; hiện dùng dữ liệu mock. |
-| `/admin/orders` | `app/(dashboard)/admin/orders/page.tsx` | Tìm kiếm, lọc và phân trang danh sách đơn; hiện dùng dữ liệu mock. |
-| `/admin/orders/[id]` | `app/(dashboard)/admin/orders/[id]/page.tsx` | Xem chi tiết và cập nhật trạng thái xử lý đơn trong mock service. |
-| `/admin/products` | `app/(dashboard)/admin/products/page.tsx` | Danh sách và lọc sản phẩm; hiện dùng dữ liệu mock. |
-| `/admin/products/new` | `app/(dashboard)/admin/products/new/page.tsx` | Form tạo sản phẩm; hiện chỉ cập nhật state trong bộ nhớ. |
-| `/admin/products/[id]` | `app/(dashboard)/admin/products/[id]/page.tsx` | Xem/chỉnh sửa sản phẩm; hiện chỉ cập nhật state trong bộ nhớ. |
+| `/admin` | `app/(dashboard)/admin/page.tsx` | Dashboard KPI, doanh thu, đơn gần đây và cảnh báo tồn kho qua các service/API quản trị. |
+| `/admin/analytics` | `app/(dashboard)/admin/analytics/page.tsx` | Biểu đồ và thống kê quản trị từ API analytics. |
+| `/admin/orders` | `app/(dashboard)/admin/orders/page.tsx` | Tìm kiếm, lọc và phân trang đơn hàng PostgreSQL. |
+| `/admin/orders/[id]` | `app/(dashboard)/admin/orders/[id]/page.tsx` | Xem snapshot đơn/hạt và cập nhật trạng thái qua API quản trị. |
+| `/admin/products` | `app/(dashboard)/admin/products/page.tsx` | Chuyển hướng đến danh mục sản phẩm quản trị. |
+| `/admin/products/catalog` | `app/(dashboard)/admin/products/catalog/page.tsx` | Quản lý sản phẩm vòng tay qua Prisma. |
 | `/admin/users` | `app/(dashboard)/admin/users/page.tsx` | Xem, khóa và mở khóa tài khoản người dùng trong database. |
-| `/admin/settings` | `app/(dashboard)/admin/settings/page.tsx` | Cài đặt cửa hàng; hiện dùng state mock, chưa lưu database. |
+| `/admin/settings` | `app/(dashboard)/admin/settings/page.tsx` | Cài đặt cửa hàng qua API và PostgreSQL. |
 
 ## API routes
 
@@ -240,32 +239,37 @@ Bảng này không có khóa ngoại. Cách sử dụng và thời lượng gi�
 |---|---|---|
 | `id` | UUID, khóa chính | ID nội bộ của đơn; dùng để tra trạng thái đơn. |
 | `order_code` | BIGINT, unique | Mã đơn gửi cho PayOS và dùng đối chiếu webhook. |
+| `user_id` | UUID, nullable, FK → `users.id` | Tài khoản khách đặt đơn. |
 | `customer_name` | TEXT | Tên người đặt/nhận hàng. |
 | `customer_phone` | TEXT | Số điện thoại liên hệ. |
 | `customer_address` | TEXT | Địa chỉ giao hàng dạng chuỗi. |
 | `bracelet_config` | JSONB | Cấu hình vòng, gồm `wristCircumference` và các `slots` với `index`, `beadTypeId`. |
 | `total_price` | INTEGER | Tổng tiền bằng VND, được server tính từ danh mục hạt. |
+| `paid_at` | TIMESTAMPTZ, nullable | Thời điểm PayOS xác nhận đã nhận tiền. |
 | `payment_status` | TEXT, mặc định `pending` | Trạng thái thanh toán; code hiện dùng `pending`, `paid`, `failed`. |
+| `order_status` | ENUM, mặc định `new` | Trạng thái xử lý/giao hàng, độc lập với thanh toán. |
+| `payment_method` | ENUM, mặc định `payos` | Phương thức thanh toán. |
+| `inventory_review_required` | BOOLEAN, mặc định `false` | Admin cần đối soát tồn kho cho đơn đã thanh toán trước khi đóng cảnh báo. |
 | `payment_link_id` | TEXT, nullable | ID payment link do PayOS trả về. |
 | `created_at` | TIMESTAMPTZ, mặc định hiện tại | Thời điểm tạo đơn. |
 | `updated_at` | TIMESTAMPTZ, Prisma tự cập nhật | Thời điểm cập nhật đơn gần nhất. |
 
-Đơn checkout hiện không gắn với `users`; thông tin khách được chụp trực tiếp trên đơn để hỗ trợ guest checkout. Cấu hình hạt được lưu trong JSONB, không có bảng dòng đơn hoặc khóa ngoại tới bảng sản phẩm.
+Checkout hiện yêu cầu đăng nhập. Đơn lưu `user_id`, thông tin người nhận dạng snapshot, cấu hình thiết kế trong JSONB và chi tiết mặt hàng/giá vốn trong `order_items`.
 
 ### Enum PostgreSQL
 
 | Enum | Giá trị | Dùng tại |
 |---|---|---|
 | `user_role` (`Role`) | `admin`, `staff`, `customer` | `users.role` |
-| `user_status` (`Status`) | `active`, `blocked` | `users.status` |
+| `user_status` (`Status`) | `active`, `locked` | `users.status` |
 
-## Những phần admin chưa nối database
+## Ghi chú về quản trị
 
-`lib/admin/services/product.service.ts`, `order.service.ts`, `analytics.service.ts` và `settings.service.ts` hiện là mock/in-memory. Vì thế dữ liệu sản phẩm, trạng thái xử lý đơn, thống kê và cài đặt thay đổi qua các trang admin chưa được lưu bền vững. PostgreSQL hiện có bảng `orders` cho luồng thanh toán thật, nhưng trang quản trị đơn hàng chưa đọc bảng này. Danh mục hạt dùng khi thiết kế và tính tiền hiện nằm trong code (`lib/store/bead-data.ts` và `lib/beadData.ts`), chưa có bảng sản phẩm.
+Các service admin gọi API quản trị và PostgreSQL. Trạng thái xử lý đơn (`new`, `confirmed`, `processing`, `shipping`, `completed`, `cancelled`) độc lập với `payment_status` (`pending`, `paid`, `failed`). Chỉ đơn đã thanh toán mới được chuyển sang xử lý/giao hàng. Hủy đơn chưa thanh toán sẽ đóng liên kết PayOS trước. Hệ thống chưa có luồng hoàn tiền nên không cho hủy đơn đã thanh toán; admin cần tiếp tục xử lý đơn.
 
-Các trạng thái `new`, `confirmed`, `processing`, `shipping`, `completed`, `cancelled` thuộc mô hình đơn mock ở admin; chúng không phải các giá trị của `orders.payment_status` trong database.
+## Tài liệu database đề xuất cũ
 
-## Database đề xuất để lưu dữ liệu admin
+Phần dưới đây là bản đề xuất trước khi các luồng admin được nối với PostgreSQL; không dùng phần này để dựng database hiện tại. Dùng `prisma/schema.prisma`, `supabase_schema.sql` và `SUPABASE_SETUP.md` làm nguồn chuẩn.
 
 Phần dưới đây là thiết kế mở rộng dựa trên các kiểu dữ liệu trong `lib/admin/types/`. **Đây là đề xuất, chưa có trong `schema.prisma` và chưa được migration vào PostgreSQL.** Giữ lại bảng `orders` hiện tại để tương thích luồng PayOS, sau đó bổ sung cột và bảng liên quan như dưới đây.
 
@@ -376,7 +380,6 @@ Lưu cấu hình đang là `StoreSettings` trong `lib/admin/types/settings.ts`. 
 | `address` | TEXT | Địa chỉ cửa hàng. |
 | `low_stock_threshold` | INTEGER | Ngưỡng cảnh báo sắp hết hàng. |
 | `currency` | TEXT | Đơn vị tiền tệ, hiện là `VND`. |
-| `order_auto_confirm` | BOOLEAN | Có tự động xác nhận đơn hay không. |
 | `updated_at` | TIMESTAMPTZ | Thời điểm cập nhật cấu hình. |
 
 ### Quan hệ admin đề xuất

@@ -7,7 +7,6 @@ export interface StoreSettings {
   socialLinks: StoreSocialLink[];
   lowStockThreshold: number;
   currency: string;
-  orderAutoConfirm: boolean;
 }
 
 export interface StoreSocialLink {
@@ -22,5 +21,4 @@ export const DEFAULT_SETTINGS: StoreSettings = {
   socialLinks: [],
   lowStockThreshold: 5,
   currency: 'VND',
-  orderAutoConfirm: false,
 };
