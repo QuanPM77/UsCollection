@@ -384,7 +384,6 @@ export default function CheckoutPage() {
                 </>
               ) : (
                 <>
-                  <span>💜</span>
                   Thanh toán qua PayOS — {formatPrice(total)}
                 </>
               )}
