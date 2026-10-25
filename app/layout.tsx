@@ -23,7 +23,7 @@ export default async function RootLayout({
 }) {
   const session = await auth();
   return (
-    <html lang="vi">
+    <html lang="vi" suppressHydrationWarning>
       <body>
         <LoginPromptProvider isAuthenticated={Boolean(session?.user)}>{children}</LoginPromptProvider>
         {session?.user?.role === "customer" && <CustomerChatVisibility />}

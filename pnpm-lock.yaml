@@ -8,6 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@capacitor/core':
+        specifier: ^8.0.0
+        version: 8.5.3
+      '@capgo/capacitor-social-login':
+        specifier: ^8.7.5
+        version: 8.7.5(@capacitor/core@8.5.3)
       '@payos/node':
         specifier: ^2.0.5
         version: 2.0.5
@@ -29,6 +35,9 @@ importers:
       lucide-react:
         specifier: ^1.54.0
         version: 1.58.0(@types/react@19.2.14)(react@19.2.4)
+      jose:
+        specifier: ^6.0.6
+        version: 6.2.12
       next:
         specifier: ^15.3.1
         version: 15.5.14(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -98,6 +107,18 @@ importers:
         version: 5.9.3
 
 packages:
+
+  '@capacitor/core@8.5.3':
+    resolution: {integrity: sha512-oBE1oGuYE4ZzYYrulC75OuHdSsD6zLUy7d5o1tFwDLG4govGoubY15cxpiI5l0+q87Lm5p0bhbehMdzJg4aFag==}
+    dependencies:
+      tslib: 2.8.1
+
+  '@capgo/capacitor-social-login@8.7.5':
+    resolution: {integrity: sha512-1Qd0l4AZ/ch3ILdSOa7UwrWoENFXb+/gOo1P7w/yTKENy0561JXIXWy+VhUx17E/FBMyx8DVgbrALiuCByKZ3A==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
+    dependencies:
+      tslib: 2.8.1
 
   '@alloc/quick-lru@5.2.0':
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
@@ -2514,6 +2535,16 @@ packages:
         optional: true
 
 snapshots:
+
+  '@capacitor/core@8.5.3':
+    dependencies:
+      tslib: 2.8.1
+
+  '@capgo/capacitor-social-login@8.7.5(@capacitor/core@8.5.3)':
+    dependencies:
+      tslib: 2.8.1
+    peerDependencies:
+      '@capacitor/core': 8.5.3
 
   '@alloc/quick-lru@5.2.0': {}
 

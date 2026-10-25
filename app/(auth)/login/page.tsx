@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AuthShell, Notice } from "@/components/AuthShell";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
@@ -24,7 +25,16 @@ export default async function LoginPage({
       {sp.error === "GoogleEmailUnverified" && <div className="mb-4"><Notice kind="err">Google chưa xác nhận email của tài khoản này. Hãy xác minh email trong tài khoản Google rồi thử lại.</Notice></div>}
       {sp.error === "GoogleAccountLocked" && <div className="mb-4"><Notice kind="err">Tài khoản ứng dụng đang bị khóa. Vui lòng liên hệ quản trị viên để được hỗ trợ.</Notice></div>}
       {sp.error && !["AccessDenied", "GoogleEmailMissing", "GoogleEmailUnverified", "GoogleAccountLocked"].includes(sp.error) && <div className="mb-4"><Notice kind="err">Đăng nhập Google chưa hoàn tất. Vui lòng thử lại; nếu lỗi tiếp diễn, hãy kiểm tra cấu hình OAuth và callback URL.</Notice></div>}
-      <LoginForm callbackUrl={callbackUrl} initialPhone={sp.registered ? sp.phone : undefined} googleEnabled={googleEnabled} />
+      <LoginForm callbackUrl={callbackUrl} initialPhone={sp.registered ? sp.phone : undefined} googleEnabled={googleEnabled} googleClientId={process.env.AUTH_GOOGLE_ID} />
+      <Link
+        href="/"
+        className="mt-6 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-pink-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2"
+      >
+        <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m15 18-6-6 6-6M9 12h12" />
+        </svg>
+        Quay về trang chủ
+      </Link>
     </AuthShell>
   );
 }

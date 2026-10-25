@@ -10,6 +10,8 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@capacitor/core": "^8.0.0",
+    "@capgo/capacitor-social-login": "^8.7.5",
     "@payos/node": "^2.0.5",
     "@prisma/client": "^6.0.0",
     "@react-three/drei": "^10.0.0",
@@ -18,6 +20,7 @@
     "@supabase/supabase-js": "^2.118.0",
     "bcryptjs": "^2.4.3",
     "lucide-react": "^1.54.0",
+    "jose": "^6.0.6",
     "next": "^15.3.1",
     "next-auth": "^5.0.0-beta.25",
     "nodemailer": "^7.0.13",

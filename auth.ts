@@ -1,10 +1,18 @@
 import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { hashToken } from "@/lib/token";
 import { clientIp, clearLimit, progressiveFailureLimit, recordProgressiveFailure } from "@/lib/ratelimit";
+
+// Prefer the canonical public URL over an internal proxy host such as 0.0.0.0.
+if (!process.env.AUTH_URL && process.env.APP_URL) {
+  process.env.AUTH_URL = process.env.APP_URL.replace(/\/+$/, "");
+}
+
+const googleJwks = createRemoteJWKSet(new URL("https://www.googleapis.com/oauth2/v3/certs"));
 
 class TooMany extends CredentialsSignin {
   code: string;
@@ -29,6 +37,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     ...(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET
       ? [Google({ clientId: process.env.AUTH_GOOGLE_ID, clientSecret: process.env.AUTH_GOOGLE_SECRET })]
+      : []),
+    ...(process.env.AUTH_GOOGLE_ID
+      ? [Credentials({
+          id: "google-native",
+          name: "Google (Android)",
+          credentials: { idToken: {} },
+          async authorize(credentials) {
+            const idToken = String(credentials?.idToken ?? "");
+            if (!idToken || !process.env.AUTH_GOOGLE_ID) return null;
+
+            try {
+              const { payload } = await jwtVerify(idToken, googleJwks, {
+                audience: process.env.AUTH_GOOGLE_ID,
+                issuer: ["https://accounts.google.com", "accounts.google.com"],
+              });
+              const sub = typeof payload.sub === "string" ? payload.sub : "";
+              const email = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";
+              if (!sub || !email || payload.email_verified !== true) return null;
+              return {
+                id: sub,
+                email,
+                name: typeof payload.name === "string" ? payload.name : null,
+              };
+            } catch {
+              return null;
+            }
+          },
+        })]
       : []),
     Credentials({
       credentials: { phone: {}, password: {} },
@@ -116,11 +152,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user, account, profile }) {
       // Loại bỏ ảnh khỏi cả token mới lẫn token cũ được làm mới.
       delete token.picture;
-      if (account?.provider === "google") {
+      if (account?.provider === "google" || account?.provider === "google-native") {
         const email = user?.email?.trim().toLowerCase();
-        if (!email || !hasVerifiedGoogleEmail(profile)) return null;
+        if (!email) return null;
+        if (account.provider === "google" && !hasVerifiedGoogleEmail(profile)) return null;
 
         const googleId = account.providerAccountId;
+        if (!googleId) return null;
         const existingUser = await prisma.user.findUnique({ where: { googleId } })
           ?? await prisma.user.findUnique({ where: { email } });
         if (existingUser?.status === "locked") return null;

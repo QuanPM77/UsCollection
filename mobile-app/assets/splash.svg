@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2732" height="2732" viewBox="0 0 2732 2732">
+  <defs>
+    <radialGradient id="splashBackground" cx="34%" cy="24%" r="90%">
+      <stop offset="0" stop-color="#fffafd"/>
+      <stop offset="1" stop-color="#fff4f7"/>
+    </radialGradient>
+    <radialGradient id="iconBackground" cx="34%" cy="24%" r="90%">
+      <stop offset="0" stop-color="#f7bdca"/>
+      <stop offset="1" stop-color="#d96e89"/>
+    </radialGradient>
+  </defs>
+  <rect width="2732" height="2732" fill="url(#splashBackground)"/>
+  <rect x="616" y="370" width="1500" height="1500" rx="270" fill="url(#iconBackground)"/>
+  <svg x="616" y="370" width="1500" height="1500" viewBox="0 0 1024 1024">
+<defs>
+    <radialGradient id="bg" cx="34%" cy="24%" r="90%">
+      <stop offset="0" stop-color="#f7bdca"/>
+      <stop offset="1" stop-color="#d96e89"/>
+    </radialGradient>
+    <radialGradient id="pearl" cx="32%" cy="25%" r="75%">
+      <stop offset="0" stop-color="#fffefb"/>
+      <stop offset=".62" stop-color="#fff0e9"/>
+      <stop offset="1" stop-color="#e7c5c3"/>
+    </radialGradient>
+    <radialGradient id="rose" cx="30%" cy="24%" r="80%">
+      <stop offset="0" stop-color="#fff0ed"/>
+      <stop offset=".48" stop-color="#f3b6c4"/>
+      <stop offset="1" stop-color="#cd6c86"/>
+    </radialGradient>
+    <radialGradient id="berry" cx="30%" cy="24%" r="80%">
+      <stop offset="0" stop-color="#ffd5dc"/>
+      <stop offset=".5" stop-color="#e8869e"/>
+      <stop offset="1" stop-color="#ac4566"/>
+    </radialGradient>
+    <radialGradient id="lilac" cx="30%" cy="24%" r="80%">
+      <stop offset="0" stop-color="#fff8fa"/>
+      <stop offset=".5" stop-color="#dfcbe7"/>
+      <stop offset="1" stop-color="#a88bb7"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff1b5"/>
+      <stop offset=".48" stop-color="#d8ad62"/>
+      <stop offset="1" stop-color="#a97537"/>
+    </linearGradient>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="170%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="13"/>
+      <feOffset dy="15"/>
+      <feComponentTransfer><feFuncA type="linear" slope=".24"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <g id="bead">
+      <circle r="67" fill="url(#gold)" opacity=".95"/>
+      <circle r="58" fill="currentColor"/>
+      <ellipse cx="-17" cy="-26" rx="16" ry="9" fill="#fff" opacity=".66" transform="rotate(-35 -17 -26)"/>
+    </g>
+  </defs>
+  
+  <circle cx="512" cy="512" r="426" fill="none" stroke="#fff4ee" stroke-opacity=".14" stroke-width="2"/>
+  <g fill="#fff7e9" opacity=".82">
+    <path d="M179 290l8 20 20 8-20 8-8 20-8-20-20-8 20-8z"/>
+    <path d="M840 356l6 15 15 6-15 6-6 15-6-15-15-6 15-6z"/>
+    <circle cx="208" cy="690" r="7"/><circle cx="815" cy="710" r="6"/>
+  </g>
+  <g filter="url(#softShadow)">
+    <circle cx="512" cy="512" r="300" fill="none" stroke="url(#gold)" stroke-width="15"/>
+    <g color="#fff5ef" transform="translate(512 212)"><use href="#bead"/></g>
+    <g color="#f1c1cd" transform="translate(662 252)"><use href="#bead"/></g>
+    <g color="#fff5ef" transform="translate(772 362)"><use href="#bead"/></g>
+    <g color="#d96885" transform="translate(812 512)"><use href="#bead"/></g>
+    <g color="#d7c6e3" transform="translate(772 662)"><use href="#bead"/></g>
+    <g color="#f1c1cd" transform="translate(662 772)"><use href="#bead"/></g>
+    <g color="#fff5ef" transform="translate(512 812)"><use href="#bead"/></g>
+    <g color="#d96885" transform="translate(362 772)"><use href="#bead"/></g>
+    <g color="#fff5ef" transform="translate(252 662)"><use href="#bead"/></g>
+    <g color="#f1c1cd" transform="translate(212 512)"><use href="#bead"/></g>
+    <g color="#d7c6e3" transform="translate(252 362)"><use href="#bead"/></g>
+    <g color="#fff5ef" transform="translate(362 252)"><use href="#bead"/></g>
+  </g>
+  </svg>
+  <text x="1366" y="2150" text-anchor="middle" font-family="Bodoni MT" font-style="italic" font-size="178" font-weight="400" letter-spacing="1" fill="#b44f6d">UsStory</text>
+</svg>
+
+

@@ -2,13 +2,47 @@
 
 import { useState } from "react";
 
+function copyWithDocumentApi(value: string) {
+  const scrollX = window.scrollX;
+  const scrollY = window.scrollY;
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.setAttribute("aria-hidden", "true");
+  textarea.style.position = "fixed";
+  textarea.style.left = "50%";
+  textarea.style.top = "50%";
+  textarea.style.width = "1px";
+  textarea.style.height = "1px";
+  textarea.style.opacity = "0";
+  textarea.style.pointerEvents = "none";
+
+  try {
+    document.body.appendChild(textarea);
+    textarea.select();
+    textarea.setSelectionRange(0, value.length);
+    if (!document.execCommand("copy")) throw new Error("Clipboard copy failed");
+  } finally {
+    textarea.remove();
+    requestAnimationFrame(() => window.scrollTo(scrollX, scrollY));
+  }
+}
+
 export default function CopyContactButton({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState(false);
 
   async function copyValue() {
     try {
-      await navigator.clipboard.writeText(value);
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(value);
+        } catch {
+          copyWithDocumentApi(value);
+        }
+      } else {
+        copyWithDocumentApi(value);
+      }
       setCopied(true);
       setError(false);
       window.setTimeout(() => setCopied(false), 1800);

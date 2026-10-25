@@ -2,6 +2,12 @@
 
 UsStory là ứng dụng thương mại điện tử cho phép khách thiết kế vòng tay hạt trong không gian 3D, xem cấu hình trước khi đặt hàng và thanh toán qua PayOS. Khách có thể checkout không cần tài khoản. Ứng dụng hiện dùng Next.js App Router, Prisma và PostgreSQL.
 
+## Tách riêng web và app điện thoại
+
+- **Web:** dự án Next.js hiện tại ở thư mục gốc repository.
+- **App Android:** dự án Capacitor độc lập trong [`mobile-app/`](mobile-app/README.md), tạo file APK cài trực tiếp và dùng website đã triển khai làm giao diện/backend.
+- Hai dự án có thể cài dependency và chạy lệnh riêng. Xem `mobile-app/README.md` để cấu hình URL website và mở project native.
+
 ## Luồng mua hàng
 
 ```text
@@ -398,7 +404,7 @@ Analytics không cần bảng riêng cho các KPI và biểu đồ đang có th�
 
 ## Ghi chú về cấu hình
 
-Các biến môi trường cụ thể được liệt kê trong `.env.local.example`. Tối thiểu luồng thanh toán cần cấu hình kết nối PostgreSQL và `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY`; URL ứng dụng công khai đặt trong `APP_URL` để tạo đường dẫn trả về phù hợp. NextAuth và email cần các biến tương ứng theo cấu hình trong `auth.ts` và `lib/mail.ts`.
+Các biến môi trường cụ thể được liệt kê trong `.env.local.example`. Tối thiểu luồng thanh toán cần cấu hình kết nối PostgreSQL và `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY`; URL ứng dụng công khai đặt trong `APP_URL` để tạo đường dẫn trả về phù hợp. Trong môi trường production, hãy đặt `APP_URL` thành origin HTTPS chính thức của website; Auth.js dùng `AUTH_URL` nếu đã đặt, nếu không sẽ dùng `APP_URL` làm origin chuẩn để tạo callback Google. Callback Web OAuth cần đăng ký trong Google Cloud là `https://<domain>/api/auth/callback/google`. NextAuth và email cần các biến tương ứng theo cấu hình trong `auth.ts` và `lib/mail.ts`.
 
 ## Bảng màu
 

@@ -1,0 +1,5 @@
+/.next-project/**
+/.next-project-dev/**
+mobile-app/android/**
+mobile-app/node_modules/**
+mobile-app/www/**

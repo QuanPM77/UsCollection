@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useLoginPrompt } from "@/components/LoginPromptProvider";
 
 const MENU_ITEMS = [
+  { href: "/", label: "Trang chủ" },
   { href: "/buy", label: "Mua vòng" },
   { href: "/customizer", label: "Thiết kế" },
   { href: "/favorites", label: "Yêu thích", requiresLogin: true },

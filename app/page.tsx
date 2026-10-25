@@ -54,32 +54,30 @@ export default async function LandingPage() {
   })));
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-light via-cream to-white">
+    <div className="min-h-screen bg-gradient-to-b from-pink-light via-cream to-white pb-24 md:pb-0">
       {/* Nav */}
-      <nav className="flex w-full items-center gap-4 px-4 py-5 sm:px-8 lg:px-12">
+      <nav className="flex w-full items-center gap-3 px-4 py-3 sm:gap-4 sm:px-8 sm:py-5 lg:px-12">
         <MainMenu />
-        <span className="font-display text-2xl font-bold text-pink-text">
+        <span className="font-display text-xl font-bold text-pink-text sm:text-2xl">
           UsStory
         </span>
         <div className="ml-auto flex items-center gap-3">
           {session ? (
             <form action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
-              <button className="rounded-xl border border-pink-mid/40 bg-white/80 px-4 py-2.5 text-sm font-semibold text-pink-deep transition hover:bg-pink-light">
+              <button className="min-h-11 rounded-xl border border-pink-mid/40 bg-white/80 px-3 py-2.5 text-xs font-semibold text-pink-deep transition hover:bg-pink-light sm:px-4 sm:text-sm">
                 Đăng xuất
               </button>
             </form>
           ) : (
-            <Link href="/login" className="rounded-xl border border-pink-mid/40 bg-white/80 px-4 py-2.5 text-sm font-semibold text-pink-deep transition hover:bg-pink-light">
+            <Link href="/login" className="inline-flex min-h-11 items-center rounded-xl border border-pink-mid/40 bg-white/80 px-3 py-2.5 text-xs font-semibold text-pink-deep transition hover:bg-pink-light sm:px-4 sm:text-sm">
               Đăng nhập
             </Link>
           )}
         </div>
       </nav>
 
-      <FeaturedProductsCarousel products={featuredProducts} />
-
       {/* 3D bracelet design hero */}
-      <section className="relative isolate w-full overflow-hidden border-b border-pink-mid/25 bg-gradient-to-br from-pink-blush/65 via-cream to-white px-4 py-14 sm:px-8 sm:py-20 lg:px-12 lg:py-24">
+      <section className="relative isolate w-full overflow-hidden border-b border-pink-mid/25 bg-gradient-to-br from-pink-blush/65 via-cream to-white px-4 py-8 sm:px-8 sm:py-20 lg:px-12 lg:py-24">
         <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-32 h-96 w-96 rounded-full bg-pink-mid/20 blur-3xl" />
         <div aria-hidden="true" className="pointer-events-none absolute -bottom-40 left-1/4 h-80 w-80 rounded-full bg-rose-200/25 blur-3xl" />
         <div className="relative grid w-full items-center gap-10 lg:grid-cols-[1fr_0.95fr] lg:gap-16">
@@ -88,20 +86,20 @@ export default async function LandingPage() {
               <span className="h-2 w-2 rounded-full bg-pink-deep shadow-[0_0_0_4px_rgba(229,105,147,0.12)]" />
               THIẾT KẾ VÒNG TAY 3D
             </div>
-            <h1 className="mt-6 max-w-2xl font-display text-4xl font-bold leading-[1.12] tracking-tight text-pink-text sm:text-5xl lg:text-6xl">
+            <h1 className="mt-4 max-w-2xl font-display text-3xl font-bold leading-[1.12] tracking-tight text-pink-text sm:mt-6 sm:text-5xl lg:text-6xl">
               Tạo chiếc vòng tay
               <span className="mt-1 block text-pink-deep">mang dấu ấn riêng</span>
             </h1>
-            <p className="mt-5 max-w-xl text-base leading-7 text-pink-text/70 sm:text-lg">
+            <p className="mt-4 max-w-xl text-sm leading-6 text-pink-text/70 sm:mt-5 sm:text-lg sm:leading-7">
               Tự chọn từng loại hạt, phối màu theo phong cách của bạn và xem thiết kế xoay trong không gian 3D trước khi đặt.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/customizer" className="inline-flex items-center gap-2 rounded-xl bg-pink-deep px-6 py-3.5 text-sm font-semibold text-white shadow-pink transition hover:-translate-y-0.5 hover:bg-pink-text hover:shadow-pink-lg">
+            <div className="mt-6 flex w-full flex-wrap gap-3 sm:mt-8 sm:w-auto">
+              <Link href="/customizer" className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-pink-deep px-6 py-3.5 text-sm font-semibold text-white shadow-pink transition hover:-translate-y-0.5 hover:bg-pink-text hover:shadow-pink-lg sm:w-auto">
                 Bắt đầu thiết kế
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
               </Link>
             </div>
-            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs font-medium text-pink-text/60 sm:text-sm">
+            <div className="mt-8 hidden flex-wrap gap-x-6 gap-y-2 text-xs font-medium text-pink-text/60 sm:flex sm:text-sm">
               <span className="inline-flex items-center gap-2"><span className="text-pink-deep">✦</span> Xem trước thiết kế 3D</span>
               <span className="inline-flex items-center gap-2"><span className="text-pink-deep">✦</span> Cá nhân hóa từng hạt</span>
               <span className="inline-flex items-center gap-2"><span className="text-pink-deep">✦</span> Giao hàng toàn quốc</span>
@@ -110,7 +108,7 @@ export default async function LandingPage() {
 
           <div className="relative mx-auto w-full max-w-[560px]">
             <div aria-hidden="true" className="absolute inset-[8%] rounded-full bg-gradient-to-br from-pink-mid/40 to-rose-100/30 blur-2xl" />
-            <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-[2rem] border border-white/80 bg-[#fde5ec] shadow-[0_24px_80px_rgba(152,73,105,0.14)]">
+            <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-[1.5rem] border border-white/80 bg-[#fde5ec] shadow-[0_24px_80px_rgba(152,73,105,0.14)] sm:aspect-square sm:rounded-[2rem]">
               <img src="/images/bracelet-3d-reference.png" alt="Vòng tay hạt màu hồng, tím và vàng trong hình minh họa 3D" className="h-full w-full object-contain" />
               <div className="absolute left-5 top-5 rounded-full border border-white/80 bg-white/80 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-pink-deep shadow-sm sm:left-7 sm:top-7 sm:text-xs">Phối màu của bạn</div>
               <div className="absolute bottom-5 right-5 rounded-2xl border border-white/80 bg-white/85 px-4 py-3 shadow-lg backdrop-blur sm:bottom-7 sm:right-7">
@@ -123,8 +121,10 @@ export default async function LandingPage() {
         </div>
       </section>
 
+      <FeaturedProductsCarousel products={featuredProducts} />
+
       {/* Why UsStory */}
-      <section id="features" className="relative overflow-hidden bg-white/65 py-20 sm:py-24">
+      <section id="features" className="relative overflow-hidden bg-white/65 py-12 sm:py-24">
         <div aria-hidden="true" className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-pink-light/70 blur-3xl" />
         <div className="relative grid w-full gap-12 px-4 sm:px-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center lg:gap-20 lg:px-12">
           <div>
@@ -154,7 +154,7 @@ export default async function LandingPage() {
       </section>
 
       {/* About Us */}
-      <section className="w-full bg-gradient-to-b from-cream/70 to-pink-light/35 px-4 py-20 sm:px-8 sm:py-24 lg:px-12">
+      <section className="w-full bg-gradient-to-b from-cream/70 to-pink-light/35 px-4 py-12 sm:px-8 sm:py-24 lg:px-12">
         <div className="grid w-full gap-10 lg:grid-cols-[0.7fr_1.3fr] lg:items-start lg:gap-20">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-pink-deep">Câu chuyện UsStory</p>
@@ -175,7 +175,7 @@ export default async function LandingPage() {
       </section>
 
       {/* CTA Banner */}
-      <section className="bg-gradient-to-r from-pink-mid to-pink-deep py-16">
+      <section className="bg-gradient-to-r from-pink-mid to-pink-deep py-10 sm:py-16">
         <div className="w-full px-4 text-center sm:px-8 lg:px-12">
           <h2 className="font-display text-3xl font-bold text-white mb-4">
             Sẵn sàng tạo vòng tay của bạn?
@@ -220,6 +220,27 @@ export default async function LandingPage() {
         </div>
         <p className="mt-8 w-full border-t border-pink-mid/15 pt-5 text-center text-xs text-pink-text/45">© {new Date().getFullYear()} {storeSettings?.store_name || "UsStory"}. Handcrafted with love.</p>
       </footer>
+
+      <nav
+        aria-label="Điều hướng nhanh"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-pink-mid/30 bg-white/95 px-3 pt-2 shadow-[0_-8px_24px_rgba(125,46,70,0.08)] backdrop-blur md:hidden"
+        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)" }}
+      >
+        <div className="mx-auto grid max-w-lg grid-cols-3 gap-2">
+          <Link href="/" aria-current="page" className="flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-[11px] font-semibold text-pink-deep">
+            <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V10Z" /></svg>
+            Trang chủ
+          </Link>
+          <Link href="/buy" className="flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-[11px] font-medium text-pink-text/65 transition hover:bg-pink-light hover:text-pink-deep">
+            <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M5 8h14l1 12H4L5 8Zm4 0a3 3 0 0 1 6 0" /></svg>
+            Mua vòng
+          </Link>
+          <Link href="/customizer" className="flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl bg-pink-deep text-[11px] font-semibold text-white shadow-sm transition hover:bg-pink-text">
+            <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3Zm6 12 .8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8L18 15Z" /></svg>
+            Thiết kế
+          </Link>
+        </div>
+      </nav>
     </div>
   );
 }

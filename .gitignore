@@ -4,6 +4,8 @@ node_modules/
 
 # Next.js
 .next/
+.next-project/
+.next-project-dev/
 out/
 build/
 

@@ -4,8 +4,10 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { inputCls, primaryCls, Notice } from "@/components/AuthShell";
+import { Capacitor } from "@capacitor/core";
+import { SocialLogin } from "@capgo/capacitor-social-login";
 
-export default function LoginForm({ callbackUrl, initialPhone, googleEnabled }: { callbackUrl?: string; initialPhone?: string; googleEnabled: boolean }) {
+export default function LoginForm({ callbackUrl, initialPhone, googleEnabled, googleClientId }: { callbackUrl?: string; initialPhone?: string; googleEnabled: boolean; googleClientId?: string }) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,29 +32,58 @@ export default function LoginForm({ callbackUrl, initialPhone, googleEnabled }: 
     router.refresh();
   }
 
+  async function onGoogleSignIn() {
+    setLoading(true);
+    setError("");
+    try {
+      if (Capacitor.isNativePlatform()) {
+        if (!googleClientId) throw new Error("Thiếu cấu hình Google OAuth cho ứng dụng Android.");
+        await SocialLogin.initialize({ google: { webClientId: googleClientId } });
+        // Android Credential Manager already requests openid/email/profile by default.
+        // Passing an explicit scopes list requires a custom MainActivity in this plugin.
+        const result = await SocialLogin.login({ provider: "google" });
+        if (result.provider !== "google" || result.result.responseType !== "online" || !result.result.idToken) {
+          throw new Error("Google không trả về mã đăng nhập hợp lệ.");
+        }
+        const response = await signIn("google-native", { idToken: result.result.idToken, redirect: false });
+        if (response?.error) throw new Error("Không thể xác minh tài khoản Google. Hãy kiểm tra cấu hình OAuth trong Google Cloud Console.");
+        router.push(callbackUrl ?? "/post-login");
+        router.refresh();
+        return;
+      }
+
+      await signIn("google", { callbackUrl: callbackUrl ?? "/post-login" });
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Đăng nhập Google chưa hoàn tất. Vui lòng thử lại.";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <>
       <form onSubmit={onSubmit} className="space-y-4">
         <input name="phone" type="tel" required defaultValue={initialPhone} placeholder="Số điện thoại" autoComplete="username" className={inputCls} />
-        <input name="password" type="password" required autoFocus placeholder="Mật khẩu" autoComplete="current-password" className={inputCls} />
+        <input name="password" type="password" required autoFocus={Boolean(initialPhone)} placeholder="Mật khẩu" autoComplete="current-password" className={inputCls} />
         <div className="text-right text-sm">
           <Link href="/forgot-password" className="text-rose-600 hover:underline">Quên mật khẩu?</Link>
         </div>
         {error && <Notice kind="err">{error}</Notice>}
         <button disabled={loading} className={primaryCls}>{loading ? "Đang đăng nhập..." : "Đăng nhập"}</button>
       </form>
+      <p className="mt-4 text-center text-sm text-rose-900/70">
+        Chưa có tài khoản? <Link href="/register" className="font-semibold text-rose-600 hover:underline">Đăng ký</Link>
+      </p>
       {googleEnabled && (
         <>
           <div className="my-5 flex items-center gap-3 text-xs text-rose-900/50"><span className="h-px flex-1 bg-pink-mid/40" />hoặc<span className="h-px flex-1 bg-pink-mid/40" /></div>
-          <button type="button" onClick={() => signIn("google", { callbackUrl: callbackUrl ?? "/post-login" })} className="flex w-full items-center justify-center gap-3 rounded-xl border border-pink-mid/40 bg-white px-5 py-3 text-sm font-semibold text-pink-text transition hover:bg-pink-light">
+          <button type="button" disabled={loading} onClick={onGoogleSignIn} className="flex w-full items-center justify-center gap-3 rounded-xl border border-pink-mid/40 bg-white px-5 py-3 text-sm font-semibold text-pink-text transition hover:bg-pink-light disabled:opacity-60">
             <svg aria-hidden="true" viewBox="0 0 48 48" className="h-5 w-5"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z" transform="translate(0 4)"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.25 5.48-4.73 7.18l7.64 5.92c4.46-4.12 7.13-10.2 7.13-17.57Z"/><path fill="#FBBC05" d="M10.53 28.59a14.4 14.4 0 0 1 0-9.18l-7.98-6.19a23.9 23.9 0 0 0 0 21.56l7.98-6.19Z" transform="translate(0 4)"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.9-5.88l-7.64-5.92c-2.12 1.42-4.84 2.26-8.26 2.26-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48Z" transform="translate(0 -4)"/></svg>
             Đăng nhập bằng Google
           </button>
         </>
       )}
-      <p className="mt-6 text-center text-sm text-rose-900/70">
-        Chưa có tài khoản? <Link href="/register" className="font-semibold text-rose-600 hover:underline">Đăng ký</Link>
-      </p>
     </>
   );
 }
