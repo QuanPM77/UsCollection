@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { auth, signOut } from "@/auth";
+import { signOut } from "@/auth";
+import { getSession as auth } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
 import MainMenu from "@/components/MainMenu";
 import AvatarEditor from "./AvatarEditor";

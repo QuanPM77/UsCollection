@@ -93,8 +93,8 @@ export default function CustomerChatWidget() {
     }
   }
 
-  return <div className="fixed bottom-5 right-5 z-[90] flex flex-col items-end gap-3">
-    {open && <section aria-label="Trò chuyện với UsStory" className="flex h-[min(36rem,calc(100dvh-7rem))] w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-pink-mid/40 bg-white shadow-2xl sm:w-[380px]">
+  return <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-5 z-[90] flex flex-col items-end gap-3 md:bottom-5">
+    {open && <section aria-label="Trò chuyện với UsStory" className="flex h-[min(36rem,calc(100dvh-11.5rem-env(safe-area-inset-bottom)))] w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-pink-mid/40 bg-white shadow-2xl sm:w-[380px] md:h-[min(36rem,calc(100dvh-7rem))]">
       <header className="flex items-center justify-between bg-pink-deep px-4 py-3.5 text-white">
         <div><h2 className="font-semibold">Trò chuyện với shop</h2><p className="mt-0.5 text-xs text-white/75">UsStory luôn sẵn sàng hỗ trợ bạn</p></div>
         <button type="button" aria-label="Đóng khung chat" onClick={closeWidget} className="rounded-full p-2 transition hover:bg-white/15"><X size={18} /></button>

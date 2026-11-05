@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { Eye, Filter, X } from 'lucide-react';
 import { SearchInput } from '@/components/admin/ui/SearchInput';
@@ -36,28 +36,39 @@ export default function OrdersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const activeRequest = useRef<AbortController | null>(null);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<OrderFilters>({});
   const selectedOrderTypes = filters.orderTypes ?? [];
 
   const loadOrders = useCallback(async () => {
+    activeRequest.current?.abort();
+    const controller = new AbortController();
+    activeRequest.current = controller;
     setLoading(true);
     setError(false);
     try {
       const result = await orderService.getAll(
-        { ...filters, search: search || undefined },
+        { ...filters, search: debouncedSearch || undefined },
         page,
-        10
+        10,
+        controller.signal
       );
+      if (controller.signal.aborted) return;
       setOrders(result.orders);
       setTotalPages(result.totalPages);
       setTotal(result.total);
     } catch {
-      setError(true);
+      if (!controller.signal.aborted) setError(true);
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
-  }, [filters, search, page]);
+  }, [filters, debouncedSearch, page]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -70,7 +81,8 @@ export default function OrdersPage() {
   }, []);
 
   useEffect(() => {
-    loadOrders();
+    void loadOrders();
+    return () => activeRequest.current?.abort();
   }, [loadOrders]);
 
   const handleSearch = (value: string) => {

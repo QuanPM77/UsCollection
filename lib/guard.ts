@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { getSession as auth } from "@/lib/auth-session";
 
 type Role = "admin" | "staff" | "customer";
 
@@ -10,9 +9,8 @@ export async function requireRole(...allowed: Role[]) {
   if (!s) redirect("/login");
   if (!allowed.includes(s.user.role)) redirect(`/${s.user.role}`);
   if (s.user.role === "customer") {
-    const user = await prisma.user.findUnique({ where: { id: s.user.id }, select: { email: true, emailVerifiedAt: true, profileCompletedAt: true } });
-    if (!user?.profileCompletedAt) redirect("/complete-profile");
-    if (!user.email || !user.emailVerifiedAt) redirect("/verify-required");
+    // The session callback has already checked the current account in the DB.
+    if (s.user.destination === "/complete-profile" || s.user.destination === "/verify-required") redirect(s.user.destination);
   }
   return s;
 }

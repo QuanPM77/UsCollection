@@ -23,7 +23,9 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
     ...(status === "active" || status === "locked" ? { status } : {}),
   };
   const [users, total] = await Promise.all([
-    prisma.user.findMany({ where, orderBy: { createdAt: "desc" }, skip: (p - 1) * PAGE, take: PAGE }),
+    prisma.user.findMany({ where, orderBy: { createdAt: "desc" }, skip: (p - 1) * PAGE, take: PAGE,
+      select: { id: true, fullName: true, email: true, emailVerifiedAt: true, phone: true, role: true, status: true, lastLoginAt: true },
+    }),
     prisma.user.count({ where }),
   ]);
   const pages = Math.max(1, Math.ceil(total / PAGE));

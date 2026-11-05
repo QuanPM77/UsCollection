@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { auth } from "@/auth";
+import { getSession as auth } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
 import { productImageDisplayUrl } from "@/lib/supabase-storage";
 import { getAvailableProductStock } from "@/lib/product-availability";

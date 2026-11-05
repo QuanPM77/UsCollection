@@ -1,76 +1,104 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { inputCls, primaryCls, Notice } from "@/components/AuthShell";
 import { Capacitor } from "@capacitor/core";
-import { SocialLogin } from "@capgo/capacitor-social-login";
+import { loginWithPassword } from "./actions";
 
 export default function LoginForm({ callbackUrl, initialPhone, googleEnabled, googleClientId }: { callbackUrl?: string; initialPhone?: string; googleEnabled: boolean; googleClientId?: string }) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const inFlight = useRef(false);
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    const phone = String(f.get("phone") ?? "").replace(/\s/g, "");
-    setLoading(true); setError("");
-    const res = await signIn("credentials", { phone, password: f.get("password"), redirect: false });
-    setLoading(false);
-    if (res?.code === "account_locked") return setError("Tài khoản của bạn đã bị quản trị viên khóa. Tài khoản sẽ không tự mở khóa; vui lòng liên hệ quản trị viên để được hỗ trợ.");
-    const rateLimitSeconds = res?.code?.startsWith("rate_limited_") ? Number(res.code.slice("rate_limited_".length)) : 0;
-    if (rateLimitSeconds > 0) {
-      const duration = rateLimitSeconds >= 60
-        ? `${Math.floor(rateLimitSeconds / 60)} phút${rateLimitSeconds % 60 ? ` ${rateLimitSeconds % 60} giây` : ""}`
-        : `${rateLimitSeconds} giây`;
-      return setError(`Bạn đã thử đăng nhập sai quá nhiều lần. Tạm khóa đăng nhập trong ${duration} nữa rồi thử lại.`);
-    }
-    if (res?.error) return setError("Số điện thoại hoặc mật khẩu không đúng. Vui lòng kiểm tra lại thông tin.");
-    router.push(callbackUrl ?? "/post-login");
+  function navigateAfterLogin() {
+    router.replace(callbackUrl ?? "/post-login");
+    // Update the shared layout's login prompt and chat after authentication.
     router.refresh();
   }
 
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (inFlight.current) return;
+    inFlight.current = true;
+    let leaving = false;
+    const f = new FormData(e.currentTarget);
+    const phone = String(f.get("phone") ?? "").replace(/\s/g, "");
+    setLoading(true); setError("");
+    try {
+      const res = await loginWithPassword(phone, String(f.get("password") ?? ""), callbackUrl);
+      if (res?.code === "account_locked") return setError("Tài khoản của bạn đã bị quản trị viên khóa. Tài khoản sẽ không tự mở khóa; vui lòng liên hệ quản trị viên để được hỗ trợ.");
+      const rateLimitSeconds = res?.code?.startsWith("rate_limited_") ? Number(res.code.slice("rate_limited_".length)) : 0;
+      if (rateLimitSeconds > 0) {
+        const duration = rateLimitSeconds >= 60
+          ? `${Math.floor(rateLimitSeconds / 60)} phút${rateLimitSeconds % 60 ? ` ${rateLimitSeconds % 60} giây` : ""}`
+          : `${rateLimitSeconds} giây`;
+        return setError(`Bạn đã thử đăng nhập sai quá nhiều lần. Tạm khóa đăng nhập trong ${duration} nữa rồi thử lại.`);
+      }
+      if (res?.error) return setError("Số điện thoại hoặc mật khẩu không đúng. Vui lòng kiểm tra lại thông tin.");
+      if (!res?.ok) throw new Error("Sign-in did not succeed");
+      // The action sets the auth cookie and invalidates the shared layout cache.
+      router.replace(res.destination ?? "/post-login");
+      leaving = true;
+    } catch {
+      setError("Không thể đăng nhập lúc này. Vui lòng thử lại.");
+    } finally {
+      if (!leaving) {
+        inFlight.current = false;
+        setLoading(false);
+      }
+    }
+  }
+
   async function onGoogleSignIn() {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    let leaving = false;
     setLoading(true);
     setError("");
     try {
       if (Capacitor.isNativePlatform()) {
+        const { SocialLogin } = await import("@capgo/capacitor-social-login");
         if (!googleClientId) throw new Error("Thiếu cấu hình Google OAuth cho ứng dụng Android.");
         await SocialLogin.initialize({ google: { webClientId: googleClientId } });
         // Android Credential Manager already requests openid/email/profile by default.
         // Passing an explicit scopes list requires a custom MainActivity in this plugin.
-        const result = await SocialLogin.login({ provider: "google" });
+        const result = await SocialLogin.login({ provider: "google", options: {} });
         if (result.provider !== "google" || result.result.responseType !== "online" || !result.result.idToken) {
           throw new Error("Google không trả về mã đăng nhập hợp lệ.");
         }
         const response = await signIn("google-native", { idToken: result.result.idToken, redirect: false });
-        if (response?.error) throw new Error("Không thể xác minh tài khoản Google. Hãy kiểm tra cấu hình OAuth trong Google Cloud Console.");
-        router.push(callbackUrl ?? "/post-login");
-        router.refresh();
+        if (!response?.ok || response.error) throw new Error("Không thể xác minh tài khoản Google. Vui lòng thử lại.");
+        navigateAfterLogin();
+        leaving = true;
         return;
       }
 
-      await signIn("google", { callbackUrl: callbackUrl ?? "/post-login" });
+      await signIn("google", { redirectTo: callbackUrl ?? "/post-login" });
+      leaving = true;
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Đăng nhập Google chưa hoàn tất. Vui lòng thử lại.";
       setError(message);
     } finally {
-      setLoading(false);
+      if (!leaving) {
+        inFlight.current = false;
+        setLoading(false);
+      }
     }
   }
 
   return (
     <>
-      <form onSubmit={onSubmit} className="space-y-4">
-        <input name="phone" type="tel" required defaultValue={initialPhone} placeholder="Số điện thoại" autoComplete="username" className={inputCls} />
-        <input name="password" type="password" required autoFocus={Boolean(initialPhone)} placeholder="Mật khẩu" autoComplete="current-password" className={inputCls} />
+      <form onSubmit={onSubmit} aria-busy={loading} className="space-y-4">
+        <input name="phone" type="tel" aria-label="Số điện thoại" required defaultValue={initialPhone} placeholder="Số điện thoại" autoComplete="username" className={inputCls} />
+        <input name="password" type="password" aria-label="Mật khẩu" required autoFocus={Boolean(initialPhone)} placeholder="Mật khẩu" autoComplete="current-password" className={inputCls} />
         <div className="text-right text-sm">
           <Link href="/forgot-password" className="text-rose-600 hover:underline">Quên mật khẩu?</Link>
         </div>
         {error && <Notice kind="err">{error}</Notice>}
-        <button disabled={loading} className={primaryCls}>{loading ? "Đang đăng nhập..." : "Đăng nhập"}</button>
+        <button type="submit" disabled={loading} className={primaryCls}>{loading ? "Đang đăng nhập..." : "Đăng nhập"}</button>
       </form>
       <p className="mt-4 text-center text-sm text-rose-900/70">
         Chưa có tài khoản? <Link href="/register" className="font-semibold text-rose-600 hover:underline">Đăng ký</Link>

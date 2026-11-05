@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import MainMenu from "@/components/MainMenu";
 import { prisma } from "@/lib/prisma";
@@ -5,9 +6,27 @@ import { productImageDisplayUrl } from "@/lib/supabase-storage";
 import ProductCatalog from "./ProductCatalog";
 
 export default async function BuyPage() {
+
+  return (
+    <main className="min-h-screen bg-gradient-to-br from-pink-light via-cream to-white text-pink-text">
+      <header className="flex items-center gap-4 border-b border-pink-mid/25 bg-white/70 px-6 py-4">
+        <MainMenu /><Link href="/" className="font-display text-xl font-bold">UsStory</Link>
+      </header>
+      <section className="w-full px-5 py-10 sm:px-8">
+        <p className="text-sm font-semibold text-pink-deep">Bộ sưu tập UsStory</p>
+        <h1 className="mt-1 font-display text-3xl font-bold sm:text-4xl">Vòng tay bán sẵn</h1>
+
+        <Suspense fallback={<p role="status" className="py-10 text-pink-text/60">Đang tải sản phẩm...</p>}><CatalogContent /></Suspense>
+      </section>
+    </main>
+  );
+}
+
+async function CatalogContent() {
   const products = await prisma.products.findMany({
     where: { type: "bracelet", status: "active" },
     orderBy: { updated_at: "desc" },
+    select: { id: true, name: true, price: true, images: true, styles: true },
   });
   const reviewStats = products.length ? await prisma.productReview.groupBy({
     by: ["productId"],
@@ -31,17 +50,5 @@ export default async function BuyPage() {
     };
   });
 
-  return (
-    <main className="min-h-screen bg-gradient-to-br from-pink-light via-cream to-white text-pink-text">
-      <header className="flex items-center gap-4 border-b border-pink-mid/25 bg-white/70 px-6 py-4">
-        <MainMenu /><Link href="/" className="font-display text-xl font-bold">UsStory</Link>
-      </header>
-      <section className="w-full px-5 py-10 sm:px-8">
-        <p className="text-sm font-semibold text-pink-deep">Bộ sưu tập UsStory</p>
-        <h1 className="mt-1 font-display text-3xl font-bold sm:text-4xl">Vòng tay bán sẵn</h1>
-
-        <ProductCatalog products={catalog} />
-      </section>
-    </main>
-  );
+  return <ProductCatalog products={catalog} />;
 }

@@ -5,7 +5,8 @@ import { usePathname } from 'next/navigation';
 import { AdminSidebar } from '@/components/admin/layout/AdminSidebar';
 import { AdminHeader } from '@/components/admin/layout/AdminHeader';
 import { ToastContainer } from '@/components/admin/ui/Toast';
-import AdminSupportChat from '@/components/admin/support/AdminSupportChat';
+import dynamic from "next/dynamic";
+const AdminSupportChat = dynamic(() => import("@/components/admin/support/AdminSupportChat"), { ssr: false });
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { auth } from "@/auth";
+import { getSession } from "@/lib/auth-session";
 import { LoginPromptProvider } from "@/components/LoginPromptProvider";
 import CustomerChatVisibility from "@/components/support/CustomerChatVisibility";
+import IdleModulePreloader from "@/components/IdleModulePreloader";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -21,11 +22,12 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
+  const session = await getSession();
   return (
     <html lang="vi" suppressHydrationWarning>
       <body>
         <LoginPromptProvider isAuthenticated={Boolean(session?.user)}>{children}</LoginPromptProvider>
+        <IdleModulePreloader />
         {session?.user?.role === "customer" && <CustomerChatVisibility />}
       </body>
     </html>

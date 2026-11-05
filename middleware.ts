@@ -1,5 +1,4 @@
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 const flowPaths = ["/complete-profile", "/verify-required", "/verify-email", "/force-signout", "/post-login"];
@@ -13,11 +12,8 @@ export default auth(async (request) => {
     return NextResponse.next();
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { emailVerifiedAt: true },
-  });
-  if (user && !user.emailVerifiedAt) {
+  // The auth callback has already loaded the current account from the database.
+  if (!session.user.isEmailVerified) {
     return NextResponse.redirect(new URL("/force-signout", request.url));
   }
   return NextResponse.next();
@@ -25,5 +21,5 @@ export default auth(async (request) => {
 
 export const config = {
   runtime: "nodejs",
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)"],
+  matcher: ["/((?!api|images/|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)"],
 };

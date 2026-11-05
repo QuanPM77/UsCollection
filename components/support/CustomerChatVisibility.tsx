@@ -1,7 +1,8 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import CustomerChatWidget from "@/components/support/CustomerChatWidget";
+import dynamic from "next/dynamic";
+const CustomerChatWidget = dynamic(() => import("@/components/support/CustomerChatWidget"), { ssr: false });
 
 const hiddenPaths = [
   "/login",

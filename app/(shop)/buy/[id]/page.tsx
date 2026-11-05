@@ -1,9 +1,11 @@
+import { Suspense } from "react";
+import ReviewAvatar, { AvatarPlaceholder } from "@/components/ReviewAvatar";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { auth } from "@/auth";
+import { getSession as auth } from "@/lib/auth-session";
 import MainMenu from "@/components/MainMenu";
 import { prisma } from "@/lib/prisma";
-import { avatarDisplayUrl, productImageDisplayUrl } from "@/lib/supabase-storage";
+import { productImageDisplayUrl } from "@/lib/supabase-storage";
 import { productStyleLabel } from "@/lib/product-styles";
 import { getAvailableProductStock } from "@/lib/product-availability";
 import ProductGallery from "./ProductGallery";
@@ -41,10 +43,7 @@ export default async function BraceletDetailPage({
   const averageRating = product.reviews.length
     ? product.reviews.reduce((total, review) => total + review.rating, 0) / product.reviews.length
     : null;
-  const reviews = await Promise.all(product.reviews.map(async (review) => ({
-    ...review,
-    avatar: await avatarDisplayUrl(review.user.avatarUrl),
-  })));
+  const reviews = product.reviews;
   const productImages = await Promise.all(product.images.map(productImageDisplayUrl));
 
   return (
@@ -97,7 +96,9 @@ export default async function BraceletDetailPage({
           <div className="mt-6 divide-y divide-pink-mid/20">
             {reviews.length === 0 && <p className="py-8 text-center text-sm text-pink-text/55">Sản phẩm chưa có đánh giá. Hãy là người đầu tiên chia sẻ cảm nhận.</p>}
             {reviews.map((review) => <article key={review.id} className="flex gap-3 py-5">
-              {review.avatar ? <img src={review.avatar} alt="" className="h-11 w-11 shrink-0 rounded-full bg-pink-light object-cover" /> : <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-pink-deep font-semibold text-white">{(review.user.fullName?.trim().charAt(0) || "K").toUpperCase()}</div>}
+              <Suspense fallback={<AvatarPlaceholder name={review.user.fullName} />}>
+                <ReviewAvatar path={review.user.avatarUrl} name={review.user.fullName} />
+              </Suspense>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1"><p className="font-semibold">{review.user.fullName?.trim() || "Khách hàng"}</p><span className="text-xs text-pink-text/50">{dateFormatter.format(review.createdAt)}</span></div>
                 <p className="mt-1 tracking-wide text-amber-500" aria-label={`${review.rating} trên 5 sao`}>{"★".repeat(review.rating)}<span className="text-gray-300">{"★".repeat(5 - review.rating)}</span></p>

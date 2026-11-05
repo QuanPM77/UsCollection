@@ -15,12 +15,13 @@ import { orderService, productService } from '@/lib/admin/services';
 import { DashboardKPIs, RevenueDataPoint, TopProduct } from '@/lib/admin/types/analytics';
 import { AdminOrder, ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/admin/types/order';
 import { AdminProduct, getStockStatus, STOCK_STATUS_LABELS } from '@/lib/admin/types/product';
-import { formatCurrency, formatDateTime, formatCompactNumber } from '@/lib/admin/utils/formatters';
+import { formatCurrency, formatDateTime } from '@/lib/admin/utils/formatters';
 import Link from 'next/link';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
-} from 'recharts';
+import dynamic from 'next/dynamic';
+
+const DashboardCharts = dynamic(() => import('@/components/admin/DashboardCharts'), {
+  loading: () => <div role="status" className="h-80 rounded-xl bg-white p-5 text-gray-400">Đang tải biểu đồ...</div>,
+});
 
 const ORDER_STATUS_VARIANT: Record<string, 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'brand'> = {
   new: 'info',
@@ -39,47 +40,39 @@ export default function AdminDashboardPage() {
   const [recentOrders, setRecentOrders] = useState<AdminOrder[]>([]);
   const [lowStockProducts, setLowStockProducts] = useState<AdminProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [ordersError, setOrdersError] = useState(false);
+  const [productsError, setProductsError] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadDashboard() {
-      try {
-        const [analytics, ordersResult, productsResult] = await Promise.all([
-          analyticsService.getFullAnalytics(),
-          orderService.getAll(undefined, 1, 5),
-          productService.getAll({ stockStatus: 'attention' }),
-        ]);
-
-        setKpis(analytics.kpis);
-        setRevenueData(analytics.revenueByDay);
-        setStatusDist(analytics.orderStatusDistribution);
-        setTopProducts(analytics.topProducts);
-        setRecentOrders(ordersResult.orders);
-        setLowStockProducts(productsResult.products);
-      } catch (err) {
-        console.error('Dashboard load error:', err);
-        setLoadError(err instanceof Error ? err.message : 'Máy chủ không tải được dữ liệu tổng quan.');
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadDashboard();
+    let active = true;
+    void analyticsService.getFullAnalytics().then(analytics => {
+      if (!active) return;
+      setKpis(analytics.kpis);
+      setRevenueData(analytics.revenueByDay);
+      setStatusDist(analytics.orderStatusDistribution);
+      setTopProducts(analytics.topProducts);
+    }).catch(err => {
+      if (active) setLoadError(err instanceof Error ? err.message : 'Không tải được thống kê.');
+    }).finally(() => { if (active) setLoading(false); });
+    void orderService.getAll(undefined, 1, 5).then(result => {
+      if (active) setRecentOrders(result.orders);
+    }).catch(() => { if (active) setOrdersError(true); })
+      .finally(() => { if (active) setOrdersLoading(false); });
+    void productService.getAll({ stockStatus: 'attention' }).then(result => {
+      if (active) setLowStockProducts(result.products);
+    }).catch(() => { if (active) setProductsError(true); })
+      .finally(() => { if (active) setProductsLoading(false); });
+    return () => { active = false; };
   }, []);
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          {Array.from({ length: 5 }).map((_, i) => <CardSkeleton key={i} />)}
-        </div>
-      </div>
-    );
-  }
-
-  if (loadError && !kpis) return <div role="alert" className="rounded-xl border border-rose-200 bg-white p-8 text-center"><h2 className="font-semibold text-gray-900">Không tải được dữ liệu tổng quan</h2><p className="mt-2 text-sm text-gray-500">{loadError}</p><button onClick={() => window.location.reload()} className="mt-4 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white">Thử lại</button></div>;
 
   return (
     <div className="space-y-6">
+      {loadError && <p role="alert" className="rounded-xl border border-rose-200 bg-white p-5 text-rose-700">{loadError} <button onClick={() => window.location.reload()} className="underline">Thử lại</button></p>}
+      {loading && <div role="status" aria-label="Đang tải thống kê" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">{Array.from({ length: 5 }, (_, i) => <CardSkeleton key={i} />)}</div>}
+      {kpis && <>
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard
@@ -117,76 +110,8 @@ export default function AdminDashboardPage() {
         />
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Revenue Chart */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="font-semibold text-gray-900 mb-4">Doanh thu 7 ngày gần nhất</h3>
-          <div className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={revenueData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
-                <YAxis
-                  tick={{ fontSize: 12, fill: '#94A3B8' }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v) => formatCompactNumber(v)}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'white',
-                    border: '1px solid #E2E8F0',
-                    borderRadius: '8px',
-                    fontSize: '13px',
-                  }}
-                  formatter={(value) => [formatCurrency(Number(value) || 0), 'Doanh thu']}
-                />
-                <Bar dataKey="revenue" fill="#E8829A" radius={[4, 4, 0, 0]} maxBarSize={40} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Order Status Distribution */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="font-semibold text-gray-900 mb-4">Trạng thái đơn hàng</h3>
-          <div className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={statusDist}
-                  cx="50%"
-                  cy="45%"
-                  innerRadius={50}
-                  outerRadius={80}
-                  dataKey="count"
-                  nameKey="label"
-                  strokeWidth={2}
-                  stroke="#fff"
-                >
-                  {statusDist.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'white',
-                    border: '1px solid #E2E8F0',
-                    borderRadius: '8px',
-                    fontSize: '13px',
-                  }}
-                />
-                <Legend
-                  verticalAlign="bottom"
-                  iconSize={8}
-                  wrapperStyle={{ fontSize: '12px' }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
+      <DashboardCharts revenueData={revenueData} statusDist={statusDist} />
+      </>}
 
       {/* Bottom Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -199,7 +124,7 @@ export default function AdminDashboardPage() {
             </Link>
           </div>
           <div className="divide-y divide-gray-50">
-            {recentOrders.length === 0 && <p className="px-5 py-8 text-center text-sm text-gray-400">Chưa có đơn hàng.</p>}
+            {ordersLoading ? <p role="status" className="px-5 py-8 text-gray-400">Đang tải đơn hàng...</p> : ordersError ? <p role="alert" className="px-5 py-8 text-rose-700">Không tải được đơn hàng. Hãy tải lại trang để thử lại.</p> : recentOrders.length === 0 && <p className="px-5 py-8 text-center text-sm text-gray-400">Chưa có đơn hàng.</p>}
             {recentOrders.map((order) => (
               <Link
                 key={order.id}
@@ -233,7 +158,7 @@ export default function AdminDashboardPage() {
             <h3 className="font-semibold text-gray-900">Cảnh báo tồn kho</h3>
             <div className="flex gap-3 text-sm font-medium"><Link href="/admin/products/catalog?stockStatus=attention" className="text-brand-500 hover:text-brand-600">Vòng bán sẵn</Link><Link href="/admin/beads?stockStatus=attention" className="text-brand-500 hover:text-brand-600">Các loại hạt</Link></div>
           </div>
-          {lowStockProducts.length === 0 ? (
+          {productsLoading ? <p role="status" className="px-5 py-8 text-gray-400">Đang tải tồn kho...</p> : productsError ? <p role="alert" className="px-5 py-8 text-rose-700">Không tải được tồn kho. Hãy tải lại trang để thử lại.</p> : lowStockProducts.length === 0 ? (
             <div className="px-5 py-8 text-center text-sm text-gray-400">
               Không có sản phẩm đang bán nào sắp hết hoặc hết hàng
             </div>

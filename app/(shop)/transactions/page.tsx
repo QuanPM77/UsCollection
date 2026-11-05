@@ -2,18 +2,28 @@ import Link from "next/link";
 import MainMenu from "@/components/MainMenu";
 import { requireRole } from "@/lib/guard";
 import { prisma } from "@/lib/prisma";
+import { pageNumber } from "@/lib/pagination";
 
 const paymentLabels: Record<string, string> = { pending: "Chờ thanh toán", paid: "Đã thanh toán", failed: "Thanh toán thất bại" };
 const orderLabels: Record<string, string> = { new: "Chờ cửa hàng xác nhận", confirmed: "Đã xác nhận", processing: "Đang xử lý", shipping: "Đang giao", completed: "Hoàn tất", cancelled: "Đã hủy" };
 const money = (value: number) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value);
 
-export default async function TransactionsPage() {
-  const session = await requireRole("customer");
-  const orders = await prisma.order.findMany({
+export default async function TransactionsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const [session, query] = await Promise.all([requireRole("customer"), searchParams]);
+  const page = pageNumber(query.page);
+  const pageSize = 20;
+  const [orders, total] = await Promise.all([prisma.order.findMany({
     where: { user_id: session.user.id },
-    include: { order_items: true },
-    orderBy: { createdAt: "desc" },
-  });
+    select: {
+      id: true, orderCode: true, createdAt: true, braceletConfig: true,
+      order_status: true, paymentStatus: true, totalPrice: true,
+      customerName: true, customerPhone: true, customerAddress: true,
+      order_items: { select: { id: true, product_type: true, product_name: true, sku: true, quantity: true, line_total: true } },
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: pageSize, skip: (page - 1) * pageSize,
+  }), prisma.order.count({ where: { user_id: session.user.id } })]);
+  const pages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-pink-light via-cream to-white text-pink-text">
@@ -24,9 +34,9 @@ export default async function TransactionsPage() {
       <section className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
         <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
           <div><h1 className="font-display text-3xl font-bold">Lịch sử giao dịch</h1><p className="mt-2 text-sm text-pink-text/65">Theo dõi đơn vòng tay có sẵn và thiết kế 3D của bạn.</p></div>
-          <span className="text-sm text-pink-text/60">{orders.length} đơn hàng</span>
+          <span className="text-sm text-pink-text/60">{total} đơn hàng</span>
         </div>
-        {orders.length === 0 ? (
+        {orders.length === 0 && total > 0 ? <p className="py-8">Không có đơn hàng ở trang này. <Link href="/transactions" className="underline">Về trang đầu</Link></p> : orders.length === 0 ? (
           <div className="rounded-2xl border border-pink-mid/30 bg-white p-10 text-center shadow-sm"><div className="mb-3 text-4xl">🧾</div><p>Bạn chưa có giao dịch nào.</p><Link href="/customizer" className="mt-5 inline-block rounded-xl bg-pink-deep px-5 py-3 text-sm font-semibold text-white">Thiết kế vòng tay</Link></div>
         ) : (
           <div className="space-y-4">{orders.map((order) => {
@@ -43,6 +53,11 @@ export default async function TransactionsPage() {
             </article>;
           })}</div>
         )}
+        {pages > 1 && <nav aria-label="Phân trang giao dịch" className="mt-6 flex items-center justify-between gap-4 text-sm">
+          {page > 1 ? <Link href={`/transactions?page=${Math.min(page - 1, pages)}`} className="rounded-xl border bg-white px-4 py-2">Trang trước</Link> : <span />}
+          <span>Trang {page} / {pages}</span>
+          {page < pages ? <Link href={`/transactions?page=${page + 1}`} className="rounded-xl border bg-white px-4 py-2">Trang sau</Link> : <span />}
+        </nav>}
       </section>
     </main>
   );

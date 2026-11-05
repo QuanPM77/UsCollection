@@ -1,6 +1,10 @@
 import Link from "next/link";
+import Image from "next/image";
 import MainMenu from "@/components/MainMenu";
-import { auth, signOut } from "@/auth";
+import { signOut } from "@/auth";
+import { getSession } from "@/lib/auth-session";
+import { Suspense } from "react";
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import CopyContactButton from "@/components/CopyContactButton";
 import FeaturedProductsCarousel from "@/components/home/FeaturedProductsCarousel";
@@ -30,28 +34,7 @@ const FEATURES = [
 ];
 
 export default async function LandingPage() {
-  const [session, storeSettings, socialLinks, products] = await Promise.all([
-    auth(),
-    prisma.store_settings.findUnique({
-      where: { id: 1 },
-      select: { store_name: true, contact_phone: true, contact_email: true },
-    }),
-    prisma.$queryRaw<Array<{ name: string; url: string }>>`
-      SELECT "name", "url" FROM "store_social_links"
-      ORDER BY "sort_order" ASC, "created_at" ASC
-    `,
-    prisma.products.findMany({
-      where: { type: "bracelet", status: "active" },
-      orderBy: { updated_at: "desc" },
-      select: { id: true, name: true, price: true, images: true },
-    }),
-  ]);
-  const featuredProducts = await Promise.all(products.map(async (product) => ({
-    id: product.id,
-    name: product.name,
-    price: product.price,
-    image: product.images[0] ? await productImageDisplayUrl(product.images[0]) : null,
-  })));
+  const session = await getSession();
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-light via-cream to-white pb-24 md:pb-0">
@@ -109,7 +92,7 @@ export default async function LandingPage() {
           <div className="relative mx-auto w-full max-w-[560px]">
             <div aria-hidden="true" className="absolute inset-[8%] rounded-full bg-gradient-to-br from-pink-mid/40 to-rose-100/30 blur-2xl" />
             <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-[1.5rem] border border-white/80 bg-[#fde5ec] shadow-[0_24px_80px_rgba(152,73,105,0.14)] sm:aspect-square sm:rounded-[2rem]">
-              <img src="/images/bracelet-3d-reference.png" alt="Vòng tay hạt màu hồng, tím và vàng trong hình minh họa 3D" className="h-full w-full object-contain" />
+              <Image src="/images/bracelet-3d-reference.png" alt="Vòng tay hạt màu hồng, tím và vàng trong hình minh họa 3D" fill priority sizes="(max-width: 640px) 100vw, (max-width: 1024px) 560px, 50vw" className="object-contain" />
               <div className="absolute left-5 top-5 rounded-full border border-white/80 bg-white/80 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-pink-deep shadow-sm sm:left-7 sm:top-7 sm:text-xs">Phối màu của bạn</div>
               <div className="absolute bottom-5 right-5 rounded-2xl border border-white/80 bg-white/85 px-4 py-3 shadow-lg backdrop-blur sm:bottom-7 sm:right-7">
                 <p className="text-[10px] font-medium uppercase tracking-wide text-pink-text/50">Trải nghiệm</p>
@@ -121,7 +104,9 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      <FeaturedProductsCarousel products={featuredProducts} />
+      <Suspense fallback={<div role="status" className="px-8 py-12 text-center text-pink-text/60">Đang tải sản phẩm...</div>}>
+        <FeaturedProducts />
+      </Suspense>
 
       {/* Why UsStory */}
       <section id="features" className="relative overflow-hidden bg-white/65 py-12 sm:py-24">
@@ -197,6 +182,68 @@ export default async function LandingPage() {
       </section>
 
       {/* Footer */}
+      <Suspense fallback={<div className="h-48 bg-pink-light/20" aria-hidden="true" />}>
+        <StoreFooter />
+      </Suspense>
+
+      <nav
+        aria-label="Điều hướng nhanh"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-pink-mid/30 bg-white/95 px-3 pt-2 shadow-[0_-8px_24px_rgba(125,46,70,0.08)] backdrop-blur md:hidden"
+        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)" }}
+      >
+        <div className="mx-auto grid max-w-lg grid-cols-3 gap-2">
+          <Link href="/" aria-current="page" className="flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-[11px] font-semibold text-pink-deep">
+            <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V10Z" /></svg>
+            Trang chủ
+          </Link>
+          <Link href="/buy" className="flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-[11px] font-medium text-pink-text/65 transition hover:bg-pink-light hover:text-pink-deep">
+            <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M5 8h14l1 12H4L5 8Zm4 0a3 3 0 0 1 6 0" /></svg>
+            Mua vòng
+          </Link>
+          <Link href="/customizer" className="flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl bg-pink-deep text-[11px] font-semibold text-white shadow-sm transition hover:bg-pink-text">
+            <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3Zm6 12 .8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8L18 15Z" /></svg>
+            Thiết kế
+          </Link>
+        </div>
+      </nav>
+    </div>
+  );
+}
+
+
+async function FeaturedProducts() {
+  const products = await prisma.products.findMany({
+    where: { type: "bracelet", status: "active" },
+    orderBy: [{ updated_at: "desc" }, { id: "asc" }],
+    take: 12,
+    select: { id: true, name: true, price: true, images: true },
+  });
+  const featuredProducts = await Promise.all(products.map(async (product) => ({
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    image: product.images[0] ? await productImageDisplayUrl(product.images[0]) : null,
+  })));
+  return <FeaturedProductsCarousel products={featuredProducts} />;
+}
+
+const getStoreFooter = unstable_cache(async () => {
+  const [storeSettings, socialLinks] = await Promise.all([
+    prisma.store_settings.findUnique({
+      where: { id: 1 },
+      select: { store_name: true, contact_phone: true, contact_email: true },
+    }),
+    prisma.$queryRaw<Array<{ name: string; url: string }>>`
+      SELECT "name", "url" FROM "store_social_links"
+      ORDER BY "sort_order" ASC, "created_at" ASC
+    `,
+  ]);
+  return { storeSettings, socialLinks };
+}, ["home-store-footer"], { revalidate: 60, tags: ["store-settings"] });
+
+async function StoreFooter() {
+  const { storeSettings, socialLinks } = await getStoreFooter();
+  return (
       <footer className="border-t border-pink-mid/25 bg-pink-light/20 px-4 py-12 text-pink-text/75 sm:px-8 lg:px-12">
         <div className="grid w-full gap-8 sm:grid-cols-2 lg:grid-cols-3 lg:gap-12">
           <section className="flex flex-col justify-center">
@@ -220,27 +267,5 @@ export default async function LandingPage() {
         </div>
         <p className="mt-8 w-full border-t border-pink-mid/15 pt-5 text-center text-xs text-pink-text/45">© {new Date().getFullYear()} {storeSettings?.store_name || "UsStory"}. Handcrafted with love.</p>
       </footer>
-
-      <nav
-        aria-label="Điều hướng nhanh"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-pink-mid/30 bg-white/95 px-3 pt-2 shadow-[0_-8px_24px_rgba(125,46,70,0.08)] backdrop-blur md:hidden"
-        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)" }}
-      >
-        <div className="mx-auto grid max-w-lg grid-cols-3 gap-2">
-          <Link href="/" aria-current="page" className="flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-[11px] font-semibold text-pink-deep">
-            <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V10Z" /></svg>
-            Trang chủ
-          </Link>
-          <Link href="/buy" className="flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-[11px] font-medium text-pink-text/65 transition hover:bg-pink-light hover:text-pink-deep">
-            <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M5 8h14l1 12H4L5 8Zm4 0a3 3 0 0 1 6 0" /></svg>
-            Mua vòng
-          </Link>
-          <Link href="/customizer" className="flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl bg-pink-deep text-[11px] font-semibold text-white shadow-sm transition hover:bg-pink-text">
-            <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3Zm6 12 .8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8L18 15Z" /></svg>
-            Thiết kế
-          </Link>
-        </div>
-      </nav>
-    </div>
   );
 }

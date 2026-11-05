@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { getSession as auth } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
 import EmailVerificationForm from "./EmailVerificationForm";
 

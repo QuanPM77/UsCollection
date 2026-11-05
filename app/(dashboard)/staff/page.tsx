@@ -1,4 +1,5 @@
-import { auth, signOut } from "@/auth";
+import { signOut } from "@/auth";
+import { getSession as auth } from "@/lib/auth-session";
 export default async function Page() {
   const s = await auth();
   return (

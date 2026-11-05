@@ -15,7 +15,7 @@ export async function completeProfile(formData: FormData) {
   const province = String(formData.get("province") ?? "").trim();
   const ward = String(formData.get("ward") ?? "").trim();
   if (fullName.length < 2 || fullName.length > 100) throw new Error("Họ tên cần từ 2 đến 100 ký tự.");
-  const existing = await prisma.user.findUnique({ where: { id: session.user.id }, select: { phone: true, emailVerifiedAt: true, profileCompletedAt: true } });
+  const existing = await prisma.user.findUnique({ where: { id: session.user.id }, select: { phone: true, email: true, emailVerifiedAt: true, profileCompletedAt: true } });
   if (!existing) throw new Error("Tài khoản không tồn tại.");
   const phone = submittedPhone || existing.phone || "";
   if (!/^(0|\+84)\d{9,10}$/.test(phone)) throw new Error("Nhập số điện thoại Việt Nam hợp lệ.");
@@ -58,6 +58,6 @@ export async function completeProfile(formData: FormData) {
       },
     });
   });
-  if (!existing.emailVerifiedAt) redirect("/verify-required");
-  redirect("/post-login");
+  if (!existing.email || !existing.emailVerifiedAt) redirect("/verify-required");
+  redirect("/");
 }

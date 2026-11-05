@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
+import { authDestination } from "@/lib/auth-destination";
 import { prisma } from "@/lib/prisma";
 import { hashToken } from "@/lib/token";
 import { clientIp, clearLimit, progressiveFailureLimit, recordProgressiveFailure } from "@/lib/ratelimit";
@@ -79,7 +80,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         ]);
         if (!a.ok || !b.ok) throw new TooMany(Math.max(a.retryAfterSec, b.retryAfterSec));
 
-        const user = await prisma.user.findUnique({ where: { phone } });
+        const user = await prisma.user.findUnique({
+          where: { phone },
+          select: { id: true, email: true, fullName: true, passwordHash: true, googleId: true, status: true },
+        });
         if (!user || user.googleId) {
           await Promise.all([
             recordProgressiveFailure(perAccount, 3),
@@ -176,26 +180,35 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         await prisma.passwordResetToken.deleteMany({ where: { userId: appUser.id } });
         token.uid = appUser.id;
         token.role = appUser.role;
+        token.destination = authDestination(appUser);
+        token.emailVerified = Boolean(appUser.emailVerifiedAt);
       } else if (user?.id) {
         const u = await prisma.user.update({
           where: { id: user.id },
           data: { lastLoginAt: new Date() },
+          select: { id: true, role: true, phone: true, email: true, profileCompletedAt: true, emailVerifiedAt: true },
         });
         token.uid = u.id;
         token.role = u.role;
+        token.destination = authDestination(u);
+        token.emailVerified = Boolean(u.emailVerifiedAt);
       } else if (token.uid) {
         const u = await prisma.user.findUnique({
           where: { id: token.uid as string },
-          select: { role: true, status: true },
+          select: { role: true, status: true, phone: true, email: true, profileCompletedAt: true, emailVerifiedAt: true },
         });
         if (!u || u.status !== "active") return null;
         token.role = u.role;
+        token.destination = authDestination(u);
+        token.emailVerified = Boolean(u.emailVerifiedAt);
       }
       return token;
     },
     session({ session, token }) {
       session.user.id = token.uid as string;
       session.user.role = token.role as "admin" | "staff" | "customer";
+      session.user.destination = token.destination as string;
+      session.user.isEmailVerified = token.emailVerified === true;
       return session;
     },
   },

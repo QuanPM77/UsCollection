@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BeadType } from "@/types";
+import { fetchBeadCatalog } from "@/lib/bead-catalog-request";
 import { useBraceletStore } from "@/lib/store";
 
 export function useBeadCatalog() {
@@ -12,11 +12,9 @@ export function useBeadCatalog() {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/bead-types", { cache: "no-store" })
-      .then(async (response) => {
-        const result = await response.json();
-        if (!response.ok || !Array.isArray(result.data)) throw new Error("Không tải được danh sách hạt");
-        if (active) setCatalog(result.data as BeadType[]);
+    fetchBeadCatalog()
+      .then((data) => {
+        if (active) setCatalog(data);
       })
       .catch(() => { if (active) setError(true); })
       .finally(() => { if (active) setLoading(false); });

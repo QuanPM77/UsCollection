@@ -26,13 +26,13 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export const orderService = {
-  async getAll(filters: OrderFilters = {}, page = 1, pageSize = 10): Promise<OrderListResult> {
+  async getAll(filters: OrderFilters = {}, page = 1, pageSize = 10, signal?: AbortSignal): Promise<OrderListResult> {
     const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     for (const [key, value] of Object.entries(filters)) {
       if (Array.isArray(value)) value.forEach((item) => query.append('orderType', item));
       else if (value) query.set(key, value);
     }
-    return request<OrderListResult>(`/api/admin/orders?${query}`);
+    return request<OrderListResult>(`/api/admin/orders?${query}`, { signal });
   },
 
   async getById(id: string): Promise<AdminOrder | null> {

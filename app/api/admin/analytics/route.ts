@@ -11,8 +11,6 @@ export async function GET(request: Request) {
   try {
   const requestedDays = Number(new URL(request.url).searchParams.get("days")) || 7;
   const days = Math.min(30, Math.max(7, requestedDays));
-  const settings = await prisma.store_settings.findUnique({ where: { id: 1 }, select: { low_stock_threshold: true } });
-  const threshold = settings?.low_stock_threshold ?? 5;
   const businessTimeZone = "Asia/Ho_Chi_Minh";
   const todayParts = new Intl.DateTimeFormat("en-US", { timeZone: businessTimeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
   const year = Number(todayParts.find((part) => part.type === "year")?.value);
@@ -20,13 +18,12 @@ export async function GET(request: Request) {
   const day = Number(todayParts.find((part) => part.type === "day")?.value);
   const firstDay = Date.UTC(year, month - 1, day) - 7 * 60 * 60 * 1000 - (days - 1) * 86400000;
   const endDay = firstDay + days * 86400000;
-  const [totalOrders, paidSummary, successfulPayments, pendingOrders, processingOrders, products, orderGroups, createdOrders, paidOrders] = await Promise.all([
-    prisma.order.count(),
-    prisma.order.aggregate({ where: { paymentStatus: "paid" }, _sum: { totalPrice: true } }),
-    prisma.order.count({ where: { paymentStatus: "paid" } }),
+  const [settings, paidItems, paidSummary, pendingOrders, products, orderGroups, createdOrders, paidOrders] = await Promise.all([
+    prisma.store_settings.findUnique({ where: { id: 1 }, select: { low_stock_threshold: true } }),
+    readPaidItems(),
+    prisma.order.aggregate({ where: { paymentStatus: "paid" }, _sum: { totalPrice: true }, _count: { _all: true } }),
     prisma.order.count({ where: { order_status: "new", paymentStatus: "paid" } }),
-    prisma.order.count({ where: { order_status: { in: ["confirmed", "processing", "shipping"] } } }),
-    prisma.products.findMany({ where: { status: "active" }, select: { id: true, name: true, stock: true, status: true } }),
+    prisma.products.findMany({ where: { status: "active" }, select: { stock: true, status: true } }),
     prisma.order.groupBy({ by: ["order_status"], _count: { _all: true } }),
     prisma.order.findMany({ where: { createdAt: { gte: new Date(firstDay), lt: new Date(endDay) } }, select: { createdAt: true } }),
     prisma.order.findMany({ where: { paymentStatus: "paid", OR: [
@@ -35,34 +32,11 @@ export async function GET(request: Request) {
     ] }, select: { totalPrice: true, paidAt: true, createdAt: true } }),
   ]);
 
-  type PaidItem = { product_id: string | null; product_name: string; product_type: string; quantity: number | bigint; line_total: number | bigint; costed_line_total: number | bigint; total_cost: number | bigint; has_cost: boolean };
-  let paidItems: PaidItem[];
-  try {
-    // Read the snapshot cost without relying on a possibly stale generated Prisma model.
-    paidItems = await prisma.$queryRaw<PaidItem[]>`
-      SELECT oi.product_id, oi.product_name, oi.product_type, SUM(oi.quantity)::bigint AS quantity,
-        SUM(oi.line_total)::bigint AS line_total,
-        COALESCE(SUM(oi.line_total) FILTER (WHERE oi.unit_cost IS NOT NULL), 0)::bigint AS costed_line_total,
-        COALESCE(SUM(oi.unit_cost * oi.quantity) FILTER (WHERE oi.unit_cost IS NOT NULL), 0)::bigint AS total_cost,
-        BOOL_OR(oi.unit_cost IS NOT NULL) AS has_cost
-      FROM order_items AS oi
-      INNER JOIN orders AS o ON o.id = oi.order_id
-      WHERE o.payment_status = 'paid'
-      GROUP BY oi.product_id, oi.product_name, oi.product_type
-    `;
-  } catch (error) {
-    console.warn("Order item cost snapshot is unavailable; profit metrics will show incomplete coverage:", error);
-    paidItems = await prisma.$queryRaw<PaidItem[]>`
-      SELECT oi.product_id, oi.product_name, oi.product_type, SUM(oi.quantity)::bigint AS quantity,
-        SUM(oi.line_total)::bigint AS line_total, 0::bigint AS costed_line_total,
-        0::bigint AS total_cost, FALSE AS has_cost
-      FROM order_items AS oi
-      INNER JOIN orders AS o ON o.id = oi.order_id
-      WHERE o.payment_status = 'paid'
-      GROUP BY oi.product_id, oi.product_name, oi.product_type
-    `;
-  }
 
+  const threshold = settings?.low_stock_threshold ?? 5;
+  const totalOrders = orderGroups.reduce((sum, group) => sum + group._count._all, 0);
+  const successfulPayments = paidSummary._count._all;
+  const processingOrders = orderGroups.filter(group => ["confirmed", "processing", "shipping"].includes(group.order_status)).reduce((sum, group) => sum + group._count._all, 0);
   const revenueByDay = Array.from({ length: days }, (_, index) => {
     const date = new Date(firstDay + index * 86400000);
     const nextDate = new Date(date.getTime() + 86400000);
@@ -129,4 +103,36 @@ export async function GET(request: Request) {
     console.error("Admin analytics request failed:", error);
     return NextResponse.json({ message: "Không thể truy vấn dữ liệu tổng quan. Vui lòng kiểm tra kết nối cơ sở dữ liệu và cấu trúc bảng." }, { status: 503 });
   }
+}
+
+async function readPaidItems() {
+  type PaidItem = { product_id: string | null; product_name: string; product_type: string; quantity: number | bigint; line_total: number | bigint; costed_line_total: number | bigint; total_cost: number | bigint; has_cost: boolean };
+  let paidItems: PaidItem[];
+  try {
+    // Read the snapshot cost without relying on a possibly stale generated Prisma model.
+    paidItems = await prisma.$queryRaw<PaidItem[]>`
+      SELECT oi.product_id, oi.product_name, oi.product_type, SUM(oi.quantity)::bigint AS quantity,
+        SUM(oi.line_total)::bigint AS line_total,
+        COALESCE(SUM(oi.line_total) FILTER (WHERE oi.unit_cost IS NOT NULL), 0)::bigint AS costed_line_total,
+        COALESCE(SUM(oi.unit_cost * oi.quantity) FILTER (WHERE oi.unit_cost IS NOT NULL), 0)::bigint AS total_cost,
+        BOOL_OR(oi.unit_cost IS NOT NULL) AS has_cost
+      FROM order_items AS oi
+      INNER JOIN orders AS o ON o.id = oi.order_id
+      WHERE o.payment_status = 'paid'
+      GROUP BY oi.product_id, oi.product_name, oi.product_type
+    `;
+  } catch (error) {
+    console.warn("Order item cost snapshot is unavailable; profit metrics will show incomplete coverage:", error);
+    paidItems = await prisma.$queryRaw<PaidItem[]>`
+      SELECT oi.product_id, oi.product_name, oi.product_type, SUM(oi.quantity)::bigint AS quantity,
+        SUM(oi.line_total)::bigint AS line_total, 0::bigint AS costed_line_total,
+        0::bigint AS total_cost, FALSE AS has_cost
+      FROM order_items AS oi
+      INNER JOIN orders AS o ON o.id = oi.order_id
+      WHERE o.payment_status = 'paid'
+      GROUP BY oi.product_id, oi.product_name, oi.product_type
+    `;
+  }
+
+  return paidItems;
 }
