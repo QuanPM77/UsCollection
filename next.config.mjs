@@ -5,4 +5,8 @@ const nextConfig = {
   transpilePackages: ["three", "@react-three/fiber", "@react-three/drei"],
 };
 
+if (process.env.VERCEL === "1") {
+  nextConfig.distDir = ".next";
+}
+
 export default nextConfig;
