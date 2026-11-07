@@ -1,5 +1,7 @@
 "use client";
 
+import ProductImage from "@/components/ProductImage";
+
 import { useEffect, useState, type TransitionEvent } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -27,7 +29,7 @@ export default function FeaturedProductsCarousel({ products }: { products: Featu
     const timer = window.setTimeout(() => {
       setDirection(1);
       setPendingSlide(true);
-    }, 10000);
+    }, 8000);
     return () => window.clearTimeout(timer);
   }, [products.length, pendingSlide, sliding, startIndex]);
 
@@ -68,7 +70,7 @@ export default function FeaturedProductsCarousel({ products }: { products: Featu
           {trackProducts.map((product, index) => <div key={`${product.id}-${index}`} className="w-full shrink-0 px-1.5 sm:w-1/2 sm:px-2 lg:w-1/3">
             <Link href={`/buy/${product.id}`} className="group block overflow-hidden rounded-2xl border border-pink-mid/25 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
               <div className="aspect-[4/3] overflow-hidden bg-white">
-                {product.image ? <img src={product.image} alt={product.name} loading="lazy" decoding="async" className="h-full w-full object-contain transition duration-300 group-hover:scale-[1.03]" /> : <div className="flex h-full items-center justify-center text-5xl">💎</div>}
+                {product.image ? <ProductImage src={product.image} alt={product.name} className="h-full w-full object-contain transition duration-300 group-hover:scale-[1.03]" /> : <div className="flex h-full items-center justify-center text-5xl">💎</div>}
               </div>
               <div className="p-4">
                 <h3 className="truncate text-sm font-semibold text-pink-text sm:text-base">{product.name}</h3>

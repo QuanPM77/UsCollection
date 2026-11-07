@@ -1,5 +1,7 @@
 "use client";
 
+import ProductImage from "@/components/ProductImage";
+
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { PRODUCT_STYLES } from "@/lib/product-styles";
@@ -92,7 +94,7 @@ export default function ProductCatalog({ products }: { products: CatalogProduct[
         {filteredProducts.map((product) => <article key={product.id} className="group overflow-hidden rounded-3xl border border-pink-mid/25 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
           <div className="relative aspect-square overflow-hidden bg-white">
             <Link href={`/buy/${product.id}`} aria-label={`Xem ${product.name}`} className="block h-full w-full">
-              {product.image ? <img src={product.image} alt={product.name} loading="lazy" decoding="async" className="h-full w-full object-contain" /> : <div className="flex h-full items-center justify-center text-6xl">💎</div>}
+              {product.image ? <ProductImage src={product.image} alt={product.name} className="h-full w-full object-contain" /> : <div className="flex h-full items-center justify-center text-6xl">💎</div>}
             </Link>
             <FavoriteButton productId={product.id} />
           </div>

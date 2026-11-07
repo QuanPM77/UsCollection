@@ -21,6 +21,11 @@ interface BraceletStore {
   // UI
   isAutoRotating: boolean;
   canvasTheme: CanvasTheme;
+  savedDesignId: string | null;
+  savedDesignName: string;
+  savedUpdatedAt: string;
+  savedFingerprint: string;
+  savedBeads: BeadType[];
 
   // Actions
   setWristCircumference: (mm: number) => void;
@@ -53,6 +58,11 @@ export const useBraceletStore = create<BraceletStore>()(
       hoveredSlotIndex: null,
       isAutoRotating: false,
       canvasTheme: "pink",
+      savedDesignId: null,
+      savedDesignName: "",
+      savedUpdatedAt: "",
+      savedFingerprint: "",
+      savedBeads: [],
 
       setCanvasTheme: (theme) => set({ canvasTheme: theme }),
 
@@ -90,7 +100,7 @@ export const useBraceletStore = create<BraceletStore>()(
         const activeIds = new Set(beadCatalog.map((bead) => bead.id));
         const { selectedBeadType } = get();
         set({
-          beadCatalog,
+          beadCatalog: [...beadCatalog, ...get().savedBeads.filter(b => !activeIds.has(b.id)).map(b => ({ ...b, is_active: false, stock: 0 }))],
           selectedBeadType: selectedBeadType && activeIds.has(selectedBeadType.id) && beadCatalog.find((bead) => bead.id === selectedBeadType.id)?.is_active !== false
             ? beadCatalog.find((bead) => bead.id === selectedBeadType.id) ?? null
             : null,
@@ -200,6 +210,7 @@ export const useBraceletStore = create<BraceletStore>()(
       partialize: (state) => ({
         wristCircumference: state.wristCircumference,
         slots: state.slots,
+        savedBeads: state.savedBeads,
       }),
     }
   )

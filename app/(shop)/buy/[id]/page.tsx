@@ -23,8 +23,8 @@ export default async function BraceletDetailPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ review?: string }>;
 }) {
-  const [{ id }, query, session] = await Promise.all([params, searchParams, auth()]);
-  const product = await prisma.products.findFirst({
+  const { id } = await params;
+  const [product, query, session] = await Promise.all([prisma.products.findFirst({
     where: { id, type: "bracelet", status: "active" },
     include: {
       bracelet_product_details: true,
@@ -34,7 +34,7 @@ export default async function BraceletDetailPage({
         take: 100,
       },
     },
-  });
+  }), searchParams, auth()]);
   if (!product) notFound();
   const availableStock = await getAvailableProductStock(product.id, product.stock, session?.user.id);
 

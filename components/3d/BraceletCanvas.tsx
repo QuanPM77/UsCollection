@@ -4,7 +4,8 @@
  * BraceletCanvas — the main 3D scene.
  */
 
-import { Suspense } from "react";
+import { Suspense, useMemo } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Environment } from "@react-three/drei";
 
@@ -18,8 +19,9 @@ import BeadMesh from "./BeadMesh";
 import BraceletCord from "./BraceletCord";
 
 function BraceletScene() {
-  const { wristCircumference, slots, beadCatalog, isAutoRotating, canvasTheme } = useBraceletStore();
+  const { wristCircumference, slots, beadCatalog, isAutoRotating, canvasTheme } = useBraceletStore(useShallow(s => ({ wristCircumference: s.wristCircumference, slots: s.slots, beadCatalog: s.beadCatalog, isAutoRotating: s.isAutoRotating, canvasTheme: s.canvasTheme })));
 
+  const { radius, positions } = useMemo(() => {
   const diameters = slots.map((s) => {
     const bead = s.beadTypeId ? beadCatalog.find((item) => item.id === s.beadTypeId) : null;
     return bead?.diameter ?? 8;
@@ -27,6 +29,9 @@ function BraceletScene() {
 
   const radius = calculateRadiusFromBeads(diameters, wristCircumference);
   const positions = generateVariableBeadPositions(diameters, wristCircumference);
+
+  return { radius, positions };
+  }, [slots, beadCatalog, wristCircumference]);
 
   // Environment HDRI Preset per theme
   const envPreset = canvasTheme === "dark" ? "night" : canvasTheme === "white" ? "apartment" : "studio";
@@ -100,7 +105,8 @@ function BraceletScene() {
 
 export default function BraceletCanvas() {
   const addBead = useBraceletStore((state) => state.addBead);
-  const { canvasTheme, setCanvasTheme } = useBraceletStore();
+  const canvasTheme = useBraceletStore(s => s.canvasTheme);
+  const setCanvasTheme = useBraceletStore(s => s.setCanvasTheme);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();

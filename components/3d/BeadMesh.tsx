@@ -34,7 +34,9 @@ export default function BeadMesh({
   const meshRef = useRef<Mesh>(null);
   const [hovered, setHovered] = useState(false);
 
-  const { fillSlot, removeBead, setHoveredSlot } = useBraceletStore();
+  const fillSlot = useBraceletStore(s => s.fillSlot);
+  const removeBead = useBraceletStore(s => s.removeBead);
+  const setHoveredSlot = useBraceletStore(s => s.setHoveredSlot);
 
   // Smooth scale animation on hover
   useFrame((_, delta) => {

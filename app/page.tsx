@@ -91,7 +91,6 @@ export default async function LandingPage() {
               alt="Vòng tay hạt thạch anh hồng pastel, tím lavender và hạt vàng champagne"
               fill
               priority
-              unoptimized
               sizes="(max-width: 639px) calc(100vw - 32px), (max-width: 1023px) 560px, (max-width: 1343px) 45vw, 560px"
               className="object-cover"
             />

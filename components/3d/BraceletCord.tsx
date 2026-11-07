@@ -13,7 +13,8 @@ export default function BraceletCord({
   radius,
   tubeRadius = 0.04,
 }: BraceletCordProps) {
-  const { selectedBeadType, addBead } = useBraceletStore();
+  const selectedBeadType = useBraceletStore(s => s.selectedBeadType);
+  const addBead = useBraceletStore(s => s.addBead);
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();

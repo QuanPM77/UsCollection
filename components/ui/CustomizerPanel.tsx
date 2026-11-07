@@ -1,6 +1,7 @@
 "use client";
 
 import WristInput from "./WristInput";
+import SavedDesigns from "@/components/SavedDesigns";
 import BeadSelector from "./BeadSelector";
 import BraceletControls from "./BraceletControls";
 
@@ -27,6 +28,7 @@ export default function CustomizerPanel() {
       <hr className="border-pink-mid/30" />
 
       {/* Wrist size */}
+      <SavedDesigns />
       <WristInput />
 
       <hr className="border-pink-mid/30" />

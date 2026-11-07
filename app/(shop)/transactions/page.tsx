@@ -28,13 +28,13 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
   return (
     <main className="min-h-screen bg-gradient-to-br from-pink-light via-cream to-white text-pink-text">
       <SiteHeader />
-      <section className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+      <section className="w-full px-4 py-10 sm:px-8 lg:px-12">
         <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
           <div><h1 className="font-display text-3xl font-bold">Lịch sử giao dịch</h1><p className="mt-2 text-sm text-pink-text/65">Theo dõi đơn vòng tay có sẵn và thiết kế 3D của bạn.</p></div>
           <span className="text-sm text-pink-text/60">{total} đơn hàng</span>
         </div>
         {orders.length === 0 && total > 0 ? <p className="py-8">Không có đơn hàng ở trang này. <Link href="/transactions" className="underline">Về trang đầu</Link></p> : orders.length === 0 ? (
-          <div className="rounded-2xl border border-pink-mid/30 bg-white p-10 text-center shadow-sm"><div className="mb-3 text-4xl">🧾</div><p>Bạn chưa có giao dịch nào.</p><Link href="/customizer" className="mt-5 inline-block rounded-xl bg-pink-deep px-5 py-3 text-sm font-semibold text-white">Thiết kế vòng tay</Link></div>
+          <div className="rounded-2xl border border-pink-mid/30 bg-white p-10 text-center shadow-sm"><div className="mb-3 text-4xl">🧾</div><p>Bạn chưa có giao dịch nào.</p></div>
         ) : (
           <div className="space-y-4">{orders.map((order) => {
             const isCatalog = order.order_items.some((item) => item.product_type === "bracelet") || (typeof order.braceletConfig === "object" && order.braceletConfig !== null && "kind" in order.braceletConfig && order.braceletConfig.kind === "catalog_product");

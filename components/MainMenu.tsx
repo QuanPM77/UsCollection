@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useLoginPrompt } from "@/components/LoginPromptProvider";
 
 const MENU_ITEMS = [
@@ -9,14 +10,25 @@ const MENU_ITEMS = [
   { href: "/buy", label: "Mua vòng" },
   { href: "/customizer", label: "Thiết kế" },
   { href: "/favorites", label: "Yêu thích", requiresLogin: true },
+  { href: "/my-designs", label: "Thiết kế của tôi", requiresLogin: true },
   { href: "/transactions", label: "Lịch sử giao dịch", requiresLogin: true },
   { href: "/customer", label: "Thông tin tài khoản", requiresLogin: true },
 ];
 
 export default function MainMenu({ tone = "pink" }: { tone?: "pink" | "champagne" }) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+  const prefetched = useRef(new Map<string, number>());
   const { isAuthenticated, requestLogin } = useLoginPrompt();
   const champagne = tone === "champagne";
+  function preparePage(item: (typeof MENU_ITEMS)[number]) {
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+    if ((item.requiresLogin && !isAuthenticated) || navigator.onLine === false || connection?.saveData || ["slow-2g", "2g", "3g"].includes(connection?.effectiveType ?? "")) return;
+    const last = prefetched.current.get(item.href);
+    if (last !== undefined && Date.now() - last < 30000) return;
+    prefetched.current.set(item.href, Date.now());
+    router.prefetch(item.href);
+  }
 
   return (
     <div className="relative z-50">
@@ -54,6 +66,10 @@ export default function MainMenu({ tone = "pink" }: { tone?: "pink" | "champagne
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={false}
+                onMouseEnter={() => preparePage(item)}
+                onFocus={() => preparePage(item)}
+                onTouchStart={() => preparePage(item)}
                 onClick={(event) => {
                   setOpen(false);
                   if (item.requiresLogin && !isAuthenticated) {

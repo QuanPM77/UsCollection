@@ -20,17 +20,19 @@ export default async function BuyPage() {
 }
 
 async function CatalogContent() {
-  const products = await prisma.products.findMany({
-    where: { type: "bracelet", status: "active" },
-    orderBy: { updated_at: "desc" },
-    select: { id: true, name: true, price: true, images: true, styles: true },
-  });
-  const reviewStats = products.length ? await prisma.productReview.groupBy({
-    by: ["productId"],
-    where: { productId: { in: products.map((product) => product.id) } },
-    _avg: { rating: true },
-    _count: { _all: true },
-  }) : [];
+  const [products, reviewStats] = await Promise.all([
+    prisma.products.findMany({
+      where: { type: "bracelet", status: "active" },
+      orderBy: { updated_at: "desc" },
+      select: { id: true, name: true, price: true, images: true, styles: true },
+    }),
+    prisma.productReview.groupBy({
+      by: ["productId"],
+      where: { product: { type: "bracelet", status: "active" } },
+      _avg: { rating: true },
+      _count: { _all: true },
+    }),
+  ]);
   const statsByProduct = new Map(reviewStats.map((stat) => [stat.productId, { average: stat._avg.rating, count: stat._count._all }]));
   const coverImages = await Promise.all(products.map((product) => product.images[0] ? productImageDisplayUrl(product.images[0]) : null));
 

@@ -15,7 +15,7 @@ export default function IdleModulePreloader() {
       ]);
     }
     // These pages lead to the designer. On /customizer it already loads on demand.
-    if (pathname === "/" || pathname === "/favorites" || pathname === "/buy" || pathname.startsWith("/buy/")) {
+    if (pathname === "/" || pathname === "/my-designs" || pathname === "/favorites" || pathname === "/buy" || pathname.startsWith("/buy/")) {
       return scheduleIdlePreloads([() => import("@/components/3d/BraceletCanvas")]);
     }
   }, [pathname]);

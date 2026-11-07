@@ -21,38 +21,49 @@ export default function CustomerChatWidget() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (open) return;
     let active = true;
+    let checking = false;
+    const controller = new AbortController();
     const loadUnreadCount = async () => {
+      if (checking || document.visibilityState !== "visible" || !navigator.onLine) return;
+      checking = true;
       try {
-        const response = await fetch("/api/support/chat?summary=1", { cache: "no-store" });
+        const response = await fetch("/api/support/chat?summary=1", { cache: "no-store", signal: controller.signal });
         const data = await response.json();
         if (response.ok && active) setUnreadCount(Number(data.unreadCount) || 0);
       } catch { /* Keep the last known badge count if the network is temporarily unavailable. */ }
+      finally { checking = false; }
     };
     void loadUnreadCount();
     const timer = window.setInterval(() => void loadUnreadCount(), 5000);
-    return () => { active = false; window.clearInterval(timer); };
-  }, []);
+    return () => { active = false; controller.abort(); window.clearInterval(timer); };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     let active = true;
+    let checking = false;
+    const controller = new AbortController();
     const loadMessages = async (showLoading: boolean) => {
+      if (checking || document.visibilityState !== "visible" || !navigator.onLine) return;
+      checking = true;
       if (showLoading) setLoading(true);
       try {
-        const response = await fetch("/api/support/chat?read=1", { cache: "no-store" });
+        const response = await fetch("/api/support/chat?read=1", { cache: "no-store", signal: controller.signal });
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || "Không tải được tin nhắn.");
         if (active) { setMessages(data.messages as ChatMessage[]); setUnreadCount(Number(data.unreadCount) || 0); setError(""); }
       } catch (cause) {
         if (active) setError(cause instanceof Error ? cause.message : "Không tải được tin nhắn.");
       } finally {
+        checking = false;
         if (active && showLoading) setLoading(false);
       }
     };
     void loadMessages(true);
     const timer = window.setInterval(() => void loadMessages(false), 4000);
-    return () => { active = false; window.clearInterval(timer); };
+    return () => { active = false; controller.abort(); window.clearInterval(timer); };
   }, [open]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, open]);

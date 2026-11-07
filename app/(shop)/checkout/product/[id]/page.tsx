@@ -7,20 +7,22 @@ import { getAvailableProductStock } from "@/lib/product-availability";
 import ProductCheckoutForm from "./ProductCheckoutForm";
 
 export default async function ProductCheckoutPage({ params }: { params: Promise<{ id: string }> }) {
-  const [{ id }, session] = await Promise.all([params, auth()]);
-  const [product, user] = await Promise.all([
+  const { id } = await params;
+  const sessionPromise = auth();
+  const [product, user, session] = await Promise.all([
     prisma.products.findFirst({
       where: { id, type: "bracelet", status: "active" },
       select: { id: true, name: true, sku: true, price: true, stock: true, images: true },
     }),
-    session?.user.id ? prisma.user.findUnique({
+    sessionPromise.then(session => session?.user.id ? prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
         fullName: true,
         phone: true,
         addresses: { orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }], take: 1 },
       },
-    }) : Promise.resolve(null),
+    }) : null),
+    sessionPromise,
   ]);
   if (!product) notFound();
   const [availableStock, image] = await Promise.all([
