@@ -3,6 +3,8 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { CircleCheck, CircleAlert, Clock3 } from "lucide-react";
+import CheckoutShell, { checkoutPanelClass, paymentButtonClass } from "@/components/checkout/CheckoutShell";
 
 function ResultContent() {
   const params = useSearchParams();
@@ -15,41 +17,61 @@ function ResultContent() {
   useEffect(() => {
     if (orderId === "unknown") return;
     let active = true;
+    let checking = false;
+    let completed = false;
+    const controller = new AbortController();
     let timer: number | undefined;
     let syncPayOSOnNextRequest = wasCancelled;
     const refresh = async () => {
+      if (!active || checking || completed) return;
+      checking = true;
       try {
         const shouldSyncPayOS = syncPayOSOnNextRequest;
         syncPayOSOnNextRequest = false;
-        const response = await fetch(`/api/payment/status?orderId=${encodeURIComponent(orderId)}${shouldSyncPayOS ? "&syncPayOS=1" : ""}`);
+        const response = await fetch(`/api/payment/status?orderId=${encodeURIComponent(orderId)}${shouldSyncPayOS ? "&syncPayOS=1" : ""}`, { signal: controller.signal });
         if (!response.ok) return;
         const result = await response.json();
         if (active && ["pending", "paid", "failed"].includes(result.paymentStatus)) {
           setPaymentStatus(result.paymentStatus);
-          if (result.paymentStatus !== "pending" && timer !== undefined) window.clearInterval(timer);
+          if (result.paymentStatus !== "pending") {
+            completed = true;
+            window.clearInterval(timer);
+          }
         }
         if (active && typeof result.orderCode === "string") setOrderCode(result.orderCode);
         if (active && ["catalog_product", "custom_design"].includes(result.orderType)) setOrderType(result.orderType);
         if (active) setInventoryReviewRequired(result.inventoryReviewRequired === true);
       } catch { /* Retry while this page remains open. */ }
+      finally { checking = false; }
     };
     void refresh();
     timer = window.setInterval(() => {
       if (document.visibilityState === "visible") void refresh();
     }, 2500);
-    return () => { active = false; window.clearInterval(timer); };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      active = false;
+      controller.abort();
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, [orderId, wasCancelled]);
 
   const success = paymentStatus === "paid";
   const pending = paymentStatus === "pending";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-light to-cream flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-pink-lg p-10 max-w-md w-full text-center">
-        <div className="text-6xl mb-6">{success ? (inventoryReviewRequired ? "⚠️" : "🎀") : pending ? "⏳" : "😕"}</div>
-        <h1 className="font-display text-2xl font-bold text-pink-text mb-2">
+    <CheckoutShell backHref="/transactions" backLabel="Xem đơn hàng của bạn" title="Thông tin thanh toán" subtitle="Theo dõi trạng thái giao dịch và đơn hàng UsStory của bạn.">
+      <div className={`${checkoutPanelClass} mx-auto my-8 w-[calc(100%-2rem)] max-w-lg text-center`}>
+        <div className="mx-auto mb-6 grid h-20 w-20 place-items-center rounded-full bg-pink-light/60 text-[#b9385b]">
+          {success && !inventoryReviewRequired ? <CircleCheck aria-hidden="true" className="h-10 w-10" /> : pending ? <Clock3 aria-hidden="true" className="h-10 w-10" /> : <CircleAlert aria-hidden="true" className="h-10 w-10" />}
+        </div>
+        <h2 aria-live="polite" className="font-display text-2xl font-bold text-pink-text mb-2">
           {success ? (inventoryReviewRequired ? "Đơn hàng cần xác nhận tồn kho" : "Thanh toán thành công!") : pending ? "Đang chờ xác nhận thanh toán" : wasCancelled ? "Thanh toán chưa hoàn tất" : "Thanh toán thất bại"}
-        </h1>
+        </h2>
         <p className="text-pink-text/60 text-sm mb-2">
           Mã đơn hàng: <span className="font-mono font-medium text-pink-deep">{orderCode ?? "Đang tải..."}</span>
         </p>
@@ -78,7 +100,7 @@ function ResultContent() {
           {!success && !pending && (
             <Link
               href="/checkout"
-              className="py-3 rounded-2xl bg-pink-deep text-white font-semibold text-sm hover:opacity-90 transition-opacity"
+              className={paymentButtonClass}
             >
               Thử lại
             </Link>
@@ -97,13 +119,13 @@ function ResultContent() {
           </Link>
         </div>
       </div>
-    </div>
+    </CheckoutShell>
   );
 }
 
 export default function CheckoutResultPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<p role="status" className="p-8 text-center text-pink-text">Đang tải thông tin thanh toán…</p>}>
       <ResultContent />
     </Suspense>
   );

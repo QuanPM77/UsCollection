@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import BrandLogo from '@/components/BrandLogo';
 import { ADMIN_AVATAR_EVENT, getAdminAvatar } from '@/lib/admin/avatar';
 import { logoutAdmin } from './actions';
 import {
@@ -69,7 +70,7 @@ export function AdminSidebar({ open, onClose }: SidebarProps) {
         <div className="flex items-center justify-between px-5 h-16 border-b border-pink-100 shrink-0">
           <Link href="/admin" className="flex items-center">
             <div>
-              <span className="text-xl font-semibold tracking-tight text-pink-text">𝒰𝓈𝒮𝓉𝑜𝓇𝓎</span>
+              <BrandLogo className="w-28" />
               <span className="block text-[10px] text-gray-400 -mt-0.5 font-medium tracking-wide">ADMIN</span>
             </div>
           </Link>

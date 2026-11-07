@@ -2,8 +2,7 @@
 
 import dynamic from "next/dynamic";
 import CustomizerPanel from "@/components/ui/CustomizerPanel";
-import Link from "next/link";
-import MainMenu from "@/components/MainMenu";
+import SiteHeader from "@/components/SiteHeader";
 
 const BraceletCanvas = dynamic(
   () => import("@/components/3d/BraceletCanvas"),
@@ -13,15 +12,12 @@ const BraceletCanvas = dynamic(
 export default function CustomizerView() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-gradient-to-br from-pink-light via-cream to-pink-blush">
-      <nav className="relative z-50 flex h-14 shrink-0 items-center gap-3 border-b border-pink-mid/20 bg-white/60 px-3 backdrop-blur-sm sm:px-6">
-        <MainMenu />
-        <Link href="/" className="font-display text-lg font-bold text-pink-text sm:text-xl">
-          UsStory
-        </Link>
-        <span className="ml-auto rounded-full bg-pink-light px-3 py-1 text-xs text-pink-text/50">
-          Tùy chỉnh vòng tay 3D
+      <SiteHeader>
+        <span className="rounded-full bg-pink-light px-3 py-1 text-center text-xs text-pink-text/70">
+          <span className="hidden sm:inline">Tùy chỉnh vòng tay 3D</span>
+          <span className="sm:hidden">Thiết kế 3D</span>
         </span>
-      </nav>
+      </SiteHeader>
 
       <div className="relative z-0 flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
         <div className="relative min-h-[35vh] flex-1 bg-gradient-to-br from-pink-blush/40 to-cream/60 lg:min-h-0">

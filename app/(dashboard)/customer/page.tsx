@@ -1,8 +1,8 @@
 import Link from "next/link";
+import SiteHeader, { headerButtonClass } from "@/components/SiteHeader";
 import { signOut } from "@/auth";
 import { getSession as auth } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
-import MainMenu from "@/components/MainMenu";
 import AvatarEditor from "./AvatarEditor";
 import AddressFields from "@/components/AddressFields";
 import { avatarDisplayUrl } from "@/lib/supabase-storage";
@@ -50,17 +50,13 @@ export default async function CustomerPage({
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-pink-light via-cream to-white text-pink-text">
-      <header className="border-b border-pink-mid/25 bg-white/70 backdrop-blur">
-        <div className="flex w-full items-center gap-4 px-4 py-4 sm:px-8 lg:px-12">
-          <MainMenu />
-          <Link href="/" className="font-display text-xl font-bold">UsStory</Link>
-          <form className="ml-auto" action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
-            <button className="rounded-xl border border-pink-mid/40 bg-white px-4 py-2.5 text-sm font-medium text-pink-deep transition hover:bg-pink-light">
+      <SiteHeader>
+          <form action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
+            <button className={headerButtonClass}>
               Đăng xuất
             </button>
           </form>
-        </div>
-      </header>
+      </SiteHeader>
 
       <div className="w-full px-4 py-6 sm:px-8 sm:py-8 lg:px-12">
         <div className="mb-8">

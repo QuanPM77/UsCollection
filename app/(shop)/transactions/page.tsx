@@ -1,5 +1,5 @@
 import Link from "next/link";
-import MainMenu from "@/components/MainMenu";
+import SiteHeader from "@/components/SiteHeader";
 import { requireRole } from "@/lib/guard";
 import { prisma } from "@/lib/prisma";
 import { pageNumber } from "@/lib/pagination";
@@ -27,10 +27,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-pink-light via-cream to-white text-pink-text">
-      <header className="flex items-center gap-4 border-b border-pink-mid/25 bg-white/70 px-6 py-4">
-        <MainMenu />
-        <Link href="/" className="font-display text-xl font-bold">UsStory</Link>
-      </header>
+      <SiteHeader />
       <section className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
         <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
           <div><h1 className="font-display text-3xl font-bold">Lịch sử giao dịch</h1><p className="mt-2 text-sm text-pink-text/65">Theo dõi đơn vòng tay có sẵn và thiết kế 3D của bạn.</p></div>

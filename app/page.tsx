@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
-import MainMenu from "@/components/MainMenu";
+import BrandLogo from "@/components/BrandLogo";
+import SiteHeader, { headerButtonClass } from "@/components/SiteHeader";
 import { signOut } from "@/auth";
 import { getSession } from "@/lib/auth-session";
 import { Suspense } from "react";
@@ -9,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import CopyContactButton from "@/components/CopyContactButton";
 import FeaturedProductsCarousel from "@/components/home/FeaturedProductsCarousel";
 import { productImageDisplayUrl } from "@/lib/supabase-storage";
+import braceletHero from "@/public/images/bracelet-pastel-hero.webp";
 
 const FEATURES = [
   {
@@ -39,25 +41,19 @@ export default async function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-light via-cream to-white pb-24 md:pb-0">
       {/* Nav */}
-      <nav className="flex w-full items-center gap-3 px-4 py-3 sm:gap-4 sm:px-8 sm:py-5 lg:px-12">
-        <MainMenu />
-        <span className="font-display text-xl font-bold text-pink-text sm:text-2xl">
-          UsStory
-        </span>
-        <div className="ml-auto flex items-center gap-3">
+      <SiteHeader>
           {session ? (
             <form action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
-              <button className="min-h-11 rounded-xl border border-pink-mid/40 bg-white/80 px-3 py-2.5 text-xs font-semibold text-pink-deep transition hover:bg-pink-light sm:px-4 sm:text-sm">
+              <button className={headerButtonClass}>
                 Đăng xuất
               </button>
             </form>
           ) : (
-            <Link href="/login" className="inline-flex min-h-11 items-center rounded-xl border border-pink-mid/40 bg-white/80 px-3 py-2.5 text-xs font-semibold text-pink-deep transition hover:bg-pink-light sm:px-4 sm:text-sm">
+            <Link href="/login" className={headerButtonClass}>
               Đăng nhập
             </Link>
           )}
-        </div>
-      </nav>
+      </SiteHeader>
 
       {/* 3D bracelet design hero */}
       <section className="relative isolate w-full overflow-hidden border-b border-pink-mid/25 bg-gradient-to-br from-pink-blush/65 via-cream to-white px-4 py-8 sm:px-8 sm:py-20 lg:px-12 lg:py-24">
@@ -89,18 +85,38 @@ export default async function LandingPage() {
             </div>
           </div>
 
-          <div className="relative mx-auto w-full max-w-[560px]">
-            <div aria-hidden="true" className="absolute inset-[8%] rounded-full bg-gradient-to-br from-pink-mid/40 to-rose-100/30 blur-2xl" />
-            <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-[1.5rem] border border-white/80 bg-[#fde5ec] shadow-[0_24px_80px_rgba(152,73,105,0.14)] sm:aspect-square sm:rounded-[2rem]">
-              <Image src="/images/bracelet-3d-reference.png" alt="Vòng tay hạt màu hồng, tím và vàng trong hình minh họa 3D" fill priority sizes="(max-width: 640px) 100vw, (max-width: 1024px) 560px, 50vw" className="object-contain" />
-              <div className="absolute left-5 top-5 rounded-full border border-white/80 bg-white/80 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-pink-deep shadow-sm sm:left-7 sm:top-7 sm:text-xs">Phối màu của bạn</div>
-              <div className="absolute bottom-5 right-5 rounded-2xl border border-white/80 bg-white/85 px-4 py-3 shadow-lg backdrop-blur sm:bottom-7 sm:right-7">
-                <p className="text-[10px] font-medium uppercase tracking-wide text-pink-text/50">Trải nghiệm</p>
-                <p className="mt-0.5 text-sm font-bold text-pink-deep sm:text-base">Xoay và xem 3D</p>
+          <figure className="relative mx-auto aspect-square w-full max-w-[560px] overflow-hidden rounded-[1.5rem] border border-[#cda86c]/70 bg-cream shadow-[0_20px_65px_rgba(152,73,105,0.12)] sm:rounded-[2rem]">
+            <Image
+              src={braceletHero}
+              alt="Vòng tay hạt thạch anh hồng pastel, tím lavender và hạt vàng champagne"
+              fill
+              priority
+              unoptimized
+              sizes="(max-width: 639px) calc(100vw - 32px), (max-width: 1023px) 560px, (max-width: 1343px) 45vw, 560px"
+              className="object-cover"
+            />
+            <figcaption className="absolute inset-x-0 top-0 px-5 pt-4 sm:px-7 sm:pt-6">
+              <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-pink-text sm:text-xs">
+                <span aria-hidden="true" className="text-xl leading-none text-[#c39b57]">✦</span>
+                Phối màu của bạn
+              </p>
+              <h2 className="mt-1 font-display text-lg font-semibold italic leading-tight text-pink-text sm:mt-2 sm:text-3xl lg:text-2xl xl:text-3xl">Dấu ấn của riêng bạn</h2>
+            </figcaption>
+            <div className="absolute inset-x-5 bottom-4 flex items-center justify-between gap-3 border-t border-[#cda86c]/50 pt-3 sm:inset-x-7 sm:bottom-6 sm:pt-4">
+              <div className="min-w-0 flex-1 sm:flex sm:items-center sm:gap-3">
+                <div aria-hidden="true" className="flex shrink-0 items-center gap-1.5">
+                  <span className="h-3 w-3 rounded-full bg-[#ed99a9] sm:h-4 sm:w-4" />
+                  <span className="h-3 w-3 rounded-full bg-[#b48ac6] sm:h-4 sm:w-4" />
+                  <span className="h-3 w-3 rounded-full bg-gradient-to-br from-[#fff0cb] via-[#d8b36d] to-[#b98b41] sm:h-4 sm:w-4" />
+                </div>
+                <p className="mt-1.5 max-w-36 text-[10px] leading-relaxed text-pink-text sm:mt-0 sm:border-l sm:border-[#cda86c]/50 sm:pl-3 sm:text-xs">Tự phối theo phong cách của bạn</p>
               </div>
-              <span aria-hidden="true" className="absolute right-[17%] top-[21%] h-3 w-3 rounded-full bg-white shadow-[0_0_20px_8px_rgba(255,255,255,0.8)]" />
+              <div className="shrink-0 rounded-2xl border border-white/80 bg-white/85 px-3 py-2.5 shadow-[0_6px_18px_rgba(152,73,105,0.12)] sm:px-4 sm:py-3">
+                <p className="text-[9px] font-medium uppercase tracking-wider text-pink-text/60 sm:text-[10px]">Trải nghiệm</p>
+                <p className="mt-0.5 text-xs font-bold text-[#b9385b] sm:text-sm">Xoay và xem 3D</p>
+              </div>
             </div>
-          </div>
+          </figure>
         </div>
       </section>
 
@@ -247,7 +263,12 @@ async function StoreFooter() {
       <footer className="border-t border-pink-mid/25 bg-pink-light/20 px-4 py-12 text-pink-text/75 sm:px-8 lg:px-12">
         <div className="grid w-full gap-8 sm:grid-cols-2 lg:grid-cols-3 lg:gap-12">
           <section className="flex flex-col justify-center">
-            <h2 className="font-display text-xl font-bold text-pink-deep">{storeSettings?.store_name || "UsStory"}</h2>
+            <h2 className="font-display text-xl font-bold text-pink-deep">
+              <BrandLogo className="w-40" />
+              {storeSettings?.store_name && storeSettings.store_name !== "UsStory" && (
+                <span className="mt-2 block">{storeSettings.store_name}</span>
+              )}
+            </h2>
             <p className="mt-2 max-w-sm text-sm leading-relaxed text-pink-text/60">Vòng tay thủ công, thiết kế dành riêng cho bạn.</p>
           </section>
           <section className="flex flex-col items-center">

@@ -26,9 +26,9 @@ export async function GET(req: NextRequest) {
       console.error("[PayOS Status Sync] Could not refresh payment status", error);
     }
   }
-  const latestPayment = order.paymentStatus === "pending"
+  const latestPayment = shouldSyncPayOS && order.paymentStatus === "pending"
     ? await prisma.order.findUnique({ where: { id: orderId }, select: { paymentStatus: true, inventoryReviewRequired: true } })
-    : null;
+    : order;
   const isCatalog = order.order_items.some((item) => item.product_type === "bracelet") || (typeof order.braceletConfig === "object" && order.braceletConfig !== null && "kind" in order.braceletConfig && order.braceletConfig.kind === "catalog_product");
   return NextResponse.json({ paymentStatus: latestPayment?.paymentStatus ?? (order.paymentStatus === "pending" ? "failed" : order.paymentStatus), inventoryReviewRequired: latestPayment?.inventoryReviewRequired ?? order.inventoryReviewRequired, orderCode: String(order.orderCode), orderType: isCatalog ? "catalog_product" : "custom_design" });
 }

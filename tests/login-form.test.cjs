@@ -12,16 +12,22 @@ const code = ts.transpileModule(fs.readFileSync(path.join(__dirname, "../app/(au
 
 function setup(signIn, native = false) {
   const state = [];
+  let stateIndex = 0;
   const destinations = [];
   let refreshes = 0;
   const jsx = (type, props) => ({ type, props });
   const dependencies = {
     react: {
-      useState(initial) { const index = state.length; state.push(initial); return [initial, value => { state[index] = value; }]; },
+      useState(initial) {
+        const index = stateIndex++;
+        if (index === state.length) state.push(initial);
+        return [state[index], value => { state[index] = typeof value === "function" ? value(state[index]) : value; }];
+      },
       useRef: current => ({ current }),
     },
     "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: "fragment" },
     "next/link": "link",
+    "lucide-react": { Eye: "eye", EyeOff: "eye-off", LockKeyhole: "lock", Phone: "phone" },
     "next-auth/react": { signIn },
     "./actions": { loginWithPassword: (phone, password) => signIn("credentials", { phone, password }) },
     "next/navigation": { useRouter: () => ({ replace: url => destinations.push(url), refresh: () => { refreshes++; } }) },
@@ -38,11 +44,32 @@ function setup(signIn, native = false) {
     require(name) { if (!(name in dependencies)) throw Error(name); return dependencies[name]; },
     FormData: class { get(key) { return key === "phone" ? "0912 345 678" : "test-password"; } },
   });
-  const tree = module.exports.default({ googleEnabled: true, googleClientId: "test-client" });
+  const render = () => {
+    stateIndex = 0;
+    return module.exports.default({ googleEnabled: true, googleClientId: "test-client" });
+  };
+  const tree = render();
   const form = tree.props.children[0];
   const google = tree.props.children[2].props.children[1];
-  return { state, destinations, refreshes: () => refreshes, submit: () => form.props.onSubmit({ preventDefault() {}, currentTarget: {} }), google: () => google.props.onClick() };
+  return { state, destinations, render, refreshes: () => refreshes, submit: () => form.props.onSubmit({ preventDefault() {}, currentTarget: {} }), google: () => google.props.onClick() };
 }
+
+test("password is masked by default and can be shown and hidden", () => {
+  const { render } = setup(async () => assert.fail("Visibility should not submit the form"));
+  function passwordField() {
+    const [, input, button] = render().props.children[0].props.children[1].props.children;
+    assert.equal(button.props.type, "button");
+    return { input: input.props, toggle: button.props.onClick };
+  }
+  const masked = passwordField();
+  assert.equal(masked.input.type, "password");
+  masked.toggle();
+  const visible = passwordField();
+  assert.equal(visible.input.type, "text");
+  assert.equal(visible.input.name, masked.input.name);
+  visible.toggle();
+  assert.equal(passwordField().input.type, "password");
+});
 
 test("successful login navigates once and stays pending until unmount", async () => {
   let calls = 0;

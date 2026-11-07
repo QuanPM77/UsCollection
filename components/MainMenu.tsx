@@ -13,9 +13,10 @@ const MENU_ITEMS = [
   { href: "/customer", label: "Thông tin tài khoản", requiresLogin: true },
 ];
 
-export default function MainMenu() {
+export default function MainMenu({ tone = "pink" }: { tone?: "pink" | "champagne" }) {
   const [open, setOpen] = useState(false);
   const { isAuthenticated, requestLogin } = useLoginPrompt();
+  const champagne = tone === "champagne";
 
   return (
     <div className="relative z-50">
@@ -25,7 +26,9 @@ export default function MainMenu() {
         aria-expanded={open}
         aria-controls="main-navigation"
         onClick={() => setOpen((value) => !value)}
-        className="flex h-11 w-11 flex-col items-center justify-center gap-1.5 rounded-xl border border-pink-mid/40 bg-white/80 text-pink-text shadow-sm transition hover:bg-pink-light"
+        className={`flex h-11 w-11 flex-col items-center justify-center gap-1.5 rounded-xl border shadow-sm transition ${champagne
+          ? "border-[#d8bfa1] bg-white/80 text-pink-text hover:bg-pink-light focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-text"
+          : "border-pink-mid/40 bg-white/80 text-pink-text hover:bg-pink-light"}`}
       >
         <span className={`h-0.5 w-5 rounded bg-current transition-transform ${open ? "translate-y-2 rotate-45" : ""}`} />
         <span className={`h-0.5 w-5 rounded bg-current transition-opacity ${open ? "opacity-0" : "opacity-100"}`} />
@@ -43,7 +46,9 @@ export default function MainMenu() {
           <nav
             id="main-navigation"
             aria-label="Menu chính"
-            className="absolute left-0 top-14 z-50 w-72 overflow-hidden rounded-2xl border border-pink-mid/30 bg-white p-2 shadow-xl"
+            className={`absolute left-0 top-14 z-50 w-72 overflow-hidden rounded-2xl border p-2 shadow-xl ${champagne
+              ? "border-[#d8bfa1] bg-cream"
+              : "border-pink-mid/30 bg-white"}`}
           >
             {MENU_ITEMS.map((item) => (
               <Link
@@ -56,7 +61,9 @@ export default function MainMenu() {
                     requestLogin();
                   }
                 }}
-                className="block rounded-xl px-4 py-3 text-sm font-medium text-pink-text transition hover:bg-pink-light hover:text-pink-deep"
+                className={`block rounded-xl px-4 py-3 text-sm font-medium transition ${champagne
+                  ? "text-pink-text hover:bg-pink-light focus-visible:bg-pink-light"
+                  : "text-pink-text hover:bg-pink-light hover:text-pink-deep"}`}
               >
                 {item.label}
               </Link>

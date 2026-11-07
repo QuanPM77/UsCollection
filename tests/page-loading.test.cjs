@@ -30,7 +30,7 @@ test("transaction history reads only the requested page for the authenticated us
   const jsx = (type, props) => ({ type, props });
   const page = load("app/(shop)/transactions/page.tsx", {
     "react/jsx-runtime": { jsx, jsxs: jsx },
-    "next/link": {}, "@/components/MainMenu": {},
+    "next/link": {}, "@/components/SiteHeader": {},
     "@/lib/guard": { requireRole: async role => { assert.equal(role, "customer"); return { user: { id: "customer-a" } }; } },
     "@/lib/pagination": pagination,
     "@/lib/prisma": { prisma: { order: {

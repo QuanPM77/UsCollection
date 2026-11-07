@@ -1,9 +1,9 @@
 import { Suspense } from "react";
 import ReviewAvatar, { AvatarPlaceholder } from "@/components/ReviewAvatar";
 import Link from "next/link";
+import SiteHeader from "@/components/SiteHeader";
 import { notFound } from "next/navigation";
 import { getSession as auth } from "@/lib/auth-session";
-import MainMenu from "@/components/MainMenu";
 import { prisma } from "@/lib/prisma";
 import { productImageDisplayUrl } from "@/lib/supabase-storage";
 import { productStyleLabel } from "@/lib/product-styles";
@@ -48,9 +48,7 @@ export default async function BraceletDetailPage({
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-pink-light via-cream to-white text-pink-text">
-      <header className="flex items-center gap-4 border-b border-pink-mid/25 bg-white/70 px-6 py-4">
-        <MainMenu /><Link href="/" className="font-display text-xl font-bold">UsStory</Link>
-      </header>
+      <SiteHeader />
       <div className="mx-auto max-w-7xl px-5 py-7 sm:px-8">
         <Link href="/buy" className="text-sm font-medium text-pink-deep hover:underline">← Quay lại Mua vòng</Link>
         <section className="mt-5 grid gap-8 lg:grid-cols-2 lg:gap-12">

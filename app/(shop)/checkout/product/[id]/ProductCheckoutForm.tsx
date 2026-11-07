@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
+import { Gem, PackageCheck, Truck } from "lucide-react";
+import { checkoutGridClass, checkoutPanelClass, PaymentMethod, paymentButtonClass } from "@/components/checkout/CheckoutShell";
 import { useLoginPrompt } from "@/components/LoginPromptProvider";
 import AddressFields, { type AddressParts } from "@/components/AddressFields";
 import { isValidVietnamWard } from "@/lib/vietnam-addresses";
@@ -42,6 +45,7 @@ export default function ProductCheckoutForm({
   const [loading, setLoading] = useState(false);
   const paymentWindow = useRef<Window | null>(null);
   const cancelInProgress = useRef(false);
+  const submitInProgress = useRef(false);
   const quantity = quantityInput === "" ? 0 : Number(quantityInput);
   const total = unitPrice * quantity;
 
@@ -129,6 +133,7 @@ export default function ProductCheckoutForm({
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitInProgress.current || payUrl) return;
     if (!isAuthenticated) {
       requestLogin();
       return;
@@ -140,6 +145,7 @@ export default function ProductCheckoutForm({
     if (addressParts.street.trim().length < 3 || !isValidVietnamWard(addressParts.province, addressParts.ward)) return setError("Vui lòng nhập địa chỉ và chọn phường/xã hợp lệ.");
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > stock) return setError("Số lượng vượt quá tồn kho hiện tại.");
 
+    submitInProgress.current = true;
     paymentWindow.current = window.open("about:blank", "_blank");
     setPaymentOpened(Boolean(paymentWindow.current));
     setLoading(true);
@@ -165,29 +171,31 @@ export default function ProductCheckoutForm({
       setPaymentOpened(false);
       setError(cause instanceof Error ? cause.message : "Lỗi thanh toán, vui lòng thử lại.");
     } finally {
+      submitInProgress.current = false;
       setLoading(false);
     }
   }
 
-  if (payUrl) return <div className="mx-auto grid w-full max-w-5xl gap-8 px-5 py-10 lg:grid-cols-2 sm:px-8">
-    <section>
-      <h1 className="font-display text-2xl font-bold">Đơn hàng của bạn</h1>
+  if (payUrl) return <div className={checkoutGridClass}>
+    <section className={checkoutPanelClass}>
+      <h2 className="font-display text-2xl font-bold">Đơn hàng của bạn</h2>
       <ProductSummary image={image} name={productName} sku={sku} unitPrice={serverTotal === null ? unitPrice : serverTotal / quantity} quantity={quantity} total={serverTotal ?? total} />
     </section>
-    <section className="self-start rounded-3xl bg-white p-7 text-center shadow-sm">
-      <div className="text-5xl">🎉</div>
+    <section className={`${checkoutPanelClass} text-center`}>
+      <PackageCheck aria-hidden="true" className="mx-auto h-12 w-12 text-[#b9385b]" />
       <h2 className="mt-3 font-display text-2xl font-bold">Đơn hàng đã tạo!</h2>
       <p className="mt-2 text-sm text-pink-text/65">Giữ trang cửa hàng mở. Khi hủy hoặc hết giờ, link PayOS sẽ bị đóng.</p>
       <p role="timer" className="mt-4 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-800">Mã PayOS còn hiệu lực: {String(Math.floor(remainingSeconds / 60)).padStart(2, "0")}:{String(remainingSeconds % 60).padStart(2, "0")}</p>
-      {paymentOpened ? <p className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">PayOS đã mở trong tab mới.</p> : <a href={payUrl} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex w-full justify-center rounded-2xl bg-pink-deep px-4 py-4 font-bold text-white hover:opacity-90">Thanh toán qua PayOS — {currency.format(serverTotal ?? total)}</a>}
+      {paymentOpened ? <p className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">PayOS đã mở trong tab mới.</p> : <a href={payUrl} target="_blank" rel="noopener noreferrer" className={`${paymentButtonClass} mt-3`}>Thanh toán qua PayOS — {currency.format(serverTotal ?? total)}</a>}
       {error && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       <button type="button" onClick={() => void cancelCurrentOrder(false)} disabled={canceling} className="mt-3 w-full rounded-xl border border-pink-mid/40 px-4 py-3 text-sm font-semibold text-pink-deep disabled:opacity-50">{canceling ? "Đang hủy và quay lại…" : "Hủy thanh toán và quay lại trang đặt hàng"}</button>
     </section>
   </div>;
 
-  return <div className="mx-auto grid w-full max-w-5xl gap-8 px-5 py-10 lg:grid-cols-2 sm:px-8">
-    <section>
-      <h1 className="font-display text-2xl font-bold">Đơn hàng của bạn</h1>
+  return <div className={checkoutGridClass}>
+    <section className={checkoutPanelClass}>
+      <span className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#927445]"><Gem aria-hidden="true" className="h-4 w-4" />Dành riêng cho bạn</span>
+      <h2 className="font-display text-xl font-bold">Đơn hàng của bạn</h2>
       <ProductSummary image={image} name={productName} sku={sku} unitPrice={unitPrice} quantity={quantity} total={total} />
       <label className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-pink-mid/25 bg-white/80 p-4 text-sm">
         <span className="font-medium">Số lượng</span>
@@ -205,16 +213,18 @@ export default function ProductCheckoutForm({
       <p className="mt-2 text-right text-xs text-pink-text/55">Tồn kho hiện tại: {stock}</p>
     </section>
 
-    <section>
-      <h2 className="font-display text-xl font-bold">Thông tin giao hàng</h2>
+    <section className={checkoutPanelClass}>
+      <h2 className="flex items-center gap-3 font-display text-xl font-bold"><Truck aria-hidden="true" className="h-5 w-5" />Thông tin giao hàng</h2>
+      <p className="mt-2 text-sm text-pink-text/60">Cho chúng mình biết nơi chiếc vòng sẽ đến.</p>
       {(initialValues.name || initialValues.phone || initialValues.addressLine) && <p className="mt-2 text-xs text-pink-text/60">Thông tin được điền từ hồ sơ và địa chỉ mặc định của bạn. Bạn có thể chỉnh sửa trước khi đặt hàng.</p>}
       <form onSubmit={submit} className="mt-4 flex flex-col gap-4">
-        <label className="text-xs font-medium">Họ và tên *<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Nguyễn Văn A" className={`${inputClass} mt-1.5`} /></label>
-        <label className="text-xs font-medium">Số điện thoại *<input required type="tel" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} placeholder="0901234567" className={`${inputClass} mt-1.5`} /></label>
+        <label className="text-xs font-medium">Họ và tên *<input required autoComplete="name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Nguyễn Văn A" className={`${inputClass} mt-1.5`} /></label>
+        <label className="text-xs font-medium">Số điện thoại *<input required type="tel" autoComplete="tel" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} placeholder="0901234567" className={`${inputClass} mt-1.5`} /></label>
         <AddressFields idPrefix="product-checkout-address" streetName="addressStreet" provinceName="addressProvince" wardName="addressWard" initialAddressLine={initialValues.addressLine} initialProvince={initialValues.province} inputClass={inputClass} labelClass="text-xs font-medium" onValueChange={setAddressParts} />
         {notice && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</p>}
         {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-        <button type="submit" disabled={loading || stock < 1} className="rounded-2xl bg-pink-deep px-4 py-4 text-sm font-bold text-white shadow-lg transition hover:bg-pink-text disabled:cursor-not-allowed disabled:opacity-50">
+        <PaymentMethod />
+        <button type="submit" disabled={loading || stock < 1} className={paymentButtonClass}>
           {loading ? "Đang kiểm tra tồn kho..." : stock > 0 ? `Đặt hàng và thanh toán — ${currency.format(total)}` : "Sản phẩm đã hết hàng"}
         </button>
       </form>
@@ -225,15 +235,15 @@ export default function ProductCheckoutForm({
 function ProductSummary({ image, name, sku, unitPrice, quantity, total }: { image: string | null; name: string; sku: string; unitPrice: number; quantity: number; total: number }) {
   return <>
     <div className="mt-4 flex gap-4 rounded-2xl border border-pink-mid/25 bg-white/80 p-4">
-      {image ? <img src={image} alt={name} className="h-24 w-24 rounded-xl object-contain" /> : <div className="flex h-24 w-24 items-center justify-center rounded-xl bg-pink-light text-4xl">💎</div>}
+      {image ? <Image src={image} alt={name} width={112} height={112} unoptimized className="h-28 w-28 shrink-0 rounded-xl bg-cream object-contain" /> : <div className="grid h-28 w-28 shrink-0 place-items-center rounded-xl bg-pink-light"><Gem aria-hidden="true" className="h-10 w-10 text-pink-text/40" /></div>}
       <div className="min-w-0 flex-1">
         <h2 className="font-semibold">{name}</h2>
         <p className="mt-1 text-xs text-pink-text/55">Mã sản phẩm: {sku}</p>
         <p className="mt-2 text-sm text-pink-text/70">{currency.format(unitPrice)} × {quantity}</p>
       </div>
     </div>
-    <div className="mt-4 flex justify-between rounded-2xl bg-pink-deep p-4 text-white">
-      <span>Tổng cộng</span><strong>{currency.format(total)}</strong>
+    <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-[#7d2e46] p-5 text-white">
+      <span className="text-sm text-white/80">Tổng thanh toán</span><strong className="text-xl">{currency.format(total)}</strong>
     </div>
   </>;
 }

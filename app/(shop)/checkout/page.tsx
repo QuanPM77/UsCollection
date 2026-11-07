@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { Gem, PackageCheck, Truck } from "lucide-react";
+import CheckoutShell, { checkoutGridClass, checkoutPanelClass, PaymentMethod, paymentButtonClass } from "@/components/checkout/CheckoutShell";
 import { useBraceletStore } from "@/lib/store";
 import { formatPrice } from "@/lib/beadData";
+import { calculateTotalPrice } from "@/lib/braceletMath";
 import { useBeadCatalog } from "@/lib/useBeadCatalog";
 import { PaymentContext, PayOSStrategy } from "@/lib/payment";
 import { useLoginPrompt } from "@/components/LoginPromptProvider";
@@ -29,10 +31,10 @@ function validate(data: FormData): FormErrors {
 const paymentCtx = new PaymentContext(new PayOSStrategy());
 
 export default function CheckoutPage() {
-  const router = useRouter();
   const { isAuthenticated, requestLogin } = useLoginPrompt();
-  const { slots, wristCircumference, totalPrice, filledCount, beadCatalog } = useBraceletStore();
-  useBeadCatalog();
+  const slots = useBraceletStore((state) => state.slots);
+  const wristCircumference = useBraceletStore((state) => state.wristCircumference);
+  const { catalog: beadCatalog, loading: catalogLoading, error: catalogError } = useBeadCatalog();
 
   const [form, setForm] = useState<FormData>({ name: "", phone: "" });
   const [addressParts, setAddressParts] = useState<AddressParts>({ street: "", province: "", ward: "" });
@@ -49,11 +51,17 @@ export default function CheckoutPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const paymentWindow = useRef<Window | null>(null);
   const cancelInProgress = useRef(false);
+  const submitInProgress = useRef(false);
 
-  const total = totalPrice();
-  const filled = filledCount();
-
-  const filledSlots = slots.filter((s) => s.beadTypeId !== null);
+  const total = useMemo(() => calculateTotalPrice(slots, beadCatalog), [slots, beadCatalog]);
+  const filled = slots.filter((slot) => slot.beadTypeId !== null).length;
+  const beadRows = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const slot of slots) {
+      if (slot.beadTypeId) counts.set(slot.beadTypeId, (counts.get(slot.beadTypeId) ?? 0) + 1);
+    }
+    return beadCatalog.filter((bead) => counts.has(bead.id)).map((bead) => ({ bead, count: counts.get(bead.id)! }));
+  }, [slots, beadCatalog]);
 
   const finishCancellation = useCallback((message: string) => {
     paymentWindow.current?.close();
@@ -147,6 +155,7 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitInProgress.current || payUrl || filled === 0 || catalogLoading) return;
     if (!isAuthenticated) {
       requestLogin();
       return;
@@ -162,6 +171,7 @@ export default function CheckoutPage() {
       return;
     }
 
+    submitInProgress.current = true;
     setLoading(true);
     paymentWindow.current = window.open("about:blank", "_blank");
     setPaymentOpened(Boolean(paymentWindow.current));
@@ -191,6 +201,7 @@ export default function CheckoutPage() {
       paymentWindow.current = null;
       setSubmitError("Không thể kết nối cổng thanh toán. Vui lòng thử lại.");
     } finally {
+      submitInProgress.current = false;
       setLoading(false);
     }
   };
@@ -198,9 +209,9 @@ export default function CheckoutPage() {
   // ── Pay URL screen ───────────────────────────────────────────────────────────
   if (payUrl) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-light to-cream flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl shadow-pink-lg p-8 max-w-md w-full text-center">
-          <div className="text-5xl mb-4">🎉</div>
+      <CheckoutShell backHref="/customizer" backLabel="Quay lại thiết kế" title="Hoàn tất thanh toán" subtitle="Đơn hàng đã sẵn sàng. Mở PayOS và quét mã QR để thanh toán.">
+        <div className={`${checkoutPanelClass} mx-auto my-8 w-[calc(100%-2rem)] max-w-lg text-center`}>
+          <PackageCheck aria-hidden="true" className="mx-auto mb-4 h-12 w-12 text-[#b9385b]" />
           <h2 className="font-display text-2xl font-bold text-pink-text mb-2">
             Đơn hàng đã tạo!
           </h2>
@@ -210,13 +221,8 @@ export default function CheckoutPage() {
             href={payUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="
-              inline-flex items-center gap-2 w-full justify-center
-              py-4 rounded-2xl bg-[#AE2070] text-white font-bold text-sm
-              hover:bg-[#8B1A5A] transition-colors shadow-lg
-            "
+            className={paymentButtonClass}
           >
-            <span className="text-xl">💜</span>
             Thanh toán PayOS — {formatPrice(serverAmount ?? total)}
           </a>}
           {submitError && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">{submitError}</p>}
@@ -225,27 +231,20 @@ export default function CheckoutPage() {
             Về trang chủ
           </Link>
         </div>
-      </div>
+      </CheckoutShell>
     );
   }
 
   // ── Checkout form ────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-light via-cream to-white">
-      {/* Nav */}
-      <nav className="px-6 py-4 flex items-center gap-4 bg-white/60 backdrop-blur-sm border-b border-pink-mid/20">
-        <Link href="/customizer" className="text-pink-deep text-sm hover:underline">
-          ← Quay lại thiết kế
-        </Link>
-        <span className="font-display font-bold text-pink-text">Đặt hàng</span>
-      </nav>
-
-      <div className="max-w-4xl mx-auto px-4 py-10 grid lg:grid-cols-2 gap-8">
+    <CheckoutShell backHref="/customizer" backLabel="Quay lại thiết kế">
+      <div className={checkoutGridClass}>
         {/* Order Summary */}
-        <div className="flex flex-col gap-4">
+        <div className={`${checkoutPanelClass} flex flex-col gap-4`}>
+          <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#927445]"><Gem aria-hidden="true" className="h-4 w-4" />Thiết kế riêng của bạn</span>
           <h2 className="font-display text-xl font-bold text-pink-text">Đơn hàng của bạn</h2>
 
-          <div className="bg-white/70 rounded-2xl border border-pink-mid/20 p-4">
+          <div className="rounded-2xl border border-pink-mid/20 bg-cream p-4">
             <div className="flex justify-between text-xs text-pink-text/60 mb-3">
               <span>Chu vi cổ tay</span>
               <span className="font-medium text-pink-text">{wristCircumference}mm</span>
@@ -257,45 +256,50 @@ export default function CheckoutPage() {
 
             {/* Bead list */}
             <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
-              {filledSlots.map((slot) => {
-                const bead = beadCatalog.find((item) => item.id === slot.beadTypeId);
-                if (!bead) return null;
+              {beadRows.map(({ bead, count }) => {
                 return (
-                  <div key={slot.index} className="flex items-center gap-2.5">
+                  <div key={bead.id} className="flex items-center gap-3 border-b border-pink-mid/15 py-2 last:border-0">
                     <div
                       className="w-5 h-5 rounded-full shrink-0 ring-1 ring-white shadow-sm"
                       style={{ backgroundColor: bead.color }}
                     />
-                    <span className="text-xs text-pink-text flex-1">{bead.name}</span>
-                    <span className="text-xs font-medium text-pink-deep">{formatPrice(bead.price)}</span>
+                    <span className="flex-1 text-sm text-pink-text">{bead.name}<span className="mt-1 block text-xs text-pink-text/60">{count} × {formatPrice(bead.price)}</span></span>
+                    <span className="text-sm font-semibold text-pink-text">{formatPrice(bead.price * count)}</span>
                   </div>
                 );
               })}
             </div>
           </div>
+          {catalogLoading && <p role="status" className="text-sm text-pink-text/65">Đang cập nhật giá hạt…</p>}
+          {catalogError && <p role="alert" className="text-sm text-rose-700">Chưa tải được bảng giá mới nhất. Giá chính xác sẽ được kiểm tra khi đặt hàng.</p>}
+          {filled === 0 && <p className="rounded-xl bg-pink-light/50 p-4 text-sm leading-6">Bạn chưa chọn hạt cho vòng tay. <Link href="/customizer" className="font-semibold text-rose-800 underline">Bắt đầu thiết kế</Link></p>}
 
           {/* Total */}
-          <div className="bg-pink-deep rounded-2xl p-4 flex justify-between items-center">
-            <span className="text-white/80 text-sm">Tổng cộng</span>
-            <span className="text-white font-bold text-lg">{formatPrice(total)}</span>
+          <div className="flex items-center justify-between gap-3 rounded-2xl bg-[#7d2e46] p-5 text-white">
+            <span className="text-sm text-white/80">Tổng thanh toán</span>
+            <span className="text-xl font-bold">{formatPrice(total)}</span>
           </div>
 
           <p className="text-xs text-pink-text/40 text-center">
-            Draft được lưu trong trình duyệt
+            Thiết kế của bạn đã được lưu trên thiết bị này.
           </p>
         </div>
 
         {/* Form */}
-        <div>
-          <h2 className="font-display text-xl font-bold text-pink-text mb-4">Thông tin giao hàng</h2>
+        <div className={checkoutPanelClass}>
+          <h2 className="mb-2 flex items-center gap-3 font-display text-xl font-bold text-pink-text"><Truck aria-hidden="true" className="h-5 w-5" />Thông tin giao hàng</h2>
+          <p className="mb-5 text-sm text-pink-text/60">Cho chúng mình biết nơi chiếc vòng sẽ đến.</p>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             {/* Name */}
             <div>
-              <label className="block text-xs font-medium text-pink-text mb-1.5">
+              <label htmlFor="checkout-name" className="block text-xs font-medium text-pink-text mb-1.5">
                 Họ và tên *
               </label>
               <input
+                id="checkout-name"
+                autoComplete="name"
+                aria-invalid={Boolean(errors.name)}
                 name="name"
                 value={form.name}
                 onChange={handleChange}
@@ -313,10 +317,13 @@ export default function CheckoutPage() {
 
             {/* Phone */}
             <div>
-              <label className="block text-xs font-medium text-pink-text mb-1.5">
+              <label htmlFor="checkout-phone" className="block text-xs font-medium text-pink-text mb-1.5">
                 Số điện thoại *
               </label>
               <input
+                id="checkout-phone"
+                autoComplete="tel"
+                aria-invalid={Boolean(errors.phone)}
                 name="phone"
                 value={form.phone}
                 onChange={handleChange}
@@ -357,7 +364,7 @@ export default function CheckoutPage() {
 
             {notice && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</div>}
             {submitError && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-500 text-xs">
+              <div role="alert" className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm">
                 {submitError}
                 <Link href="/customizer" className="mt-2 block font-semibold text-pink-deep underline">
                   Quay lại chỉnh sửa thiết kế
@@ -365,17 +372,11 @@ export default function CheckoutPage() {
               </div>
             )}
 
+            <PaymentMethod />
             <button
               type="submit"
-              disabled={loading || filled === 0}
-              className="
-                w-full py-4 rounded-2xl font-bold text-sm
-                bg-[#AE2070] text-white
-                hover:bg-[#8B1A5A] shadow-lg
-                transition-all hover:-translate-y-0.5
-                disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0
-                flex items-center justify-center gap-2
-              "
+              disabled={loading || filled === 0 || catalogLoading}
+              className={paymentButtonClass}
             >
               {loading ? (
                 <>
@@ -391,6 +392,6 @@ export default function CheckoutPage() {
           </form>
         </div>
       </div>
-    </div>
+    </CheckoutShell>
   );
 }

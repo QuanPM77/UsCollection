@@ -1,4 +1,4 @@
-import Link from "next/link";
+import CheckoutShell from "@/components/checkout/CheckoutShell";
 import { notFound } from "next/navigation";
 import { getSession as auth } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
@@ -23,8 +23,10 @@ export default async function ProductCheckoutPage({ params }: { params: Promise<
     }) : Promise.resolve(null),
   ]);
   if (!product) notFound();
-  const availableStock = await getAvailableProductStock(product.id, product.stock, session?.user.id);
-  const image = product.images[0] ? await productImageDisplayUrl(product.images[0]) : null;
+  const [availableStock, image] = await Promise.all([
+    getAvailableProductStock(product.id, product.stock, session?.user.id),
+    product.images[0] ? productImageDisplayUrl(product.images[0]) : Promise.resolve(null),
+  ]);
   const savedAddress = user?.addresses[0];
   const initialValues = {
     name: savedAddress?.recipientName || user?.fullName || "",
@@ -33,11 +35,7 @@ export default async function ProductCheckoutPage({ params }: { params: Promise<
     province: savedAddress?.province ?? "",
   };
 
-  return <main className="min-h-screen bg-gradient-to-br from-pink-light via-cream to-white text-pink-text">
-    <nav className="flex items-center gap-4 border-b border-pink-mid/20 bg-white/60 px-6 py-4">
-      <Link href={`/buy/${product.id}`} className="text-sm text-pink-deep hover:underline">← Quay lại sản phẩm</Link>
-      <span className="font-display font-bold">Thanh toán</span>
-    </nav>
+  return <CheckoutShell backHref={`/buy/${product.id}`} backLabel="Quay lại sản phẩm">
     <ProductCheckoutForm productId={product.id} productName={product.name} sku={product.sku} unitPrice={product.price} stock={availableStock} image={image} initialValues={initialValues} />
-  </main>;
+  </CheckoutShell>;
 }
