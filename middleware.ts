@@ -5,9 +5,17 @@ const flowPaths = ["/complete-profile", "/verify-required", "/verify-email", "/f
 
 export default auth(async (request) => {
   const session = request.auth;
-  if (!session?.user?.id || session.user.role !== "customer") return NextResponse.next();
+  if (!session?.user?.id) return NextResponse.next();
 
   const pathname = request.nextUrl.pathname;
+  if (session.user.role === "admin") {
+    if (pathname === "/admin" || pathname.startsWith("/admin/") || pathname === "/force-signout") {
+      return NextResponse.next();
+    }
+    return NextResponse.redirect(new URL("/admin", request.url));
+  }
+
+  if (session.user.role !== "customer") return NextResponse.next();
   if (flowPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
     return NextResponse.next();
   }

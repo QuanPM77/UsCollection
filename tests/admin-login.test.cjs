@@ -66,6 +66,46 @@ test("missing or newly locked accounts are not routed after authentication", asy
   }
 });
 
+const { NextRequest, NextResponse } = require("next/server");
+const middleware = load("middleware.ts", {
+  "@/auth": { auth: handler => handler },
+  "next/server": { NextResponse },
+});
+
+async function visit(pathname, user) {
+  const request = new NextRequest(`https://usstory.vercel.app${pathname}`);
+  request.auth = user ? { user } : null;
+  return middleware.default(request);
+}
+
+test("admin page requests outside the admin area redirect to the dashboard", async () => {
+  for (const pathname of ["/", "/buy", "/buy/product-id", "/customizer", "/my-designs", "/customer", "/staff", "/login?callbackUrl=%2Fbuy", "/post-login", "/administrator"]) {
+    const response = await visit(pathname, { ...admin, id: "admin-id" });
+    assert.equal(response.status, 307, pathname);
+    assert.equal(response.headers.get("location"), "https://usstory.vercel.app/admin", pathname);
+  }
+});
+
+test("admin pages and forced sign-out remain accessible without redirect loops", async () => {
+  for (const pathname of ["/admin", "/admin/", "/admin/orders?status=new", "/admin/products/catalog/new", "/admin/settings", "/force-signout"]) {
+    const response = await visit(pathname, { ...admin, id: "admin-id" });
+    assert.equal(response.headers.get("x-middleware-next"), "1", pathname);
+    assert.equal(response.headers.get("location"), null, pathname);
+  }
+});
+
+test("admin restriction preserves guest, staff and customer verification flows", async () => {
+  for (const user of [null, { id: "staff-id", role: "staff" }, { id: "customer-id", role: "customer", isEmailVerified: true }]) {
+    const response = await visit("/buy", user);
+    assert.equal(response.headers.get("x-middleware-next"), "1");
+  }
+  const customer = { id: "customer-id", role: "customer", isEmailVerified: false };
+  assert.equal((await visit("/buy", customer)).headers.get("location"), "https://usstory.vercel.app/force-signout");
+  for (const pathname of ["/complete-profile", "/verify-required", "/verify-email", "/force-signout", "/post-login"]) {
+    assert.equal((await visit(pathname, customer)).headers.get("x-middleware-next"), "1", pathname);
+  }
+});
+
 test("analytics preserves totals and access control using shared aggregates", async () => {
   let session = { user: { id: "admin-id", role: "admin" } }, queries = 0;
   const query = result => async () => { queries++; return result; };
