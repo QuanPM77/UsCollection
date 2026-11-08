@@ -22,6 +22,10 @@ test('validates names and geometry while preserving bead order', () => {
 });
 function setup(session) {
   const calls = [];
+  const guard = load('lib/guard.ts', {
+    'next/navigation': { redirect: () => assert.fail('API guard must return JSON') },
+    '@/lib/auth-session': { getSession: async () => session ? { user: { role: 'customer', destination: '/', ...session.user } } : null },
+  });
   const prisma = {
     user: { findUnique: async () => ({ status: 'active' }) },
     savedDesign: {
@@ -31,7 +35,7 @@ function setup(session) {
       updateMany: async () => { throw new Error('Must not edit another user design'); },
     },
   };
-  return { calls, api: load('app/api/custom-designs/route.ts', { '@/lib/auth-session': { getSession: async () => session }, '@/lib/prisma': { prisma }, '@/lib/saved-design': helpers }) };
+  return { calls, api: load('app/api/custom-designs/route.ts', { '@/lib/guard': guard, '@/lib/prisma': { prisma }, '@/lib/saved-design': helpers }) };
 }
 test('requires login', async () => {
   const { api } = setup(null);

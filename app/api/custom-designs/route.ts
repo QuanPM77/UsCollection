@@ -1,11 +1,12 @@
-import { getSession } from "@/lib/auth-session";
+import { requireApiRole } from "@/lib/guard";
 import { prisma } from "@/lib/prisma";
 import { validateDesignInput } from "@/lib/saved-design";
 
 const fail = (message: string, status: number) => Response.json({ message }, { status });
 async function handle(request: Request) {
-  const session = await getSession();
-  if (!session?.user.id) return fail("Vui lòng đăng nhập để lưu và xem thiết kế.", 401);
+  const access = await requireApiRole("customer");
+  if (!access.ok) return access.response;
+  const { session } = access;
   const userId = session.user.id;
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { status: true } });
   if (!user || user.status !== "active") return fail("Tài khoản không khả dụng.", 403);

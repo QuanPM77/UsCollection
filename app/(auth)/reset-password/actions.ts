@@ -30,7 +30,7 @@ export async function resetPassword(_: FormState, fd: FormData): Promise<FormSta
     });
     if (consumed.count !== 1) return false;
     const updated = await tx.user.updateMany({
-      where: { id: rec.userId, googleId: null },
+      where: { id: rec.userId, googleId: null, status: "active" },
       data: { passwordHash },
     });
     if (updated.count !== 1) {
@@ -42,6 +42,6 @@ export async function resetPassword(_: FormState, fd: FormData): Promise<FormSta
     await tx.passwordResetToken.deleteMany({ where: { userId: rec.userId } });
     return true;
   });
-  if (!reset) return { error: "Liên kết không hợp lệ hoặc đã hết hạn. Hãy đăng nhập bằng Google." };
+  if (!reset) return { error: "Liên kết không hợp lệ hoặc tài khoản không thể đặt lại mật khẩu." };
   redirect("/login?reset=1");
 }

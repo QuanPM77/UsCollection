@@ -79,7 +79,7 @@ test("role guard retains login, role and onboarding checks without another DB re
     "@/lib/auth-session": { getSession: async () => session },
   });
   await assert.rejects(guard.requireRole("customer"), { message: "/login" });
-  session = { user: { role: "customer", destination: "/complete-profile" } };
+  session = { user: { id: "customer-id", role: "customer", destination: "/complete-profile" } };
   await assert.rejects(guard.requireRole("admin"), { message: "/customer" });
   await assert.rejects(guard.requireRole("customer"), { message: "/complete-profile" });
   session.user.destination = "/verify-required";

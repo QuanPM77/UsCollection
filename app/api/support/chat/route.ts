@@ -1,15 +1,11 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { requireApiRole } from "@/lib/guard";
 import { prisma } from "@/lib/prisma";
 
-async function customerId() {
-  const session = await auth();
-  return session?.user?.role === "customer" ? session.user.id : null;
-}
-
 export async function GET(request: Request) {
-  const id = await customerId();
-  if (!id) return NextResponse.json({ message: "Vui lòng đăng nhập để trò chuyện với shop." }, { status: 401 });
+  const access = await requireApiRole("customer");
+  if (!access.ok) return access.response;
+  const id = access.session.user.id;
 
   const summaryOnly = new URL(request.url).searchParams.get("summary") === "1";
   const markRead = new URL(request.url).searchParams.get("read") === "1";
@@ -42,8 +38,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const id = await customerId();
-  if (!id) return NextResponse.json({ message: "Vui lòng đăng nhập để trò chuyện với shop." }, { status: 401 });
+  const access = await requireApiRole("customer");
+  if (!access.ok) return access.response;
+  const id = access.session.user.id;
 
   const input = await request.json().catch(() => null) as { body?: unknown } | null;
   const body = typeof input?.body === "string" ? input.body.trim() : "";

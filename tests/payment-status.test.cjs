@@ -19,7 +19,7 @@ function setup({ owner = "customer-a", status = "pending", syncedStatus = "PAID"
   };
   const dependencies = {
     "next/server": { NextResponse: { json: (body, options) => ({ body, status: options?.status ?? 200 }) } },
-    "@/auth": { auth: async () => ({ user: { id: "customer-a", role: "customer" } }) },
+    "@/lib/guard": { requireApiRole: async () => ({ ok: true, session: { user: { id: "customer-a", role: "customer", destination: "/" } } }) },
     "@/lib/prisma": { prisma: { order: { findUnique: async () => {
       reads++;
       if (settlement === "deleted") return null;

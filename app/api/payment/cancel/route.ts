@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { requireApiRole } from "@/lib/guard";
 import { prisma } from "@/lib/prisma";
 import { PayOS } from "@payos/node";
 import { deleteUnpaidOrder, settlePaidOrder } from "@/lib/payment-settlement";
@@ -11,10 +11,9 @@ const payos = new PayOS({
 });
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user.id || session.user.role !== "customer") {
-    return NextResponse.json({ success: false, message: "Vui lòng đăng nhập bằng tài khoản khách hàng." }, { status: 401 });
-  }
+  const access = await requireApiRole("customer");
+  if (!access.ok) return access.response;
+  const { session } = access;
   const body = await req.json().catch(() => null) as { orderId?: string } | null;
   if (!body?.orderId || !/^[0-9a-f-]{36}$/i.test(body.orderId)) {
     return NextResponse.json({ success: false, message: "Mã đơn hàng không hợp lệ." }, { status: 400 });

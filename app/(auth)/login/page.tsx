@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { Notice } from "@/components/AuthShell";
 import BrandLogo from "@/components/BrandLogo";
 import { getSession as auth } from "@/lib/auth-session";
+import { safeCallbackUrl } from "@/lib/auth-destination";
 import { redirect } from "next/navigation";
 import LoginForm from "./LoginForm";
 
@@ -13,7 +14,7 @@ export default async function LoginPage({
   searchParams,
 }: { searchParams: Promise<{ registered?: string; reset?: string; expired?: string; callbackUrl?: string; phone?: string; error?: string; forgot?: string }> }) {
   const [sp, session] = await Promise.all([searchParams, auth()]);
-  const callbackUrl = sp.callbackUrl?.startsWith("/") && !sp.callbackUrl.startsWith("//") ? sp.callbackUrl : undefined;
+  const callbackUrl = safeCallbackUrl(sp.callbackUrl);
   if (session?.user) redirect(callbackUrl ?? session.user.destination);
   return (
     <main

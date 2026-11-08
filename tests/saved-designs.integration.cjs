@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const ts = require('typescript');
 const { PrismaClient } = require('@prisma/client');
-const { randomUUID } = require('node:crypto');
+const { randomUUID, randomInt } = require('node:crypto');
 const prisma = new PrismaClient();
 function load(file, deps = {}) {
   const exports = {};
@@ -16,9 +16,10 @@ function load(file, deps = {}) {
   try {
     const bead = await prisma.products.findFirst({where:{type:'bead', status:'active', bead_product_details:{isNot:null}},select:{sku:true}});
     assert.ok(bead, 'An active bead is required');
-    user = await prisma.user.create({data:{email:`codex-verification-${randomUUID()}@example.invalid`},select:{id:true}});
+    user = await prisma.user.create({data:{email:`codex-verification-${randomUUID()}@example.invalid`,phone:`0${randomInt(100000000, 1000000000)}`,fullName:'Integration test',profileCompletedAt:new Date(),emailVerifiedAt:new Date()},select:{id:true}});
     const helpers=load('lib/saved-design.ts');
-    const api=load('app/api/custom-designs/route.ts', {'@/lib/auth-session':{getSession:async()=>({user:{id:user.id}})},'@/lib/prisma':{prisma},'@/lib/saved-design':helpers});
+    const guard=load('lib/guard.ts', {'next/navigation':{redirect:()=>assert.fail('API guard must return JSON')},'@/lib/auth-session':{getSession:async()=>({user:{id:user.id,role:'customer',destination:'/',isEmailVerified:true}})}});
+    const api=load('app/api/custom-designs/route.ts', {'@/lib/guard':guard,'@/lib/prisma':{prisma},'@/lib/saved-design':helpers});
     const body={name:'Temporary verification',config:{wristCircumference:160,slots:[{index:0,beadTypeId:bead.sku}]}};
     const call=async(method,data,url='http://localhost/api/custom-designs')=>api[method](new Request(url,{method,...(data?{body:JSON.stringify(data)}:{})}));
     const start=performance.now();

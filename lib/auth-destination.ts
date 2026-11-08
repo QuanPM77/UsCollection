@@ -13,3 +13,8 @@ export function authDestination(user: Account) {
   if (!user.email || !user.emailVerifiedAt) return "/verify-required";
   return "/";
 }
+
+export function safeCallbackUrl(value: unknown) {
+  return typeof value === "string" && value.startsWith("/") &&
+    !value.startsWith("//") && !/[\\\x00-\x20]/.test(value) ? value : undefined;
+}

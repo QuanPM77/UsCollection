@@ -24,7 +24,7 @@ export default async function CompleteProfilePage() {
     },
   });
   if (!user) redirect("/login");
-  if (user.profileCompletedAt && user.emailVerifiedAt && user.phone) redirect("/customer");
+  if (user.profileCompletedAt && user.email && user.emailVerifiedAt && user.phone) redirect("/customer");
 
   return (
     <AuthShell title="Hoàn thiện thông tin cá nhân">

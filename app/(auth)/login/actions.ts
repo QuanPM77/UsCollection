@@ -3,7 +3,7 @@
 import { AuthError, CredentialsSignin } from "next-auth";
 import { signIn } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { authDestination } from "@/lib/auth-destination";
+import { authDestination, safeCallbackUrl } from "@/lib/auth-destination";
 
 export async function loginWithPassword(phone: string, password: string, callbackUrl?: string): Promise<{
   ok: boolean; error?: string; code?: string; destination?: string;
@@ -25,7 +25,5 @@ export async function loginWithPassword(phone: string, password: string, callbac
   if (!user || user.status !== "active") return { ok: false, error: "SessionUnavailable" };
   const destination = authDestination(user);
   if (user.role === "customer" && destination !== "/") return { ok: true, destination };
-  const safeCallback = typeof callbackUrl === "string" && callbackUrl.startsWith("/") &&
-    !callbackUrl.startsWith("//") && !/[\\\x00-\x20]/.test(callbackUrl) ? callbackUrl : undefined;
-  return { ok: true, destination: safeCallback ?? destination };
+  return { ok: true, destination: safeCallbackUrl(callbackUrl) ?? destination };
 }

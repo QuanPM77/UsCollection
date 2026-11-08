@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { requireApiRole } from "@/lib/guard";
 import { prisma } from "@/lib/prisma";
 import { PayOS } from "@payos/node";
 import { deleteUnpaidOrder, settlePaidOrder } from "@/lib/payment-settlement";
@@ -7,8 +7,9 @@ import { deleteUnpaidOrder, settlePaidOrder } from "@/lib/payment-settlement";
 export async function GET(req: NextRequest) {
   const orderId = req.nextUrl.searchParams.get("orderId");
   if (!orderId || !/^[0-9a-f-]{36}$/i.test(orderId)) return NextResponse.json({ message: "Invalid orderId" }, { status: 400 });
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ message: "Vui lòng đăng nhập." }, { status: 401 });
+  const access = await requireApiRole("customer", "admin");
+  if (!access.ok) return access.response;
+  const { session } = access;
   const order = await prisma.order.findUnique({ where: { id: orderId }, select: { user_id: true, orderCode: true, totalPrice: true, paymentStatus: true, inventoryReviewRequired: true, braceletConfig: true, order_items: { select: { product_type: true, product_name: true } } } });
   if (!order) return NextResponse.json({ message: "Order not found" }, { status: 404 });
   if (order.user_id !== session.user.id && session.user.role !== "admin") return NextResponse.json({ message: "Không có quyền xem đơn hàng." }, { status: 403 });
