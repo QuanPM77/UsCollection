@@ -8,6 +8,17 @@ export default auth(async (request) => {
   if (!session?.user?.id) return NextResponse.next();
 
   const pathname = request.nextUrl.pathname;
+  if (pathname.startsWith("/api/")) {
+    if (session.user.role === "customer" &&
+      (session.user.destination === "/complete-profile" || session.user.destination === "/verify-required")) {
+      return NextResponse.json({
+        message: "Vui lòng hoàn thiện thông tin cá nhân và xác minh email trước khi sử dụng tính năng này.",
+        redirectTo: session.user.destination,
+      }, { status: 403 });
+    }
+    return NextResponse.next();
+  }
+
   if (session.user.role === "admin") {
     if (pathname === "/admin" || pathname.startsWith("/admin/") || pathname === "/force-signout") {
       return NextResponse.next();
@@ -21,6 +32,9 @@ export default auth(async (request) => {
   }
 
   // The auth callback has already loaded the current account from the database.
+  if (session.user.destination === "/complete-profile") {
+    return NextResponse.redirect(new URL("/complete-profile", request.url));
+  }
   if (!session.user.isEmailVerified) {
     return NextResponse.redirect(new URL("/force-signout", request.url));
   }
@@ -29,5 +43,12 @@ export default auth(async (request) => {
 
 export const config = {
   runtime: "nodejs",
-  matcher: ["/((?!api|images/|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)"],
+  matcher: [
+    "/((?!api|images/|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)",
+    "/api/custom-designs/:path*",
+    "/api/support/chat/:path*",
+    "/api/payment/create",
+    "/api/payment/cancel",
+    "/api/payment/status",
+  ],
 };

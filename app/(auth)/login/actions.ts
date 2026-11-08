@@ -23,7 +23,9 @@ export async function loginWithPassword(phone: string, password: string, callbac
     select: { role: true, status: true, phone: true, email: true, profileCompletedAt: true, emailVerifiedAt: true },
   });
   if (!user || user.status !== "active") return { ok: false, error: "SessionUnavailable" };
+  const destination = authDestination(user);
+  if (user.role === "customer" && destination !== "/") return { ok: true, destination };
   const safeCallback = typeof callbackUrl === "string" && callbackUrl.startsWith("/") &&
     !callbackUrl.startsWith("//") && !/[\\\x00-\x20]/.test(callbackUrl) ? callbackUrl : undefined;
-  return { ok: true, destination: safeCallback ?? authDestination(user) };
+  return { ok: true, destination: safeCallback ?? destination };
 }

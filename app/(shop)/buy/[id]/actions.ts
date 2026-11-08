@@ -2,12 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { requireRole } from "@/lib/guard";
 import { prisma } from "@/lib/prisma";
 
 export async function submitReview(productId: string, formData: FormData) {
-  const session = await auth();
-  if (!session?.user.id || session.user.role !== "customer") redirect("/login");
+  const session = await requireRole("customer");
 
   const rating = Number(formData.get("rating"));
   const comment = String(formData.get("comment") ?? "").trim();

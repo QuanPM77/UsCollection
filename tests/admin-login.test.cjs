@@ -72,8 +72,8 @@ const middleware = load("middleware.ts", {
   "next/server": { NextResponse },
 });
 
-async function visit(pathname, user) {
-  const request = new NextRequest(`https://usstory.vercel.app${pathname}`);
+async function visit(pathname, user, method = "GET") {
+  const request = new NextRequest(`https://usstory.vercel.app${pathname}`, { method });
   request.auth = user ? { user } : null;
   return middleware.default(request);
 }
@@ -103,6 +103,80 @@ test("admin restriction preserves guest, staff and customer verification flows",
   assert.equal((await visit("/buy", customer)).headers.get("location"), "https://usstory.vercel.app/force-signout");
   for (const pathname of ["/complete-profile", "/verify-required", "/verify-email", "/force-signout", "/post-login"]) {
     assert.equal((await visit(pathname, customer)).headers.get("x-middleware-next"), "1", pathname);
+  }
+});
+
+test("customer onboarding takes priority over the post-login callback", async () => {
+  const customer = { ...admin, role: "customer", email: "customer@example.com", emailVerifiedAt: new Date() };
+  for (const account of [customer, { ...customer, phone: null, profileCompletedAt: new Date() }, { ...customer, emailVerifiedAt: null }]) {
+    assert.equal((await loginSetup(undefined, account)("/buy")).destination, "/complete-profile");
+  }
+  const completed = { ...customer, profileCompletedAt: new Date() };
+  assert.equal((await loginSetup(undefined, { ...completed, emailVerifiedAt: null })("/buy")).destination, "/verify-required");
+  assert.equal((await loginSetup(undefined, completed)("/buy")).destination, "/buy");
+});
+
+test("customers with incomplete profiles cannot open feature pages or submit actions there", async () => {
+  for (const isEmailVerified of [true, false]) {
+    const customer = { id: "customer-id", role: "customer", destination: "/complete-profile", isEmailVerified };
+    for (const pathname of ["/", "/buy", "/buy/product-id", "/customizer", "/my-designs", "/favorites", "/checkout", "/transactions", "/customer", "/login?callbackUrl=%2Fbuy"]) {
+      for (const method of ["GET", "POST"]) {
+        const response = await visit(pathname, customer, method);
+        assert.equal(response.headers.get("location"), "https://usstory.vercel.app/complete-profile", `${method} ${pathname}`);
+      }
+    }
+    for (const pathname of ["/complete-profile", "/verify-required", "/verify-email", "/force-signout", "/post-login"]) {
+      assert.equal((await visit(pathname, customer)).headers.get("x-middleware-next"), "1", pathname);
+    }
+  }
+  const completed = { id: "customer-id", role: "customer", destination: "/", isEmailVerified: true };
+  assert.equal((await visit("/buy", completed)).headers.get("x-middleware-next"), "1");
+});
+
+const featureApis = ["/api/custom-designs", "/api/support/chat", "/api/payment/create", "/api/payment/cancel", "/api/payment/status"];
+
+test("direct feature API requests reject customers who have not finished onboarding", async () => {
+  for (const destination of ["/complete-profile", "/verify-required"]) {
+    const customer = { id: "customer-id", role: "customer", destination, isEmailVerified: true };
+    for (const pathname of featureApis) {
+      for (const method of ["GET", "POST", "PATCH", "DELETE"]) {
+        const response = await visit(pathname, customer, method);
+        assert.equal(response.status, 403, `${method} ${pathname}`);
+        assert.equal((await response.json()).redirectTo, destination);
+      }
+    }
+  }
+  for (const user of [null, { id: "admin-id", role: "admin" }, { id: "customer-id", role: "customer", destination: "/", isEmailVerified: true }]) {
+    for (const pathname of featureApis) {
+      assert.equal((await visit(pathname, user)).headers.get("x-middleware-next"), "1", pathname);
+    }
+  }
+});
+
+test("middleware covers feature APIs while leaving OAuth, payment webhooks and assets accessible", () => {
+  const { unstable_doesMiddlewareMatch } = require("next/experimental/testing/server");
+  for (const url of [...featureApis, "/api/custom-designs/?cursor=example", "/customizer", "/admin"]) {
+    assert.equal(unstable_doesMiddlewareMatch({ config: middleware.config, url }), true, url);
+  }
+  for (const url of ["/api/auth/session", "/api/auth/callback/google", "/api/payment/notify", "/api/admin/orders", "/images/usstory-logo.webp", "/_next/static/test.js", "/_next/image?url=test"]) {
+    assert.equal(unstable_doesMiddlewareMatch({ config: middleware.config, url }), false, url);
+  }
+});
+
+test("review server action checks onboarding before reading or writing review data", async () => {
+  for (const destination of ["/complete-profile", "/verify-required"]) {
+    const redirect = url => { throw new Error(`redirect:${url}`); };
+    const guard = load("lib/guard.ts", {
+      "next/navigation": { redirect },
+      "@/lib/auth-session": { getSession: async () => ({ user: { id: "customer-id", role: "customer", destination } }) },
+    });
+    const action = load("app/(shop)/buy/[id]/actions.ts", {
+      "next/cache": { revalidatePath: () => assert.fail("Should not revalidate") },
+      "next/navigation": { redirect },
+      "@/lib/guard": guard,
+      "@/lib/prisma": { prisma: {} },
+    });
+    await assert.rejects(action.submitReview("product-id", new FormData()), { message: `redirect:${destination}` });
   }
 });
 
