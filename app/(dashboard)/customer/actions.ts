@@ -34,7 +34,11 @@ export async function changePassword(formData: FormData) {
   if (!user?.passwordHash || !(await bcrypt.compare(currentPassword, user.passwordHash))) {
     redirect("/customer?passwordError=incorrect");
   }
-  await prisma.user.update({ where: { id: session.user.id }, data: { passwordHash: await bcrypt.hash(newPassword, 10) } });
+  const updated = await prisma.user.updateMany({
+    where: { id: session.user.id, googleId: null, status: "active", passwordHash: user.passwordHash },
+    data: { passwordHash: await bcrypt.hash(newPassword, 10) },
+  });
+  if (updated.count !== 1) redirect("/customer?passwordError=changed");
   finish("password-changed");
 }
 

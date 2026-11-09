@@ -18,14 +18,18 @@ function environment({ readyState = "complete", visibilityState = "visible", con
   };
   const document = { ...events, readyState, visibilityState };
   const navigator = { onLine: true, connection };
-  const window = { ...events };
+  const window = { ...events, location: { origin: "https://usstory.vercel.app" } };
+  class Element {
+    constructor(link) { this.link = link; }
+    closest() { return this.link; }
+  }
   if (idleSupported) {
     window.requestIdleCallback = fn => { idle.set(++id, fn); return id; };
     window.cancelIdleCallback = id => idle.delete(id);
   }
   const module = { exports: {} };
   vm.runInNewContext(code, {
-    module, exports: module.exports, window, document, navigator,
+    module, exports: module.exports, window, document, navigator, Element,
     setTimeout: (fn, delay) => { timers.set(++id, { fn, delay }); return id; },
     clearTimeout: id => timers.delete(id),
   });
@@ -35,8 +39,8 @@ function environment({ readyState = "complete", visibilityState = "visible", con
     (item.fn ?? item)();
     await new Promise(resolve => setImmediate(resolve));
   }
-  return { schedule: module.exports.scheduleIdlePreloads, document, navigator, timers, idle, listeners,
-    timer: () => tick(timers), runIdle: () => tick(idle), emit: event => listeners.get(event)?.() };
+  return { schedule: module.exports.scheduleIdlePreloads, links: module.exports.scheduleLinkPreloads, Element, document, navigator, timers, idle, listeners,
+    timer: () => tick(timers), runIdle: () => tick(idle), emit: (event, value) => listeners.get(event)?.(value) };
 }
 
 test("waits for page load, delay and idle; warms one module at a time", async () => {
@@ -53,6 +57,24 @@ test("waits for page load, delay and idle; warms one module at a time", async ()
   assert.deepEqual(loaded, ["charts"]);
   await env.timer(); await env.runIdle();
   assert.deepEqual(loaded, ["charts", "3d"]);
+  stop();
+  assert.equal(env.listeners.size, 0);
+});
+
+test("heavy modules stay unloaded until a matching local link is hovered or focused", async () => {
+  const env = environment();
+  let loaded = 0;
+  const stop = env.links({ "/customizer": async () => { loaded++; } });
+  assert.equal(env.timers.size, 0);
+  env.emit("pointerover", { target: new env.Element({ origin: "https://external.test", pathname: "/customizer" }) });
+  env.emit("focusin", { target: new env.Element({ origin: "https://usstory.vercel.app", pathname: "/buy" }) });
+  assert.equal(env.timers.size, 0);
+  const target = new env.Element({ origin: "https://usstory.vercel.app", pathname: "/customizer" });
+  env.emit("focusin", { target });
+  env.emit("pointerover", { target });
+  assert.equal(env.timers.size, 1);
+  await env.timer(); await env.runIdle();
+  assert.equal(loaded, 1);
   stop();
   assert.equal(env.listeners.size, 0);
 });

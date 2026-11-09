@@ -12,6 +12,7 @@ import ProductGallery from "./ProductGallery";
 import ReviewForm from "./ReviewForm";
 import FavoriteButton from "../FavoriteButton";
 import { PurchaseLink } from "@/components/PurchaseLink";
+import { getProductReviews } from "@/lib/product-reviews";
 
 const currency = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 });
 const dateFormatter = new Intl.DateTimeFormat("vi-VN", { dateStyle: "medium" });
@@ -21,30 +22,24 @@ export default async function BraceletDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ review?: string }>;
+  searchParams: Promise<{ review?: string; reviewPage?: string }>;
 }) {
   const { id } = await params;
   const [product, query, session] = await Promise.all([prisma.products.findFirst({
     where: { id, type: "bracelet", status: "active" },
     include: {
       bracelet_product_details: true,
-      reviews: {
-        include: { user: { select: { id: true, fullName: true, avatarUrl: true } } },
-        orderBy: { createdAt: "desc" },
-        take: 100,
-      },
     },
   }), searchParams, auth()]);
   if (!product) notFound();
-  const availableStock = await getAvailableProductStock(product.id, product.stock, session?.user.id);
+  const [availableStock, reviewData, productImages] = await Promise.all([
+    getAvailableProductStock(product.id, product.stock, session?.user.id),
+    getProductReviews(product.id, query.reviewPage, session?.user.id),
+    Promise.all(product.images.map(productImageDisplayUrl)),
+  ]);
 
   const productStyles = Array.isArray(product.styles) ? product.styles : [];
-  const myReview = session?.user.id ? product.reviews.find((review) => review.userId === session.user.id) : undefined;
-  const averageRating = product.reviews.length
-    ? product.reviews.reduce((total, review) => total + review.rating, 0) / product.reviews.length
-    : null;
-  const reviews = product.reviews;
-  const productImages = await Promise.all(product.images.map(productImageDisplayUrl));
+  const { myReview, averageRating, reviews, total, page, pages } = reviewData;
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-pink-light via-cream to-white text-pink-text">
@@ -59,7 +54,7 @@ export default async function BraceletDetailPage({
             <p className="mt-4 text-2xl font-bold text-pink-deep">{currency.format(product.price)}</p>
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-pink-text/65">
               <span>{availableStock > 0 ? `Còn ${availableStock} sản phẩm có thể đặt` : "Tạm hết hàng"}</span>
-              {averageRating !== null && <a href="#reviews" className="text-amber-600 hover:underline">★ {averageRating.toFixed(1)} · {product.reviews.length} đánh giá</a>}
+              {averageRating !== null && <a href="#reviews" className="text-amber-600 hover:underline">★ {averageRating.toFixed(1)} · {total} đánh giá</a>}
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
               <PurchaseLink href={`/checkout/product/${product.id}`} disabled={availableStock < 1} className={`inline-flex min-w-40 flex-1 items-center justify-center rounded-2xl px-5 py-4 text-sm font-bold text-white shadow-lg transition ${availableStock > 0 ? "bg-pink-deep hover:-translate-y-0.5 hover:bg-pink-text" : "pointer-events-none bg-pink-mid/50"}`}>
@@ -84,7 +79,7 @@ export default async function BraceletDetailPage({
 
         <section id="reviews" className="mt-12 scroll-mt-6 border-t border-pink-mid/25 pt-8">
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <div><h2 className="font-display text-2xl font-bold">Đánh giá của khách hàng</h2><p className="mt-1 text-sm text-pink-text/60">{product.reviews.length} bình luận</p></div>
+            <div><h2 className="font-display text-2xl font-bold">Đánh giá của khách hàng</h2><p className="mt-1 text-sm text-pink-text/60">{total} bình luận</p></div>
             {averageRating !== null && <p className="text-lg font-semibold"><span className="text-amber-500">★</span> {averageRating.toFixed(1)} / 5</p>}
           </div>
 
@@ -104,6 +99,11 @@ export default async function BraceletDetailPage({
               </div>
             </article>)}
           </div>
+          {pages > 1 && <nav aria-label="Phân trang đánh giá" className="mt-6 flex items-center justify-between gap-4 text-sm">
+            {page > 1 ? <Link href={`/buy/${product.id}?reviewPage=${page - 1}#reviews`} className="rounded-xl border bg-white px-4 py-2">Trang trước</Link> : <span />}
+            <span>Trang {page} / {pages}</span>
+            {page < pages ? <Link href={`/buy/${product.id}?reviewPage=${page + 1}#reviews`} className="rounded-xl border bg-white px-4 py-2">Trang sau</Link> : <span />}
+          </nav>}
         </section>
       </div>
     </main>

@@ -28,6 +28,7 @@ const passwordErrors: Record<string, string> = {
   incorrect: "Mật khẩu hiện tại không đúng. Mật khẩu chưa được thay đổi.",
   "too-short": "Mật khẩu mới cần có ít nhất 8 ký tự.",
   mismatch: "Mật khẩu mới và phần nhập lại không khớp.",
+  changed: "Thông tin tài khoản đã thay đổi. Vui lòng đăng nhập lại.",
 };
 
 export default async function CustomerPage({

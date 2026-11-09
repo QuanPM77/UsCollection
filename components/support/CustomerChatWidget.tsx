@@ -36,7 +36,7 @@ export default function CustomerChatWidget() {
       finally { checking = false; }
     };
     void loadUnreadCount();
-    const timer = window.setInterval(() => void loadUnreadCount(), 5000);
+    const timer = window.setInterval(() => void loadUnreadCount(), 30000);
     return () => { active = false; controller.abort(); window.clearInterval(timer); };
   }, [open]);
 
@@ -66,7 +66,8 @@ export default function CustomerChatWidget() {
     return () => { active = false; controller.abort(); window.clearInterval(timer); };
   }, [open]);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, open]);
+  const lastMessageId = messages[messages.length - 1]?.id;
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [lastMessageId, open]);
 
   async function sendMessage(event?: FormEvent) {
     event?.preventDefault();

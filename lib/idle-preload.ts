@@ -1,5 +1,26 @@
 type ConnectionInfo = { saveData?: boolean; effectiveType?: string };
 
+// Warm heavy features only after a visitor points at or focuses their link.
+export function scheduleLinkPreloads(loaders: Record<string, () => Promise<unknown>>) {
+  const scheduled = new Map<string, () => void>();
+  function onIntent(event: Event) {
+    if (!(event.target instanceof Element)) return;
+    const link = event.target.closest<HTMLAnchorElement>("a[href]");
+    if (!link || link.origin !== window.location.origin) return;
+    const loader = loaders[link.pathname];
+    if (loader && !scheduled.has(link.pathname)) {
+      scheduled.set(link.pathname, scheduleIdlePreloads([loader]));
+    }
+  }
+  document.addEventListener("pointerover", onIntent);
+  document.addEventListener("focusin", onIntent);
+  return () => {
+    document.removeEventListener("pointerover", onIntent);
+    document.removeEventListener("focusin", onIntent);
+    scheduled.forEach(stop => stop());
+  };
+}
+
 function canPreload() {
   const connection = (navigator as Navigator & { connection?: ConnectionInfo }).connection;
   return document.readyState === "complete" && document.visibilityState === "visible" &&

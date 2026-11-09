@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { productImageDisplayUrl } from "@/lib/supabase-storage";
 import { productStyleLabel } from "@/lib/product-styles";
+import ProductImage from "@/components/ProductImage";
 
 const currency = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 });
 
@@ -31,7 +32,7 @@ export default async function BraceletCatalogAdminPage({ searchParams }: { searc
             {products.map((product, index) => (
               <tr key={product.id} className="border-t border-gray-100">
                 <td className="p-4"><div className="flex items-center gap-3">
-                  {imageUrls[index] ? <img src={imageUrls[index]!} alt="" className="h-12 w-12 rounded-lg bg-pink-50 object-contain" /> : <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-pink-50">💎</div>}
+                  {imageUrls[index] ? <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-pink-50"><ProductImage src={imageUrls[index]!} alt={product.name} sizes="48px" /></div> : <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-pink-50">💎</div>}
                   <div><p className="font-semibold text-gray-900">{product.name}</p><p className="text-xs text-gray-500">{product.bracelet_product_details?.wrist_circumference ?? "—"} mm</p></div>
                 </div></td>
                 <td className="p-4"><div className="flex flex-wrap gap-1">{product.styles.map((style) => <span key={style} className="rounded-full bg-pink-50 px-2 py-1 text-xs text-rose-700">{productStyleLabel(style)}</span>)}</div></td>

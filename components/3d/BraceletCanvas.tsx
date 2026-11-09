@@ -107,6 +107,7 @@ export default function BraceletCanvas() {
   const addBead = useBraceletStore((state) => state.addBead);
   const canvasTheme = useBraceletStore(s => s.canvasTheme);
   const setCanvasTheme = useBraceletStore(s => s.setCanvasTheme);
+  const isAutoRotating = useBraceletStore(s => s.isAutoRotating);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -172,6 +173,7 @@ export default function BraceletCanvas() {
       </div>
 
       <Canvas
+        frameloop={isAutoRotating ? "always" : "demand"}
         camera={{ position: [0, 3, 7], fov: 45 }}
         dpr={[1, 1.5]}
         gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}

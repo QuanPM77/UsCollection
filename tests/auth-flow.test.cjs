@@ -230,7 +230,7 @@ test("password reset rejects expired, replayed and newly locked account requests
   form.set("token", "test-token");
   form.set("password", "new-password");
   form.set("confirm", "new-password");
-  for (const scenario of ["expired", "replayed", "locked", "valid"]) {
+  for (const scenario of ["expired", "replayed", "locked", "google", "valid"]) {
     let writes = 0;
     const transaction = {
       passwordResetToken: { deleteMany: async () => ({ count: scenario === "replayed" ? 0 : 1 }) },
@@ -238,7 +238,7 @@ test("password reset rejects expired, replayed and newly locked account requests
         if (args.data.passwordHash) {
           assert.equal(args.where.status, "active");
           assert.equal(args.where.googleId, null);
-          if (scenario === "locked") return { count: 0 };
+          if (scenario === "locked" || scenario === "google") return { count: 0 };
         }
         writes++;
         return { count: 1 };
@@ -262,6 +262,92 @@ test("password reset rejects expired, replayed and newly locked account requests
       assert.equal(writes, 0);
     }
   }
+});
+
+test("forgot password reports Google and missing accounts as unregistered without sending mail", async () => {
+  for (const user of [null, { id: "google-id", googleId: "google-sub", status: "active" }]) {
+    const action = load("app/(auth)/forgot-password/actions.ts", {
+      "next/headers": { headers: async () => new Headers() },
+      "@/lib/prisma": { prisma: { user: { findUnique: async () => user }, passwordResetToken: protectedData, $transaction: forbidden } },
+      "@/lib/form": { isEmail: () => true },
+      "@/lib/mail": { sendMail: forbidden },
+      "@/lib/token": { newToken: forbidden, hashToken: forbidden },
+      "@/lib/email-template": { createActionEmail: forbidden },
+      "@/lib/ratelimit": { clientIp: () => "test", progressiveFailureLimit: async () => ({ ok: true }), recordProgressiveFailure: async () => {}, limitError: () => null, clearLimit: forbidden },
+    });
+    const form = new FormData();
+    form.set("email", "google@example.com");
+    assert.equal((await action.requestReset({}, form)).error, "Tài khoản này chưa được đăng ký.");
+  }
+});
+
+test("Google customers cannot change password directly or during a concurrent account link", async () => {
+  for (const linked of [true, false]) {
+    const action = load("app/(dashboard)/customer/actions.ts", {
+      "@/lib/guard": { requireRole: async () => sessionFor(customer) },
+      "@/lib/prisma": { prisma: { user: {
+        findUnique: async () => ({ googleId: linked ? "google-sub" : null, passwordHash: "old-hash" }),
+        updateMany: async ({ where }) => {
+          assert.equal(where.googleId, null);
+          assert.equal(where.status, "active");
+          assert.equal(where.passwordHash, "old-hash");
+          return { count: 0 };
+        },
+      } } },
+      bcryptjs: { compare: linked ? forbidden : async () => true, hash: linked ? forbidden : async () => "new-hash" },
+      "@/lib/supabase-storage": {}, "@/lib/vietnam-addresses": {}, "@/lib/verify": {},
+      "next/headers": {}, "@/lib/ratelimit": {},
+    });
+    const form = new FormData();
+    form.set("currentPassword", "old-password");
+    form.set("newPassword", "new-password");
+    form.set("confirmPassword", "new-password");
+    await assert.rejects(action.changePassword(form), { message: `redirect:/customer?passwordError=${linked ? "google" : "changed"}` });
+  }
+});
+
+test("forgot password still sends a reset link for an active password account", async () => {
+  let sent = 0, created = 0;
+  const action = load("app/(auth)/forgot-password/actions.ts", {
+    "next/headers": { headers: async () => new Headers() },
+    "@/lib/prisma": { prisma: {
+      user: { findUnique: async () => ({ id: "local-id", googleId: null, status: "active" }) },
+      passwordResetToken: {
+        deleteMany: async () => ({}),
+        create: async ({ data }) => { assert.equal(data.userId, "local-id"); created++; },
+      },
+      $transaction: queries => Promise.all(queries),
+    } },
+    "@/lib/form": { isEmail: () => true },
+    "@/lib/mail": { sendMail: async email => { assert.equal(email, "local@example.com"); sent++; } },
+    "@/lib/token": { newToken: () => "test-token", hashToken: () => "hash" },
+    "@/lib/email-template": { createActionEmail: () => ({ html: "", text: "" }) },
+    "@/lib/ratelimit": { clientIp: () => "test", progressiveFailureLimit: async () => ({ ok: true }), recordProgressiveFailure: async () => {}, limitError: () => null, clearLimit: async () => {} },
+  });
+  const form = new FormData();
+  form.set("email", "LOCAL@example.com");
+  assert.equal((await action.requestReset({}, form)).ok, true);
+  assert.equal(created, 1);
+  assert.equal(sent, 1);
+});
+
+test("customer profile hides the password form for Google accounts", async () => {
+  const changePassword = () => {};
+  const pageFor = googleId => load("app/(dashboard)/customer/page.tsx", {
+    "next/link": "link", "@/components/SiteHeader": { default: "header" },
+    "@/auth": { signOut: forbidden }, "@/lib/auth-session": { getSession: async () => sessionFor(customer) },
+    "@/lib/prisma": { prisma: { user: { findUnique: async () => ({ googleId, addresses: [], createdAt: new Date(), updatedAt: new Date(), status: "active" }) } } },
+    "./AvatarEditor": "avatar", "@/components/AddressFields": "address", "./EmailVerifyButton": "verify",
+    "@/lib/supabase-storage": { avatarDisplayUrl: async () => null },
+    "./actions": { changePassword },
+  });
+  function hasPasswordForm(node) {
+    if (!node || typeof node !== "object") return false;
+    if (Array.isArray(node)) return node.some(hasPasswordForm);
+    return node.props?.action === changePassword || hasPasswordForm(node.props?.children);
+  }
+  assert.equal(hasPasswordForm(await pageFor("google-sub").default({ searchParams: Promise.resolve({}) })), false);
+  assert.equal(hasPasswordForm(await pageFor(null).default({ searchParams: Promise.resolve({}) })), true);
 });
 
 test("onboarding email action cannot replace a verified email or skip required profile fields", async () => {

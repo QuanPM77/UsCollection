@@ -112,7 +112,7 @@ for (const file of ['app/(shop)/buy/[id]/page.tsx', 'app/(shop)/checkout/product
       'react/jsx-runtime','react','@/components/ReviewAvatar','next/link','@/components/SiteHeader',
       '@/lib/supabase-storage','@/lib/product-styles','@/lib/product-availability','./ProductGallery',
       './ReviewForm','../FavoriteButton','@/components/PurchaseLink','@/components/checkout/CheckoutShell',
-      './ProductCheckoutForm',
+      './ProductCheckoutForm','@/lib/product-reviews',
     ].map(name => [name, {}]));
     dependencies['next/navigation']={notFound:()=>{throw new Error('Expected missing product');}};
     dependencies['@/lib/auth-session']={getSession:()=>new Promise(resolve=>{finishSession=resolve;})};

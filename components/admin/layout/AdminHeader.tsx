@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
+import { startVisiblePolling } from '@/lib/visible-polling';
 
 interface AdminHeaderProps {
   onMenuToggle: () => void;
@@ -80,9 +81,9 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
     try { setUnread(JSON.parse(localStorage.getItem(READ_KEY) || '[]')); } catch { setUnread([]); }
     setReadStateLoaded(true);
     let active = true;
-    const load = async () => {
+    const load = async (signal: AbortSignal) => {
       try {
-        const response = await fetch('/api/admin/notifications', { cache: 'no-store' });
+        const response = await fetch('/api/admin/notifications', { cache: 'no-store', signal });
         if (!response.ok) return;
         const result = await response.json() as { notifications: AdminNotification[] };
         if (!active) return;
@@ -103,9 +104,8 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
         initialized.current = true;
       } catch { /* Keep the header usable when notifications are temporarily unavailable. */ }
     };
-    void load();
-    const interval = setInterval(load, 30_000);
-    return () => { active = false; clearInterval(interval); if (toastTimer.current) clearTimeout(toastTimer.current); };
+    const stop = startVisiblePolling(load, 30_000);
+    return () => { active = false; stop(); if (toastTimer.current) clearTimeout(toastTimer.current); };
   }, []);
 
   useEffect(() => { if (readStateLoaded) localStorage.setItem(READ_KEY, JSON.stringify(unread.slice(0, 10))); }, [unread, readStateLoaded]);

@@ -12,7 +12,7 @@ export async function requestReset(_: FormState, fd: FormData): Promise<FormStat
   if (!isEmail(email)) return { error: "Nhập email hợp lệ." };
 
   const ip = clientIp(await headers());
-  // Áp dụng bất kể email có tồn tại hay không để không lộ thông tin tài khoản.
+  // Giới hạn cả email không tồn tại và tài khoản Google.
   const perEmail = `forgot:fail:email:${email}`;
   const perIp = `forgot:fail:ip:${ip}`;
   const lim = limitError(
@@ -26,6 +26,7 @@ export async function requestReset(_: FormState, fd: FormData): Promise<FormStat
   ]);
 
   const user = await prisma.user.findUnique({ where: { email } });
+  if (!user || user.googleId) return { error: "Tài khoản này chưa được đăng ký." };
   if (user && !user.googleId && user.status === "active") {
     const token = newToken();
     await prisma.$transaction([

@@ -2,6 +2,7 @@
 
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, MessageCircle, Send, X } from "lucide-react";
+import { startVisiblePolling } from "@/lib/visible-polling";
 
 type ChatMessage = { id: string; senderRole: string; body: string; createdAt: string };
 type Conversation = {
@@ -33,31 +34,34 @@ export default function AdminSupportChat() {
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const loadInbox = useCallback(async () => {
+  const loadInbox = useCallback(async (signal?: AbortSignal) => {
     try {
-      const response = await fetch("/api/admin/support-chat", { cache: "no-store" });
+      const response = await fetch("/api/admin/support-chat", { cache: "no-store", signal });
       const data = await response.json();
+      if (signal?.aborted) return;
       if (!response.ok) throw new Error(data.message || "Không tải được danh sách trò chuyện.");
       setConversations(data.conversations as Conversation[]);
       setUnreadConversations(Number(data.unreadConversations) || 0);
     } catch (cause) {
+      if (signal?.aborted) return;
       setError(cause instanceof Error ? cause.message : "Không tải được danh sách trò chuyện.");
     }
   }, []);
 
   useEffect(() => {
-    void loadInbox();
-    const timer = window.setInterval(() => void loadInbox(), 5000);
-    return () => window.clearInterval(timer);
-  }, [loadInbox]);
+    return startVisiblePolling(loadInbox, open ? 5000 : 30000);
+  }, [loadInbox, open]);
 
   useEffect(() => {
     if (!open || !selectedId) return;
     let active = true;
-    const loadMessages = async (showLoading: boolean) => {
+    let first = true;
+    const stop = startVisiblePolling(async (signal) => {
+      const showLoading = first;
+      first = false;
       if (showLoading) setLoading(true);
       try {
-        const response = await fetch(`/api/admin/support-chat/${encodeURIComponent(selectedId)}`, { cache: "no-store" });
+        const response = await fetch(`/api/admin/support-chat/${encodeURIComponent(selectedId)}`, { cache: "no-store", signal });
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || "Không tải được nội dung trò chuyện.");
         if (active) {
@@ -70,13 +74,12 @@ export default function AdminSupportChat() {
       } finally {
         if (active && showLoading) setLoading(false);
       }
-    };
-    void loadMessages(true);
-    const timer = window.setInterval(() => void loadMessages(false), 4000);
-    return () => { active = false; window.clearInterval(timer); };
+    }, 4000);
+    return () => { active = false; stop(); };
   }, [open, selectedId]);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, open]);
+  const lastMessageId = messages[messages.length - 1]?.id;
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [lastMessageId, open]);
 
   function selectConversation(id: string) {
     setMessages([]);

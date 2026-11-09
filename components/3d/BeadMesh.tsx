@@ -39,11 +39,16 @@ export default function BeadMesh({
   const setHoveredSlot = useBraceletStore(s => s.setHoveredSlot);
 
   // Smooth scale animation on hover
-  useFrame((_, delta) => {
+  useFrame(({ invalidate }, delta) => {
     if (!meshRef.current) return;
     const targetScale = hovered ? HOVER_SCALE : 1.0;
     _targetVec.set(targetScale, targetScale, targetScale);
-    meshRef.current.scale.lerp(_targetVec, 1 - Math.pow(0.001, delta));
+    if (Math.abs(meshRef.current.scale.x - targetScale) < 0.001) {
+      meshRef.current.scale.copy(_targetVec);
+      return;
+    }
+    meshRef.current.scale.lerp(_targetVec, 1 - Math.pow(0.001, Math.min(delta, 0.05)));
+    invalidate();
   });
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
