@@ -331,6 +331,41 @@ test("forgot password still sends a reset link for an active password account", 
   assert.equal(sent, 1);
 });
 
+test("forgot password overlaps independent DB calls and keeps rate limiting ahead of lookup", async () => {
+  for (const blocked of [false, true]) {
+    const checks = [], records = [];
+    let queried = false;
+    const action = load("app/(auth)/forgot-password/actions.ts", {
+      "next/headers": { headers: async () => new Headers() },
+      "@/lib/prisma": { prisma: { user: { findUnique: async ({ select }) => {
+        queried = true;
+        assert.equal(select.googleId, true);
+        assert.equal(Object.keys(select).length, 3);
+        return { id: "google-id", googleId: "google-sub", status: "active" };
+      } }, passwordResetToken: protectedData } },
+      "@/lib/form": { isEmail: () => true },
+      "@/lib/mail": { sendMail: forbidden }, "@/lib/token": {}, "@/lib/email-template": {},
+      "@/lib/ratelimit": {
+        clientIp: () => "test",
+        progressiveFailureLimit: () => new Promise(resolve => checks.push(resolve)),
+        recordProgressiveFailure: () => new Promise(resolve => records.push(resolve)),
+        limitError: () => blocked ? "Thử lại sau" : null,
+      },
+    });
+    const form = new FormData(); form.set("email", "google@example.com");
+    const result = action.requestReset({}, form);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(checks.length, 2);
+    assert.equal(queried, false);
+    checks.forEach(resolve => resolve({ ok: !blocked }));
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(queried, !blocked);
+    assert.equal(records.length, blocked ? 0 : 2);
+    records.forEach(resolve => resolve());
+    assert.equal((await result).error, blocked ? "Thử lại sau" : "Tài khoản này chưa được đăng ký.");
+  }
+});
+
 test("customer profile hides the password form for Google accounts", async () => {
   const changePassword = () => {};
   const pageFor = googleId => load("app/(dashboard)/customer/page.tsx", {

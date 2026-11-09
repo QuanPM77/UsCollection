@@ -15,17 +15,15 @@ export async function requestReset(_: FormState, fd: FormData): Promise<FormStat
   // Giới hạn cả email không tồn tại và tài khoản Google.
   const perEmail = `forgot:fail:email:${email}`;
   const perIp = `forgot:fail:ip:${ip}`;
-  const lim = limitError(
-    await progressiveFailureLimit(perEmail),
-    await progressiveFailureLimit(perIp)
-  );
+  const limits = await Promise.all([progressiveFailureLimit(perEmail), progressiveFailureLimit(perIp)]);
+  const lim = limitError(...limits);
   if (lim) return { error: lim };
-  await Promise.all([
+  const [user] = await Promise.all([
+    prisma.user.findUnique({ where: { email }, select: { id: true, googleId: true, status: true } }),
     recordProgressiveFailure(perEmail, 3),
     recordProgressiveFailure(perIp, 3),
   ]);
 
-  const user = await prisma.user.findUnique({ where: { email } });
   if (!user || user.googleId) return { error: "Tài khoản này chưa được đăng ký." };
   if (user && !user.googleId && user.status === "active") {
     const token = newToken();
