@@ -73,9 +73,8 @@ export default function OrdersPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const orderStatus = params.get('orderStatus');
-    const paymentStatus = params.get('paymentStatus');
-    if (orderStatus || paymentStatus) {
-      setFilters((current) => ({ ...current, orderStatus: orderStatus === 'new' ? 'new' : current.orderStatus, paymentStatus: paymentStatus === 'paid' ? 'paid' : current.paymentStatus }));
+    if (orderStatus) {
+      setFilters((current) => ({ ...current, orderStatus: orderStatus === 'new' ? 'new' : current.orderStatus }));
       setShowFilters(true);
     }
   }, []);
@@ -167,7 +166,7 @@ export default function OrdersPage() {
       {/* Filters panel */}
       {showFilters && (
         <div className="bg-white rounded-xl border border-gray-200 p-4 animate-fade-in">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1.5">Trạng thái đơn</label>
               <select
@@ -177,19 +176,6 @@ export default function OrdersPage() {
               >
                 <option value="">Tất cả</option>
                 {Object.entries(ORDER_STATUS_LABELS).map(([key, label]) => (
-                  <option key={key} value={key}>{label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">Thanh toán</label>
-              <select
-                value={filters.paymentStatus || ''}
-                onChange={(e) => handleFilterChange('paymentStatus', e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-300"
-              >
-                <option value="">Tất cả</option>
-                {Object.entries(PAYMENT_STATUS_LABELS).map(([key, label]) => (
                   <option key={key} value={key}>{label}</option>
                 ))}
               </select>
