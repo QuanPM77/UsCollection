@@ -18,7 +18,7 @@ export interface AdminOrder {
     name?: string;
     quantity?: number;
   };
-  items?: { productName: string; productType: string; sku?: string | null; quantity: number; unitPrice: number; unitCost: number | null; lineTotal: number; details?: unknown }[];
+  items?: { imageUrl?: string | null; productName: string; productType: string; sku?: string | null; quantity: number; unitPrice: number; unitCost: number | null; lineTotal: number; details?: unknown }[];
   beadCatalog?: Record<string, OrderBeadSnapshot>;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;

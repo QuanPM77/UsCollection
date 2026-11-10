@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 type LoginPromptContextValue = {
   isAuthenticated: boolean;
-  requestLogin: () => void;
+  requestLogin: (destination?: string) => void;
 };
 
 const LoginPromptContext = createContext<LoginPromptContextValue | null>(null);
@@ -15,8 +15,8 @@ export function LoginPromptProvider({ children, isAuthenticated }: { children: R
   const [returnTo, setReturnTo] = useState("/");
   const router = useRouter();
 
-  const requestLogin = useCallback(() => {
-    setReturnTo(`${window.location.pathname}${window.location.search}${window.location.hash}`);
+  const requestLogin = useCallback((destination?: string) => {
+    setReturnTo(typeof destination === "string" && destination.startsWith("/") && !destination.startsWith("//") ? destination : `${window.location.pathname}${window.location.search}${window.location.hash}`);
     setOpen(true);
   }, []);
 

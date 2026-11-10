@@ -17,6 +17,10 @@ type CatalogProduct = {
   reviewCount: number;
 };
 
+function normalizeSearch(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[đĐ]/g, "d").toLocaleLowerCase("vi").trim().replace(/\s+/g, " ");
+}
+
 const currency = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 });
 const inputClass = "w-full rounded-xl border border-pink-mid/40 bg-white px-3 py-2.5 text-sm text-pink-text outline-none focus:border-pink-deep focus:ring-2 focus:ring-pink-mid/25";
 
@@ -29,11 +33,11 @@ export default function ProductCatalog({ products }: { products: CatalogProduct[
   const [priceOrder, setPriceOrder] = useState<"default" | "asc" | "desc">("default");
 
   const filteredProducts = useMemo(() => {
-    const normalizedQuery = query.trim().toLocaleLowerCase("vi");
+    const normalizedQuery = normalizeSearch(query);
     const min = minPrice === "" ? null : Number(minPrice);
     const max = maxPrice === "" ? null : Number(maxPrice);
     const result = products.filter((product) => {
-      if (normalizedQuery && !product.name.toLocaleLowerCase("vi").includes(normalizedQuery)) return false;
+      if (normalizedQuery && !normalizeSearch(product.name).includes(normalizedQuery)) return false;
       if (min !== null && product.price < min) return false;
       if (max !== null && product.price > max) return false;
       const styles = Array.isArray(product.styles) ? product.styles : [];
@@ -45,12 +49,23 @@ export default function ProductCatalog({ products }: { products: CatalogProduct[
     return result;
   }, [products, query, minPrice, maxPrice, selectedStyles, priceOrder]);
 
+  const activeFilters = [
+    ...(query.trim() ? [`Tìm: ${query.trim()}`] : []),
+    ...(minPrice !== "" ? [`Từ ${currency.format(Number(minPrice))}`] : []),
+    ...(maxPrice !== "" ? [`Đến ${currency.format(Number(maxPrice))}`] : []),
+    ...PRODUCT_STYLES.filter(style => selectedStyles.includes(style.key)).map(style => style.label),
+    ...(priceOrder !== "default" ? [priceOrder === "asc" ? "Giá tăng dần" : "Giá giảm dần"] : []),
+  ];
+  function resetFilters() {
+    setQuery(""); setMinPrice(""); setMaxPrice(""); setSelectedStyles([]); setPriceOrder("default");
+  }
+
   function toggleStyle(style: string) {
     setSelectedStyles((current) => current.includes(style) ? current.filter((item) => item !== style) : [...current, style]);
   }
 
   return <div className="mt-8 grid items-start gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
-    <button type="button" aria-expanded={filtersOpen} aria-controls="style-filters catalog-filters" onClick={() => setFiltersOpen(!filtersOpen)} className="rounded-xl border border-pink-mid/40 bg-white px-4 py-3 text-sm font-semibold text-pink-text lg:hidden">{filtersOpen ? "Đóng bộ lọc" : "Bộ lọc và sắp xếp"}{selectedStyles.length > 0 ? ` (${selectedStyles.length})` : ""}</button>
+    <button type="button" aria-expanded={filtersOpen} aria-controls="style-filters catalog-filters" onClick={() => setFiltersOpen(!filtersOpen)} className="rounded-xl border border-pink-mid/40 bg-white px-4 py-3 text-sm font-semibold text-pink-text lg:hidden">{filtersOpen ? "Đóng bộ lọc" : "Bộ lọc và sắp xếp"}{activeFilters.length > 0 ? ` (${activeFilters.length})` : ""}</button>
     <aside id="style-filters" className={`${filtersOpen ? "block" : "hidden"} lg:block rounded-3xl border border-pink-mid/25 bg-white/90 p-5 shadow-sm`}>
       <fieldset>
         <legend className="text-sm font-bold text-pink-text">Lọc theo phong cách</legend>
@@ -65,6 +80,14 @@ export default function ProductCatalog({ products }: { products: CatalogProduct[
     </aside>
 
     <section className="min-w-0">
+      {activeFilters.length > 0 && <div className="mb-4 rounded-2xl border border-pink-mid/25 bg-white p-4">
+        <div className="flex items-center justify-between gap-3">
+          <p aria-live="polite" className="text-sm">{filteredProducts.length} sản phẩm phù hợp</p>
+          <button type="button" onClick={resetFilters} className="shrink-0 px-2 py-2 text-sm font-semibold text-pink-deep underline">Xóa tất cả bộ lọc</button>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2">{activeFilters.map((label, index) => <span key={index} className="max-w-full break-words rounded-xl bg-pink-light px-3 py-1 text-xs">{label}</span>)}</div>
+      </div>}
+
       <div id="catalog-filters" className={`${filtersOpen ? "block" : "hidden"} lg:block rounded-3xl border border-pink-mid/25 bg-white/90 p-5 shadow-sm sm:p-6`}>
         <div className="grid gap-4 md:grid-cols-[minmax(0,1.3fr)_minmax(220px,0.9fr)]">
           <label className="text-xs font-semibold text-pink-text">Tìm theo tên

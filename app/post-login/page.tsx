@@ -4,5 +4,5 @@ import { getSession } from '@/lib/auth-session';
 export default async function PostLoginPage() {
   const session = await getSession();
   if (!session) redirect('/login');
-  redirect(session.user.destination);
+  redirect(session.user.destination === "/" ? "/auth/continue" : session.user.destination);
 }

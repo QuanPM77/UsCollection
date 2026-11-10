@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { productImageDisplayUrl } from "@/lib/supabase-storage";
 import { PayOS } from "@payos/node";
 
 const transitions: Record<string, string[]> = {
@@ -18,8 +19,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ message: "Không có quyền truy cập." }, { status: 403 });
   }
   const { id } = await params;
-  const order = await prisma.order.findUnique({ where: { id }, include: { order_items: true } });
+  const order = await prisma.order.findUnique({ where: { id }, include: { order_items: { include: { products: { select: { images: true } } } } } });
   if (!order) return NextResponse.json({ message: "Không tìm thấy đơn hàng." }, { status: 404 });
+  const images = await Promise.all(order.order_items.map(item => item.products?.images[0] ? productImageDisplayUrl(item.products.images[0]) : null));
   const beadSkus = order.order_items.filter((item) => item.product_type === "bead" && item.sku).map((item) => item.sku!);
   const beadProducts = beadSkus.length ? await prisma.products.findMany({
     where: { sku: { in: beadSkus }, type: "bead" },
@@ -79,7 +81,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     note: order.note,
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
-    items: order.order_items.map((item) => ({ productName: item.product_name, productType: item.product_type, sku: item.sku, quantity: item.quantity, unitPrice: item.unit_price, unitCost: item.unit_cost, lineTotal: item.line_total, details: item.details })),
+    items: order.order_items.map((item, index) => ({ imageUrl: images[index], productName: item.product_name, productType: item.product_type, sku: item.sku, quantity: item.quantity, unitPrice: item.unit_price, unitCost: item.unit_cost, lineTotal: item.line_total, details: item.details })),
   });
 }
 

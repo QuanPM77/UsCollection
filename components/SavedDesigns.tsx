@@ -135,7 +135,7 @@ export default function SavedDesigns({ gallery = false }: { gallery?: boolean })
         </Link>
       </div>
       {store.savedDesignId && designFingerprint(store) !== store.savedFingerprint && <button className={`${button} w-full`} disabled={!store.slots.length} onClick={() => show("new")}>Lưu thành mẫu mới</button>}
-    </> : !isAuthenticated ? <button className={button} onClick={requestLogin}>Đăng nhập để xem thiết kế của tôi</button> : <>
+    </> : !isAuthenticated ? <button className={button} onClick={() => requestLogin()}>Đăng nhập để xem thiết kế của tôi</button> : <>
       {loading ? <p role="status">Đang tải thiết kế…</p> : !items.length && !error ? <div className="rounded-3xl bg-white p-8 text-center"><p>Bạn chưa lưu thiết kế nào.</p><Link href="/customizer" className={`${button} mt-4 inline-block`}>Thiết kế vòng tay đầu tiên</Link></div> : null}
       {error && <button className={button} disabled={loading} onClick={() => refresh(nextCursor ?? undefined)}>Tải lại</button>}
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

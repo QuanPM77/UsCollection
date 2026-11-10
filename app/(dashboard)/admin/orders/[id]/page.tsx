@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
+import ProductImage from '@/components/ProductImage';
 import { ArrowLeft, User, MapPin, Phone, Mail, Calendar, Hash, CreditCard } from 'lucide-react';
 import { StatusBadge } from '@/components/admin/ui/StatusBadge';
 import { ConfirmDialog } from '@/components/admin/ui/ConfirmDialog';
@@ -26,6 +27,10 @@ const ORDER_STATUS_VARIANT: Record<string, 'success' | 'warning' | 'error' | 'in
   shipping: 'info',
   completed: 'success',
   cancelled: 'error',
+};
+
+const ORDER_ACTION_LABELS: Partial<Record<OrderStatus, string>> = {
+  confirmed: 'Xác nhận đơn hàng', processing: 'Bắt đầu xử lý', shipping: 'Bàn giao vận chuyển', completed: 'Xác nhận đã giao hàng',
 };
 
 const PAYMENT_STATUS_VARIANT: Record<string, 'success' | 'warning' | 'error'> = {
@@ -114,11 +119,6 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   const validTransitions = orderService.getValidTransitions(order.orderStatus).filter((status) => status !== 'cancelled');
   const canCancel = order.paymentStatus !== 'paid' && !['completed', 'cancelled'].includes(order.orderStatus);
-  const costedItems = (order.items ?? []).filter((item) => item.unitCost !== null);
-  const costedRevenue = costedItems.reduce((sum, item) => sum + item.lineTotal, 0);
-  const costTotal = costedItems.reduce((sum, item) => sum + item.unitCost! * item.quantity, 0);
-  const grossProfit = costedRevenue - costTotal;
-
   // Summarize bead configuration
   const beadSummary: { beadId: string; bead: OrderBeadSnapshot | undefined; count: number }[] = [];
   const beadCounts: Record<string, number> = {};
@@ -187,16 +187,6 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             )}
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h3 className="font-semibold text-gray-900 mb-4">Giá vốn và lợi nhuận gộp</h3>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <InfoRow icon={CreditCard} label="Giá vốn đã đối chiếu" value={formatCurrency(costTotal)} />
-              <InfoRow icon={CreditCard} label="Lợi nhuận gộp" value={formatCurrency(grossProfit)} valueClassName="text-lg font-bold text-emerald-700" />
-              <InfoRow icon={CreditCard} label="Độ phủ giá vốn" value={`${order.totalPrice ? Math.min(100, costedRevenue / order.totalPrice * 100).toFixed(0) : 0}%`} />
-            </div>
-            {costedItems.length < (order.items?.length ?? 0) && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">Một số sản phẩm chưa có giá vốn tại thời điểm mua; lợi nhuận đang được tính trên phần đã đối chiếu.</p>}
-          </div>
-
           {/* Product or 3D design details */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <h3 className="font-semibold text-gray-900 mb-4">{order.orderType === 'catalog_product' ? 'Chi tiết sản phẩm có sẵn' : 'Chi tiết thiết kế 3D'}</h3>
@@ -219,8 +209,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <h4 className="text-sm font-medium text-gray-700 mb-3">Sản phẩm trong đơn</h4>
             <div className="space-y-2">
               {order.items?.map((item, index) => (
-                <div key={`${item.productName}-${index}`} className="flex items-center justify-between rounded-lg border border-gray-100 p-3">
-                  <span className="text-sm font-medium text-gray-900">{item.productName}{item.sku ? <span className="ml-1 text-xs text-gray-500">({item.sku})</span> : null} × {item.quantity}<span className="block text-xs font-normal text-gray-500">Đơn giá: {formatCurrency(item.unitPrice)}</span></span>
+                <div key={`${item.productName}-${index}`} className="flex flex-wrap items-center gap-3 rounded-lg border border-gray-100 p-3">
+                  {item.productType === "bracelet" && <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-gray-50">{item.imageUrl ? <ProductImage src={item.imageUrl} alt={item.productName} sizes="96px" /> : <span className="flex h-full items-center justify-center p-2 text-center text-xs text-gray-400">Chưa có ảnh</span>}</div>}
+                  <span className="min-w-0 flex-1 text-sm font-medium text-gray-900">{item.productName}{item.sku ? <span className="ml-1 text-xs text-gray-500">({item.sku})</span> : null} × {item.quantity}<span className="block text-xs font-normal text-gray-500">Đơn giá: {formatCurrency(item.unitPrice)}</span></span>
                   <span className="text-right text-sm text-gray-600">{formatCurrency(item.lineTotal)}<span className="mt-1 block text-xs">Giá vốn: {item.unitCost === null ? 'Chưa nhập' : formatCurrency(item.unitCost * item.quantity)}</span></span>
                 </div>
               ))}
@@ -305,15 +296,16 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
             {(validTransitions.length > 0 || canCancel) && (
               <div>
-                <p className="text-xs text-gray-500 mb-2">Chuyển sang</p>
-                <div className="flex flex-wrap gap-2">
+                <p className="text-xs text-gray-500 mb-2">Thao tác đơn hàng</p>
+                <div className="flex flex-col gap-2">
                   {validTransitions.map((status) => (
                     <button
                       key={status}
                       onClick={() => setStatusDialog({ open: true, status })}
-                      className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+                      type="button"
+                      className="min-h-12 w-full rounded-xl bg-rose-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-rose-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600"
                     >
-                      {ORDER_STATUS_LABELS[status]}
+                      {ORDER_ACTION_LABELS[status] ?? ORDER_STATUS_LABELS[status]}
                     </button>
                   ))}
                   {canCancel && (
@@ -329,7 +321,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             )}
 
             {order.paymentStatus === 'paid' && !['completed', 'cancelled'].includes(order.orderStatus) && (
-              <p className="text-sm text-amber-700">
+              <p className="mt-3 text-sm text-amber-700">
                 Đơn đã thanh toán. Hệ thống chưa hỗ trợ hoàn tiền nên không thể hủy đơn; hãy tiếp tục xử lý đơn hàng.
               </p>
             )}
@@ -355,7 +347,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         open={statusDialog.open}
         title="Cập nhật trạng thái"
         message={`Chuyển trạng thái đơn hàng sang "${statusDialog.status ? ORDER_STATUS_LABELS[statusDialog.status] : ''}"?`}
-        confirmText="Cập nhật"
+        confirmText={statusDialog.status ? ORDER_ACTION_LABELS[statusDialog.status] ?? "Cập nhật" : "Cập nhật"}
         onConfirm={handleStatusChange}
         onCancel={() => setStatusDialog({ open: false, status: null })}
       />

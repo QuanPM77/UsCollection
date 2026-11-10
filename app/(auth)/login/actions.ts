@@ -1,5 +1,6 @@
 "use server";
 
+import { rememberCheckout } from "@/lib/checkout-return";
 import { AuthError, CredentialsSignin } from "next-auth";
 import { signIn } from "@/auth";
 import { prisma } from "@/lib/prisma";
@@ -24,6 +25,7 @@ export async function loginWithPassword(phone: string, password: string, callbac
   });
   if (!user || user.status !== "active") return { ok: false, error: "SessionUnavailable" };
   const destination = authDestination(user);
+  if (user.role === "customer") await rememberCheckout(destination !== "/" ? callbackUrl : undefined);
   if (user.role === "customer" && destination !== "/") return { ok: true, destination };
   return { ok: true, destination: safeCallbackUrl(callbackUrl) ?? destination };
 }

@@ -25,6 +25,7 @@ const admin = { role: "admin", status: "active", phone: "0912345678", email: nul
 function loginSetup(failure, user = admin) {
   let verified = false;
   const action = load("app/(auth)/login/actions.ts", {
+    "@/lib/checkout-return": { rememberCheckout: async () => {} },
     "next-auth": { AuthError, CredentialsSignin },
     "@/auth": { signIn: async (provider, options) => {
       assert.equal(provider, "credentials");

@@ -1,4 +1,5 @@
 "use server";
+import { safeCallbackUrl } from "@/lib/auth-destination";
 import bcrypt from "bcryptjs";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -35,5 +36,6 @@ export async function registerUser(_: FormState, fd: FormData): Promise<FormStat
     throw e;
   }
   await clearLimit(perIp);
-  redirect(`/login?registered=1&phone=${encodeURIComponent(phone)}`);
+  const callbackUrl = safeCallbackUrl(fd.get("callbackUrl"));
+  redirect(`/login?registered=1&phone=${encodeURIComponent(phone)}${callbackUrl ? `&callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`);
 }

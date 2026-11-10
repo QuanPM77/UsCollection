@@ -20,7 +20,7 @@ export function PurchaseLink({ href, disabled = false, className, children }: {
           event.preventDefault();
         } else if (!isAuthenticated) {
           event.preventDefault();
-          requestLogin();
+          requestLogin(href);
         }
       }}
     >

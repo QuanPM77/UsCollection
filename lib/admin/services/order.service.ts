@@ -52,6 +52,7 @@ export const orderService = {
     await request(`/api/admin/orders/${encodeURIComponent(id)}`, {
       method: 'PATCH', body: JSON.stringify({ orderStatus: newStatus }),
     });
+    window.dispatchEvent(new Event('admin-orders-updated'));
     return { ...current, orderStatus: newStatus, updatedAt: new Date().toISOString() };
   },
 
@@ -60,6 +61,7 @@ export const orderService = {
     await request(`/api/admin/orders/${encodeURIComponent(id)}`, {
       method: 'PATCH', body: JSON.stringify({ inventoryReviewRequired: false }),
     });
+    window.dispatchEvent(new Event('admin-orders-updated'));
     return this.getById(id);
   },
   getValidTransitions(currentStatus: OrderStatus) { return VALID_ORDER_TRANSITIONS[currentStatus] ?? []; },

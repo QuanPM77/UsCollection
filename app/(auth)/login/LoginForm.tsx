@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, LockKeyhole, Phone } from "lucide-react";
 import { Notice } from "@/components/AuthShell";
 import { Capacitor } from "@capacitor/core";
+import { rememberCheckout } from "@/lib/checkout-return";
 import { loginWithPassword } from "./actions";
 
 const inputClass = "min-h-12 w-full rounded-2xl border border-rose-900/15 bg-white/30 py-3 pl-12 text-base text-rose-950 outline-none transition placeholder:text-rose-950/70 focus:border-rose-600 focus:ring-1 focus:ring-rose-600";
@@ -19,8 +20,10 @@ export default function LoginForm({ callbackUrl, initialPhone, googleEnabled, go
   const [showPassword, setShowPassword] = useState(false);
   const inFlight = useRef(false);
 
+  const afterGoogleLogin = callbackUrl?.startsWith("/checkout") ? "/post-login" : callbackUrl ?? "/post-login";
+
   function navigateAfterLogin() {
-    router.replace(callbackUrl ?? "/post-login");
+    router.replace(afterGoogleLogin);
     // Update the shared layout's login prompt and chat after authentication.
     router.refresh();
   }
@@ -65,6 +68,7 @@ export default function LoginForm({ callbackUrl, initialPhone, googleEnabled, go
     setLoading(true);
     setError("");
     try {
+      await rememberCheckout(callbackUrl);
       if (Capacitor.isNativePlatform()) {
         const { SocialLogin } = await import("@capgo/capacitor-social-login");
         if (!googleClientId) throw new Error("Thiếu cấu hình Google OAuth cho ứng dụng Android.");
@@ -82,7 +86,7 @@ export default function LoginForm({ callbackUrl, initialPhone, googleEnabled, go
         return;
       }
 
-      await signIn("google", { redirectTo: callbackUrl ?? "/post-login" });
+      await signIn("google", { redirectTo: afterGoogleLogin });
       leaving = true;
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Đăng nhập Google chưa hoàn tất. Vui lòng thử lại.";
@@ -121,7 +125,7 @@ export default function LoginForm({ callbackUrl, initialPhone, googleEnabled, go
         <button type="submit" disabled={loading} className={`min-h-12 w-full rounded-2xl bg-[#b9385b] px-4 py-3 font-semibold text-white transition hover:bg-rose-800 disabled:opacity-60 ${focusClass}`}>{loading ? "Đang đăng nhập..." : "Đăng nhập"}</button>
       </form>
       <p className="mt-4 text-center text-sm">
-        Chưa có tài khoản? <Link href="/register" className="font-semibold text-rose-700 hover:underline">Đăng ký</Link>
+        Chưa có tài khoản? <Link href={callbackUrl ? `/register?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/register"} className="font-semibold text-rose-700 hover:underline">Đăng ký</Link>
       </p>
       {googleEnabled && (
         <>

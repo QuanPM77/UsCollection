@@ -9,6 +9,7 @@ import { useLoginPrompt } from "@/components/LoginPromptProvider";
 
 export default function BraceletControls() {
   const { isAuthenticated, requestLogin } = useLoginPrompt();
+  const [clearedDesign, setClearedDesign] = useState<{ slots: ReturnType<typeof useBraceletStore.getState>["slots"]; wrist: number } | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -17,6 +18,7 @@ export default function BraceletControls() {
 
   const {
     clearAll,
+    wristCircumference,
     fillAll,
     removeBead,
     toggleAutoRotate,
@@ -28,6 +30,11 @@ export default function BraceletControls() {
     beadCatalog,
   } = useBraceletStore();
 
+  useEffect(() => {
+    if (slots.length > 0 || (clearedDesign && clearedDesign.wrist !== wristCircumference)) setClearedDesign(null);
+  }, [slots, wristCircumference, clearedDesign]);
+
+  const canUndo = mounted && clearedDesign && slots.length === 0 && clearedDesign.wrist === wristCircumference;
   const total = mounted ? totalPrice() : 0;
   const filled = mounted ? filledCount() : 0;
 
@@ -102,7 +109,11 @@ export default function BraceletControls() {
             Phối đầy vòng
           </button>
           <button
-            onClick={clearAll}
+            disabled={filled === 0}
+            onClick={() => {
+              setClearedDesign({ slots: slots.map(slot => ({ ...slot })), wrist: wristCircumference });
+              clearAll();
+            }}
             className="py-2 px-3 rounded-xl text-xs font-medium bg-white/80 text-pink-text
               border border-pink-mid/40 hover:bg-pink-light transition-all"
           >
@@ -110,6 +121,13 @@ export default function BraceletControls() {
           </button>
         </div>
 
+        {canUndo && <div role="status" className="flex items-center justify-between gap-2 rounded-xl bg-white p-3 text-xs">
+          <span>Đã xóa các hạt trên vòng.</span>
+          <button type="button" className="font-semibold text-pink-deep underline" onClick={() => {
+            useBraceletStore.setState({ slots: clearedDesign.slots });
+            setClearedDesign(null);
+          }}>Hoàn tác</button>
+        </div>}
         <button
           onClick={toggleAutoRotate}
           className={`py-2 px-3 rounded-xl text-xs font-medium transition-all
@@ -137,7 +155,7 @@ export default function BraceletControls() {
           if (filled === 0) e.preventDefault();
           else if (!isAuthenticated) {
             e.preventDefault();
-            requestLogin();
+            requestLogin("/checkout");
           }
         }}
       >

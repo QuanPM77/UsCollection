@@ -17,6 +17,7 @@ function setup(signIn, native = false) {
   let refreshes = 0;
   const jsx = (type, props) => ({ type, props });
   const dependencies = {
+    "@/lib/checkout-return": { rememberCheckout: async () => {} },
     react: {
       useState(initial) {
         const index = stateIndex++;

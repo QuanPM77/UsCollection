@@ -59,5 +59,5 @@ export async function completeProfile(formData: FormData) {
     });
   });
   if (!existing.email || !existing.emailVerifiedAt) redirect("/verify-required");
-  redirect("/");
+  redirect("/post-login");
 }
