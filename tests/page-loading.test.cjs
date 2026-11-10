@@ -33,14 +33,18 @@ test("transaction history reads only the requested page for the authenticated us
     "next/link": {}, "@/components/SiteHeader": {},
     "@/lib/guard": { requireRole: async role => { assert.equal(role, "customer"); return { user: { id: "customer-a" } }; } },
     "@/lib/pagination": pagination,
+    "@/lib/transaction-filters": load("lib/transaction-filters.ts", {}, { URLSearchParams }),
     "@/lib/prisma": { prisma: { order: {
       findMany: async query => { listQuery = query; return []; },
       count: async query => { countQuery = query; return 45; },
     } } },
   });
-  await page.default({ searchParams: Promise.resolve({ page: "2" }) });
+  await page.default({ searchParams: Promise.resolve({ page: "2", search: "Vòng hồng", dateFrom: "2026-11-01" }) });
   assert.equal(listQuery.where.user_id, "customer-a");
   assert.equal(countQuery.where.user_id, "customer-a");
+  assert.equal(listQuery.where, countQuery.where);
+  assert.equal(listQuery.where.OR[0].order_items.some.product_name.contains, "Vòng hồng");
+  assert.equal(listQuery.where.createdAt.gte.toISOString(), "2026-10-31T17:00:00.000Z");
   assert.equal(listQuery.take, 20);
   assert.equal(listQuery.skip, 20);
   assert.equal(listQuery.select.order_items.select.product_name, true);
