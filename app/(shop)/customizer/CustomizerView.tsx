@@ -24,7 +24,7 @@ export default function CustomizerView() {
           <BraceletCanvas />
           <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 sm:bottom-4">
             <span className="whitespace-nowrap rounded-full bg-white/50 px-3 py-1.5 text-[10px] text-pink-text/50 backdrop-blur-sm sm:text-xs">
-              Kéo để xoay • Scroll để zoom • Click hạt để đặt
+              Kéo để xoay • Chọn hạt ở bảng bên dưới
             </span>
           </div>
         </div>

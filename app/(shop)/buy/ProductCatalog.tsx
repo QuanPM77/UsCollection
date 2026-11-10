@@ -21,6 +21,7 @@ const currency = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "
 const inputClass = "w-full rounded-xl border border-pink-mid/40 bg-white px-3 py-2.5 text-sm text-pink-text outline-none focus:border-pink-deep focus:ring-2 focus:ring-pink-mid/25";
 
 export default function ProductCatalog({ products }: { products: CatalogProduct[] }) {
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
@@ -49,7 +50,8 @@ export default function ProductCatalog({ products }: { products: CatalogProduct[
   }
 
   return <div className="mt-8 grid items-start gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
-    <aside className="rounded-3xl border border-pink-mid/25 bg-white/90 p-5 shadow-sm">
+    <button type="button" aria-expanded={filtersOpen} aria-controls="style-filters catalog-filters" onClick={() => setFiltersOpen(!filtersOpen)} className="rounded-xl border border-pink-mid/40 bg-white px-4 py-3 text-sm font-semibold text-pink-text lg:hidden">{filtersOpen ? "Đóng bộ lọc" : "Bộ lọc và sắp xếp"}{selectedStyles.length > 0 ? ` (${selectedStyles.length})` : ""}</button>
+    <aside id="style-filters" className={`${filtersOpen ? "block" : "hidden"} lg:block rounded-3xl border border-pink-mid/25 bg-white/90 p-5 shadow-sm`}>
       <fieldset>
         <legend className="text-sm font-bold text-pink-text">Lọc theo phong cách</legend>
         <p className="mt-1 text-xs text-pink-text/55">Có thể chọn nhiều phong cách</p>
@@ -63,7 +65,7 @@ export default function ProductCatalog({ products }: { products: CatalogProduct[
     </aside>
 
     <section className="min-w-0">
-      <div className="rounded-3xl border border-pink-mid/25 bg-white/90 p-5 shadow-sm sm:p-6">
+      <div id="catalog-filters" className={`${filtersOpen ? "block" : "hidden"} lg:block rounded-3xl border border-pink-mid/25 bg-white/90 p-5 shadow-sm sm:p-6`}>
         <div className="grid gap-4 md:grid-cols-[minmax(0,1.3fr)_minmax(220px,0.9fr)]">
           <label className="text-xs font-semibold text-pink-text">Tìm theo tên
             <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nhập tên hoặc một phần tên sản phẩm..." className={`${inputClass} mt-1.5`} />

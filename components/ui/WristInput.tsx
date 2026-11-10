@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useBraceletStore } from "@/lib/store";
 
-import { calculateRadiusFromBeads } from "@/lib/braceletMath";
+
 
 export default function WristInput() {
   const { wristCircumference, setWristCircumference, slots, beadCatalog } = useBraceletStore();
@@ -79,6 +79,7 @@ export default function WristInput() {
       {/* Custom input */}
       <div className="flex items-center gap-2 bg-white/70 rounded-xl px-3 py-1.5 border border-pink-mid/40">
         <input
+          aria-label="Chu vi cổ tay tính bằng milimét"
           type="number"
           value={inputValue}
           onChange={handleChange}
@@ -95,13 +96,7 @@ export default function WristInput() {
       {/* Info */}
       <div className="flex justify-between text-xs text-pink-text/60">
         <span>
-          R = {
-            (
-              slots.length > 0
-                ? calculateRadiusFromBeads(slots.map((s) => beadCatalog.find((item) => item.id === s.beadTypeId)?.diameter ?? 8), wristCircumference)
-                : wristCircumference / (2 * Math.PI * 10)
-            ).toFixed(2)
-          } u
+          Cổ tay: {wristCircumference / 10} cm
         </span>
         <span>
           {beadCount} hạt ({actualLength}mm / {wristCircumference}mm)

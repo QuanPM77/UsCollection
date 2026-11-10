@@ -55,7 +55,7 @@ export default function BraceletControls() {
         <div className="bg-white/60 rounded-xl p-2.5 border border-pink-mid/30 flex flex-col gap-2 max-h-32 overflow-y-auto">
           <div className="text-xs font-semibold text-pink-text mb-1 flex justify-between items-center">
             <span>Danh sách hạt ({slots.length})</span>
-            <span className="text-[10px] text-pink-text/50 font-normal">Click ✕ để xóa hạt</span>
+            <span className="text-[10px] text-pink-text/50 font-normal">Chạm ✕ để xóa hạt</span>
           </div>
           <div className="flex flex-col gap-1.5">
             {slots.map((slot, idx) => {
@@ -99,7 +99,7 @@ export default function BraceletControls() {
             className="py-2 px-3 rounded-xl text-xs font-medium bg-pink-blush text-pink-text
               hover:bg-pink-mid transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Điền tất cả
+            Phối đầy vòng
           </button>
           <button
             onClick={clearAll}
@@ -145,7 +145,7 @@ export default function BraceletControls() {
       </Link>
 
       <p className="text-center text-[10px] text-pink-text/40">
-        Draft được lưu tự động
+        Bản nháp được lưu tự động trên thiết bị này
       </p>
     </div>
   );

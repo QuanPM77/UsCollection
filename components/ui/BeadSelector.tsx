@@ -24,7 +24,7 @@ export default function BeadSelector() {
 
       {/* Hint */}
       <p className="text-xs text-pink-text/60">
-        Kéo hạt thả vào vòng hoặc click để xâu • Click lên dây để xâu hạt đang chọn • Chuột phải để xóa
+        Chạm vào loại hạt để thêm vào vòng. Muốn phối nhanh một màu, chọn hạt rồi bấm “Phối đầy vòng”. Xóa từng hạt bằng nút ✕ trong danh sách.
       </p>
 
       {/* Grid of bead cards */}

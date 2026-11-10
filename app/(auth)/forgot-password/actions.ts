@@ -24,7 +24,8 @@ export async function requestReset(_: FormState, fd: FormData): Promise<FormStat
     recordProgressiveFailure(perIp, 3),
   ]);
 
-  if (!user || user.googleId) return { error: "Tài khoản này chưa được đăng ký." };
+  if (!user) return { error: "Tài khoản này chưa được đăng ký." };
+  if (user.googleId) return { error: "Tài khoản này dùng Google. Vui lòng quay lại đăng nhập và chọn “Đăng nhập bằng Google”." };
   if (user && !user.googleId && user.status === "active") {
     const token = newToken();
     await prisma.$transaction([

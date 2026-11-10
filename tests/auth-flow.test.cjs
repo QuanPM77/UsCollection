@@ -264,7 +264,7 @@ test("password reset rejects expired, replayed and newly locked account requests
   }
 });
 
-test("forgot password reports Google and missing accounts as unregistered without sending mail", async () => {
+test("forgot password explains Google sign-in and rejects missing accounts without sending mail", async () => {
   for (const user of [null, { id: "google-id", googleId: "google-sub", status: "active" }]) {
     const action = load("app/(auth)/forgot-password/actions.ts", {
       "next/headers": { headers: async () => new Headers() },
@@ -277,7 +277,7 @@ test("forgot password reports Google and missing accounts as unregistered withou
     });
     const form = new FormData();
     form.set("email", "google@example.com");
-    assert.equal((await action.requestReset({}, form)).error, "Tài khoản này chưa được đăng ký.");
+    assert.equal((await action.requestReset({}, form)).error, user ? "Tài khoản này dùng Google. Vui lòng quay lại đăng nhập và chọn “Đăng nhập bằng Google”." : "Tài khoản này chưa được đăng ký.");
   }
 });
 
@@ -362,7 +362,7 @@ test("forgot password overlaps independent DB calls and keeps rate limiting ahea
     assert.equal(queried, !blocked);
     assert.equal(records.length, blocked ? 0 : 2);
     records.forEach(resolve => resolve());
-    assert.equal((await result).error, blocked ? "Thử lại sau" : "Tài khoản này chưa được đăng ký.");
+    assert.equal((await result).error, blocked ? "Thử lại sau" : "Tài khoản này dùng Google. Vui lòng quay lại đăng nhập và chọn “Đăng nhập bằng Google”.");
   }
 });
 

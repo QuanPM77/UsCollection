@@ -21,14 +21,13 @@ export default function CustomizerPanel() {
           Thiết kế vòng tay
         </h2>
         <p className="text-xs text-pink-text/60 mt-0.5">
-          Kéo để xoay • Click hạt để đặt
+          1. Chọn cỡ cổ tay → 2. Chọn hạt → 3. Kiểm tra và đặt hàng
         </p>
       </div>
 
       <hr className="border-pink-mid/30" />
 
       {/* Wrist size */}
-      <SavedDesigns />
       <WristInput />
 
       <hr className="border-pink-mid/30" />
@@ -40,6 +39,7 @@ export default function CustomizerPanel() {
 
       {/* Controls + checkout */}
       <BraceletControls />
+      <SavedDesigns />
     </div>
   );
 }

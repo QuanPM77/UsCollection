@@ -31,7 +31,7 @@ const FEATURES = [
   {
     icon: "✦",
     title: "Thanh toán PayOS tiện lợi",
-    desc: "Quét QR thanh toán nhanh chóng, không cần tài khoản, giao hàng tận nơi",
+    desc: "Thanh toán nhanh bằng mã QR qua ứng dụng ngân hàng",
   },
 ];
 
