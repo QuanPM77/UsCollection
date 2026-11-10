@@ -83,7 +83,7 @@ export function ConfirmDialog({
               <X className="w-4 h-4 text-gray-400" />
             </button>
           </div>
-          <div className="flex flex-wrap justify-end gap-3 p-4">
+          <div className="flex flex-wrap justify-center gap-3 p-4">
             <button
               type="button"
               onClick={onCancel}
