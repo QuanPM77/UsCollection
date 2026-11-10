@@ -12,16 +12,24 @@ function load(file, deps) {
 }
 test('notification badge counts all actionable orders independently of the ten-item preview', async () => {
   let countQuery;
+  let stockQuery;
+  let stockCount = 15;
   const { GET } = load('app/api/admin/notifications/route.ts', {
     'next/server': { NextResponse }, '@/auth': { auth: async () => ({ user: { id: 'admin', role: 'admin' } }) },
     '@/lib/prisma': { prisma: {
       store_settings: { findUnique: async () => null },
-      products: { findMany: async () => Array.from({ length: 10 }, (_, i) => ({ id: String(i), name: 'Bead', type: 'bead', stock: 0, updated_at: new Date() })) },
+      products: { count: async query => { stockQuery = query; return stockCount; }, findMany: async () => Array.from({ length: 10 }, (_, i) => ({ id: String(i), name: 'Bead', type: 'bead', stock: 0, updated_at: new Date() })) },
       order: { findMany: async () => [], count: async query => { countQuery = query; return 27; } },
     } },
   });
   const response = await GET(); const result = await response.json();
   assert.equal(result.pendingOrderCount, 27);
+  assert.equal(result.lowStockCount, 15);
+  assert.equal(result.totalCount, 42);
+  assert.equal(stockQuery.where.status, "active");
+  assert.equal(stockQuery.where.stock.lte, 5);
+  stockCount = 0;
+  assert.equal((await (await GET()).json()).totalCount, 27);
   assert.equal(result.notifications.length, 10);
   assert.equal(countQuery.where.paymentStatus, 'paid');
   assert.equal(JSON.stringify(countQuery.where.order_status.notIn), JSON.stringify(['completed', 'cancelled']));

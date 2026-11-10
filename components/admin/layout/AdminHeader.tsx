@@ -69,6 +69,8 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
   const pageTitle = PAGE_TITLES[pathname] || breadcrumbs[breadcrumbs.length - 1]?.label || '';
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [pendingOrderCount, setPendingOrderCount] = useState(0);
+  const [lowStockCount, setLowStockCount] = useState(0);
+  const totalCount = pendingOrderCount + lowStockCount;
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [open, setOpen] = useState(false);
   const [toast, setToast] = useState<AdminNotification | null>(null);
@@ -82,9 +84,10 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
       try {
         const response = await fetch('/api/admin/notifications', { cache: 'no-store', signal });
         if (!response.ok) return;
-        const result = await response.json() as { notifications: AdminNotification[]; pendingOrderCount: number };
+        const result = await response.json() as { notifications: AdminNotification[]; pendingOrderCount: number; lowStockCount: number };
         if (!active) return;
         setPendingOrderCount(result.pendingOrderCount ?? 0);
+        setLowStockCount(result.lowStockCount ?? 0);
         const next = result.notifications.slice(0, 10);
         if (initialized.current) {
           const fresh = next.filter((item) => !knownIds.current.has(item.id));
@@ -148,13 +151,14 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
 
       <div className="relative flex items-center gap-2">
         {toast && <Link href={toast.href} onClick={() => { setToast(null); }} className="absolute right-12 top-1/2 z-50 w-72 -translate-y-1/2 rounded-xl border border-pink-200 bg-white p-3 shadow-lg" role="status"><span className="block text-sm font-semibold text-gray-900">{toast.title}</span><span className="mt-1 block truncate text-xs text-gray-600">{toast.message}</span></Link>}
-        <button onClick={openNotifications} className="rounded-lg p-2 transition-colors hover:bg-pink-50 relative" aria-label={`Thông báo, ${pendingOrderCount} đơn hàng cần xử lý`} aria-expanded={open}>
+        <button onClick={openNotifications} className="rounded-lg p-2 transition-colors hover:bg-pink-50 relative" aria-label={`Thông báo, ${totalCount} mục cần xử lý: ${pendingOrderCount} đơn hàng, ${lowStockCount} sản phẩm sắp hết hoặc hết hàng`} aria-expanded={open}>
           <Bell className="w-5 h-5 text-gray-500" />
-          {pendingOrderCount > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">{pendingOrderCount > 99 ? '99+' : pendingOrderCount}</span>}
+          {totalCount > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">{totalCount > 99 ? '99+' : totalCount}</span>}
         </button>
         {open && <div className="absolute right-0 top-12 z-40 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
           <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3"><p className="font-semibold text-gray-900">Thông báo</p><span className="text-xs text-gray-500">Tối đa 10 thông báo</span></div>
           <Link href="/admin/orders?orderStatus=new&paymentStatus=paid" onClick={() => setOpen(false)} className="block border-b border-gray-100 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{pendingOrderCount} đơn cần xử lý · Xem đơn mới</Link>
+          {lowStockCount > 0 && <p className="border-b border-gray-100 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">{lowStockCount} sản phẩm sắp hết hoặc hết hàng</p>}
           <div className="max-h-96 overflow-y-auto">{notifications.length ? notifications.map((item) => <Link key={item.id} href={item.href} onClick={() => { setOpen(false); }} className="block border-b border-gray-50 px-4 py-3 hover:bg-pink-50"><span className="flex items-center gap-2 text-sm font-semibold text-gray-900"><span className={`h-2 w-2 rounded-full ${item.type === 'stock' ? 'bg-amber-500' : 'bg-rose-500'}`} />{item.title}</span><span className="mt-1 block pl-4 text-xs text-gray-600">{item.message}</span></Link>) : <p className="px-4 py-8 text-center text-sm text-gray-500">Không có thông báo cần xử lý.</p>}</div>
         </div>}
       </div>
