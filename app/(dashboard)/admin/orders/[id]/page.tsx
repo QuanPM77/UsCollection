@@ -13,7 +13,6 @@ import {
   AdminOrder,
   ORDER_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
-  PAYMENT_METHOD_LABELS,
   OrderStatus,
   OrderBeadSnapshot,
 } from '@/lib/admin/types/order';
@@ -171,7 +170,6 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <InfoRow icon={Hash} label="Mã đơn" value={order.orderCode} />
               <InfoRow icon={Calendar} label="Ngày tạo" value={formatDateTime(order.createdAt)} />
-              <InfoRow icon={CreditCard} label="Phương thức thanh toán" value={PAYMENT_METHOD_LABELS[order.paymentMethod]} />
               <InfoRow
                 icon={CreditCard}
                 label="Tổng tiền"
@@ -318,12 +316,6 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   )}
                 </div>
               </div>
-            )}
-
-            {order.paymentStatus === 'paid' && !['completed', 'cancelled'].includes(order.orderStatus) && (
-              <p className="mt-3 text-sm text-amber-700">
-                Đơn đã thanh toán. Hệ thống chưa hỗ trợ hoàn tiền nên không thể hủy đơn; hãy tiếp tục xử lý đơn hàng.
-              </p>
             )}
 
             {order.inventoryReviewRequired && (
