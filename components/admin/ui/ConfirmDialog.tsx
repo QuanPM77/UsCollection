@@ -19,7 +19,7 @@ export function ConfirmDialog({
   title,
   message,
   confirmText = 'Xác nhận',
-  cancelText = 'Hủy',
+  cancelText = 'Quay lại',
   variant = 'default',
   onConfirm,
   onCancel,
@@ -33,7 +33,7 @@ export function ConfirmDialog({
 
     if (open) {
       dialog.showModal();
-      // Focus cancel button by default for safety
+      // Focus the primary action when the dialog opens.
       setTimeout(() => confirmBtnRef.current?.focus(), 50);
     } else {
       dialog.close();
@@ -75,6 +75,7 @@ export function ConfirmDialog({
               </div>
             </div>
             <button
+              type="button"
               onClick={onCancel}
               className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
               aria-label="Đóng"
@@ -82,20 +83,22 @@ export function ConfirmDialog({
               <X className="w-4 h-4 text-gray-400" />
             </button>
           </div>
-          <div className="flex justify-end gap-3 p-4">
+          <div className="flex flex-wrap justify-end gap-3 p-4">
             <button
+              type="button"
               onClick={onCancel}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors admin-focus"
             >
               {cancelText}
             </button>
             <button
+              type="button"
               ref={confirmBtnRef}
               onClick={onConfirm}
-              className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors admin-focus ${
+              className={`min-h-11 px-5 py-2.5 text-sm font-semibold text-white rounded-lg shadow-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-600 ${
                 variant === 'danger'
-                  ? 'bg-red-500 hover:bg-red-600'
-                  : 'bg-brand-400 hover:bg-brand-500'
+                  ? 'bg-red-600 hover:bg-red-700'
+                  : 'bg-rose-600 hover:bg-rose-700'
               }`}
             >
               {confirmText}
