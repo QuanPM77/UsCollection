@@ -76,7 +76,11 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
   const [toast, setToast] = useState<AdminNotification | null>(null);
   const initialized = useRef(false);
   const knownIds = useRef(new Set<string>());
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 10_000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   useEffect(() => {
     let active = true;
@@ -94,8 +98,6 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
           const newest = fresh[0];
           if (newest) {
             setToast(newest);
-            if (toastTimer.current) clearTimeout(toastTimer.current);
-            toastTimer.current = setTimeout(() => setToast(null), 10_000);
           }
         }
         knownIds.current = new Set(next.map((item) => item.id));
@@ -104,7 +106,7 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
       } catch { /* Keep the header usable when notifications are temporarily unavailable. */ }
     };
     const stop = startVisiblePolling(load, 30_000);
-    return () => { active = false; stop(); if (toastTimer.current) clearTimeout(toastTimer.current); };
+    return () => { active = false; stop(); };
   }, [pathname, refreshVersion]);
 
   useEffect(() => {
@@ -150,7 +152,7 @@ export function AdminHeader({ onMenuToggle }: AdminHeaderProps) {
       </div>
 
       <div className="relative flex items-center gap-2">
-        {toast && <Link href={toast.href} onClick={() => { setToast(null); }} className="absolute right-12 top-1/2 z-50 w-72 -translate-y-1/2 rounded-xl border border-pink-200 bg-white p-3 shadow-lg" role="status"><span className="block text-sm font-semibold text-gray-900">{toast.title}</span><span className="mt-1 block truncate text-xs text-gray-600">{toast.message}</span></Link>}
+        {toast && <Link href={toast.href} onClick={() => { setToast(null); }} className="fixed right-4 top-20 z-50 w-[calc(100vw-2rem)] max-w-md rounded-2xl border border-pink-200 bg-white p-5 shadow-xl sm:right-6 sm:p-6" role="status"><span className="block text-lg font-bold leading-6 text-gray-900">{toast.title}</span><span className="mt-2 block max-h-40 overflow-y-auto break-words text-base leading-6 text-gray-600">{toast.message}</span></Link>}
         <button onClick={openNotifications} className="rounded-lg p-2 transition-colors hover:bg-pink-50 relative" aria-label={`Thông báo, ${totalCount} mục cần xử lý: ${pendingOrderCount} đơn hàng, ${lowStockCount} sản phẩm sắp hết hoặc hết hàng`} aria-expanded={open}>
           <Bell className="w-5 h-5 text-gray-500" />
           {totalCount > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">{totalCount > 99 ? '99+' : totalCount}</span>}

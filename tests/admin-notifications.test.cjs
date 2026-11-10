@@ -52,3 +52,46 @@ test('order details return product image and tolerate missing products on old or
   assert.equal(body.items[0].imageUrl, 'https://images.example/catalog/bracelet.webp');
   assert.equal(body.items[1].imageUrl, null);
 });
+
+test('toast expires after ten seconds even when notification polling restarts', async () => {
+  const states = [], refs = [], effects = [];
+  let cursor = 0, pathname = '/admin', poll, timerId = 0;
+  const timers = new Map();
+  const jsx = (type, props) => ({ type, props });
+  const react = {
+    useState(initial) { const i = cursor++; if (!(i in states)) states[i] = initial; return [states[i], value => { states[i] = typeof value === 'function' ? value(states[i]) : value; }]; },
+    useRef(initial) { const i = cursor++; return refs[i] ??= { current: initial }; },
+    useEffect(fn, deps) { const i = cursor++; const previous = effects[i]; if (!previous || deps.some((d, n) => d !== previous.deps[n])) { previous?.cleanup?.(); effects[i] = { deps, fn, pending: true }; } },
+  };
+  const deps = {
+    react, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'next/link': 'link',
+    'lucide-react': { Menu: 'menu', Bell: 'bell', ChevronRight: 'chevron' },
+    'next/navigation': { usePathname: () => pathname },
+    '@/lib/visible-polling': { startVisiblePolling: fn => { poll = fn; return () => {}; } },
+  };
+  let notifications = [];
+  const exports = {};
+  const code = ts.transpileModule(fs.readFileSync('components/admin/layout/AdminHeader.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
+  vm.runInNewContext(code, {
+    exports, require: name => deps[name],
+    fetch: async () => ({ ok: true, json: async () => ({ notifications, pendingOrderCount: 0, lowStockCount: 1 }) }),
+    window: { addEventListener() {}, removeEventListener() {} },
+    setTimeout: (fn, ms) => { const id = ++timerId; timers.set(id, { fn, ms }); return id; },
+    clearTimeout: id => timers.delete(id),
+  });
+  function render() { cursor = 0; const tree = exports.AdminHeader({ onMenuToggle() {} }); for (const effect of effects) if (effect?.pending) { effect.pending = false; effect.cleanup = effect.fn(); } return tree; }
+  function nodes(tree) { if (!tree || typeof tree !== 'object') return []; if (Array.isArray(tree)) return tree.flatMap(nodes); return [tree, ...nodes(tree.props?.children)]; }
+  render(); await poll(); render();
+  notifications = [{ id: 'stock:1', title: 'Sắp hết hàng', message: 'Vòng tay', href: '/admin/products' }];
+  await poll();
+  assert.ok(nodes(render()).some(n => n.props?.role === 'status'));
+  assert.equal(timers.size, 1);
+  const timer = [...timers.values()][0]; assert.equal(timer.ms, 10000);
+  pathname = '/admin/orders'; render();
+  assert.equal(timers.size, 1, 'navigation must not cancel the toast timer');
+  const bell = nodes(render()).find(n => n.type === 'button' && n.props['aria-label']?.startsWith('Thông báo'));
+  bell.props.onClick(); render();
+  assert.equal(timers.size, 1, 'opening the bell must not cancel the toast timer');
+  timer.fn();
+  assert.ok(!nodes(render()).some(n => n.props?.role === 'status'));
+});
