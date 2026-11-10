@@ -18,7 +18,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <AdminHeader onMenuToggle={() => setSidebarOpen(true)} />
         <main className="flex-1 overflow-y-auto admin-scrollbar">
-          <div className="p-4 lg:p-6 max-w-[1400px]">{children}</div>
+          <div className="w-full min-w-0 p-4 lg:p-6">{children}</div>
         </main>
       </div>
       <ToastContainer />
