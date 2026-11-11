@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { BeadMaterial } from "@/types";
+import BeadSwatch from "@/components/ui/BeadSwatch";
 
 type Bead = {
   id: string; name: string; description: string; price: number; costPrice: number | null; stock: number; status: "active" | "inactive" | "draft";
@@ -92,7 +93,7 @@ export default function BeadTypesPage() {
           {loading && <tr><td colSpan={8} className="p-10 text-center text-gray-500">Đang tải danh sách hạt...</td></tr>}
           {!loading && beads.length === 0 && <tr><td colSpan={8} className="p-10 text-center text-gray-500">Chưa có loại hạt nào.</td></tr>}
           {!loading && beads.map((bead) => <tr key={bead.id} className="border-t border-gray-100">
-            <td className="p-4"><div className="flex items-center gap-3"><span className="h-9 w-9 rounded-full border border-gray-200 shadow-inner" style={{ backgroundColor: bead.color, boxShadow: bead.emissive ? `0 0 12px ${bead.emissive}80` : undefined }} /><div><p className="font-semibold text-gray-900">{bead.name}</p><p className="text-xs text-gray-400">{bead.id}</p></div></div></td>
+            <td className="p-4"><div className="flex items-center gap-3"><BeadSwatch beadId={bead.id} color={bead.color} className="h-9 w-9 shrink-0 rounded-full border border-gray-200 shadow-inner" style={{ boxShadow: bead.emissive ? `0 0 12px ${bead.emissive}80` : undefined }} /><div><p className="font-semibold text-gray-900">{bead.name}</p><p className="text-xs text-gray-400">{bead.id}</p></div></div></td>
             <td className="p-4 text-gray-600">{materialLabels[bead.material]}</td>
             <td className="p-4 text-right font-semibold text-gray-900">{currency.format(bead.price)}</td>
             <td className="p-4 text-right text-gray-600">{bead.costPrice === null ? <span className="text-amber-700">Chưa nhập</span> : currency.format(bead.costPrice)}</td>
