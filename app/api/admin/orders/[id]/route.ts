@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { productImageDisplayUrl } from "@/lib/supabase-storage";
 import { PayOS } from "@payos/node";
+import { readBeadModel, type BeadModel } from "@/lib/bead-model";
 
 const transitions: Record<string, string[]> = {
   new: ["confirmed", "cancelled"],
@@ -29,7 +30,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   }) : [];
   const beadCatalog: Record<string, {
     id: string; name: string; material: string; color: string; emissive?: string;
-    metalness: number; roughness: number; price: number; diameter: number;
+    metalness: number; roughness: number; price: number; diameter: number; model?: BeadModel;
   }> = Object.fromEntries(beadProducts.map((product) => {
     const details = product.bead_product_details;
     return [product.sku, {
@@ -42,6 +43,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       roughness: details?.roughness ?? 0.5,
       price: product.price,
       diameter: details?.diameter ?? 8,
+      model: readBeadModel(details?.model_3d),
     }];
   }));
   for (const item of order.order_items) {
@@ -63,6 +65,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       ...(typeof snapshot?.metalness === "number" ? { metalness: snapshot.metalness } : {}),
       ...(typeof snapshot?.roughness === "number" ? { roughness: snapshot.roughness } : {}),
       ...(typeof snapshot?.diameter === "number" ? { diameter: snapshot.diameter } : {}),
+      model: readBeadModel(snapshot?.model),
     };
   }
   return NextResponse.json({

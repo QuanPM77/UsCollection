@@ -11,6 +11,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { readBeadModel } from "@/lib/bead-model";
+import { resolveModelVersions } from "@/lib/model-versions";
 import { auth } from "@/auth";
 import { PayOS } from "@payos/node";
 import { randomInt } from "node:crypto";
@@ -201,11 +203,13 @@ export async function POST(req: NextRequest) {
         select: {
           id: true, sku: true, name: true, price: true, cost_price: true,
           bead_product_details: {
-            select: { material: true, color: true, emissive_color: true, metalness: true, roughness: true, diameter: true },
+            select: { material: true, color: true, emissive_color: true, metalness: true, roughness: true, diameter: true, model_3d: true },
           },
         },
       });
       const beadBySku = new Map(catalogBeads.map((bead) => [bead.sku, bead]));
+      const modelVersions = await resolveModelVersions(catalogBeads, braceletConfig.modelVersions);
+      for (const bead of catalogBeads) if (bead.bead_product_details && modelVersions.has(bead.sku)) bead.bead_product_details.model_3d = JSON.parse(JSON.stringify(modelVersions.get(bead.sku)));
       const selectedBeads = selectedIds.map((sku) => beadBySku.get(sku)).filter((bead) => bead !== undefined);
       if (selectedBeads.length !== selectedIds.length) {
         return NextResponse.json({ success: false, message: "Một hoặc nhiều loại hạt không còn được bán. Vui lòng cập nhật thiết kế." }, { status: 409 });
@@ -213,7 +217,7 @@ export async function POST(req: NextRequest) {
       if (selectedBeads.some((bead) => bead.cost_price === null)) {
         return NextResponse.json({ success: false, message: "Một hoặc nhiều loại hạt chưa được cập nhật giá vốn. Vui lòng liên hệ cửa hàng để hoàn tất đơn hàng." }, { status: 409 });
       }
-      const braceletLength = selectedBeads.reduce((sum, bead) => sum + (bead.bead_product_details?.diameter ?? 8), 0);
+      const braceletLength = selectedBeads.reduce((sum, bead) => sum + (readBeadModel(bead.bead_product_details?.model_3d)?.spacingMm ?? bead.bead_product_details?.diameter ?? 8), 0);
       if (braceletLength > braceletConfig.wristCircumference + 2) {
         return NextResponse.json({ success: false, message: "Tổng kích thước hạt vượt quá chu vi cổ tay đã chọn. Vui lòng điều chỉnh kích thước hoặc thiết kế." }, { status: 400 });
       }
@@ -241,9 +245,10 @@ export async function POST(req: NextRequest) {
           const lockedBeads = await tx.products.findMany({
             where: { id: { in: productIds } },
             select: { id: true, sku: true, name: true, type: true, status: true, stock: true, price: true, cost_price: true,
-              bead_product_details: { select: { material: true, color: true, emissive_color: true, metalness: true, roughness: true, diameter: true } } },
+              bead_product_details: { select: { material: true, color: true, emissive_color: true, metalness: true, roughness: true, diameter: true, model_3d: true } } },
           });
           const lockedBySku = new Map(lockedBeads.map((bead) => [bead.sku, bead]));
+          for (const bead of lockedBeads) if (bead.bead_product_details && modelVersions.has(bead.sku)) bead.bead_product_details.model_3d = JSON.parse(JSON.stringify(modelVersions.get(bead.sku)));
           if (lockedBeads.length !== productIds.length || selectedIds.some((sku) => {
             const bead = lockedBySku.get(sku);
             return !bead || bead.type !== "bead" || bead.status !== "active" || !bead.bead_product_details;
@@ -263,7 +268,7 @@ export async function POST(req: NextRequest) {
             if (available < quantity) throw new ProductStockUnavailableError(`Hạt “${bead.name}” cần ${quantity} hạt nhưng hiện chỉ còn đặt được ${available}. Hãy xóa bớt hạt này hoặc chọn loại khác.`);
           }
           const freshSelectedBeads = selectedIds.map((sku) => lockedBySku.get(sku)!);
-          const freshBraceletLength = freshSelectedBeads.reduce((sum, bead) => sum + (bead.bead_product_details?.diameter ?? 8), 0);
+          const freshBraceletLength = freshSelectedBeads.reduce((sum, bead) => sum + (readBeadModel(bead.bead_product_details?.model_3d)?.spacingMm ?? bead.bead_product_details?.diameter ?? 8), 0);
           if (freshBraceletLength > braceletConfig.wristCircumference + 2) {
             throw new ProductStockUnavailableError("Thông số hạt vừa được cập nhật và vượt quá chu vi cổ tay. Vui lòng tải lại thiết kế.");
           }
@@ -286,6 +291,7 @@ export async function POST(req: NextRequest) {
                   metalness: bead.bead_product_details.metalness,
                   roughness: bead.bead_product_details.roughness,
                   diameter: bead.bead_product_details.diameter,
+                  model: bead.bead_product_details.model_3d,
                 } : undefined,
               };
             }) },

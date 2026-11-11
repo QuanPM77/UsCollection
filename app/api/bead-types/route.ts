@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { readBeadModel } from "@/lib/bead-model";
 
 export async function GET() {
   const reservedUntil = new Date(Date.now() - 15 * 60 * 1000);
@@ -31,6 +32,7 @@ export async function GET() {
     stock: Math.max(0, product.stock - (reservedByProduct.get(product.id) ?? 0)),
     description: product.description ?? "",
     diameter: product.bead_product_details!.diameter,
+    model: readBeadModel(product.bead_product_details!.model_3d),
     is_active: product.status === "active",
   })) });
 }

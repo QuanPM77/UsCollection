@@ -7,6 +7,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { BraceletSlot, BeadType } from "@/types";
 import { calculateTotalPrice } from "@/lib/braceletMath";
+import { beadSpacing } from "@/lib/bead-model";
 
 export type CanvasTheme = "pink" | "white" | "dark";
 
@@ -77,7 +78,7 @@ export const useBraceletStore = create<BraceletStore>()(
         const newSlots = [];
         for (const slot of slots) {
           const bead = get().beadCatalog.find((b) => b.id === slot.beadTypeId);
-          const diameter = bead?.diameter ?? 8;
+          const diameter = beadSpacing(bead);
           if (currentTotal + diameter <= clampedMm + 2) {
             newSlots.push(slot);
             currentTotal += diameter;
@@ -100,7 +101,7 @@ export const useBraceletStore = create<BraceletStore>()(
         const activeIds = new Set(beadCatalog.map((bead) => bead.id));
         const { selectedBeadType } = get();
         set({
-          beadCatalog: [...beadCatalog, ...get().savedBeads.filter(b => !activeIds.has(b.id)).map(b => ({ ...b, is_active: false, stock: 0 }))],
+          beadCatalog: [...beadCatalog.map(b => { const saved = get().savedBeads.find(s => s.id === b.id); return saved ? { ...b, model: saved.model } : b; }), ...get().savedBeads.filter(b => !activeIds.has(b.id)).map(b => ({ ...b, is_active: false, stock: 0 }))],
           selectedBeadType: selectedBeadType && activeIds.has(selectedBeadType.id) && beadCatalog.find((bead) => bead.id === selectedBeadType.id)?.is_active !== false
             ? beadCatalog.find((bead) => bead.id === selectedBeadType.id) ?? null
             : null,
@@ -119,11 +120,11 @@ export const useBraceletStore = create<BraceletStore>()(
         // Calculate current total diameter
         const currentTotal = slots.reduce((sum, s) => {
           const b = beadCatalog.find((x) => x.id === s.beadTypeId);
-          return sum + (b?.diameter ?? 8);
+          return sum + beadSpacing(b);
         }, 0);
 
         // Limit size to target + 2mm buffer (strictly prevent exceeding)
-        if (currentTotal + bead.diameter > wristCircumference + 2) {
+        if (currentTotal + beadSpacing(bead) > wristCircumference + 2) {
           console.warn(`Vòng tay đã đầy hạt cho kích thước cổ tay ${wristCircumference}mm`);
           return;
         }
@@ -154,12 +155,12 @@ export const useBraceletStore = create<BraceletStore>()(
         // Check if replacing this bead would exceed the limit
         const currentTotal = slots.reduce((sum, s) => {
           const b = get().beadCatalog.find((x) => x.id === s.beadTypeId);
-          return sum + (b?.diameter ?? 8);
+          return sum + beadSpacing(b);
         }, 0);
 
         const oldBead = get().beadCatalog.find((b) => b.id === slots[index]?.beadTypeId);
-        const oldDiameter = oldBead?.diameter ?? 8;
-        const newDiameter = selectedBeadType.diameter;
+        const oldDiameter = beadSpacing(oldBead);
+        const newDiameter = beadSpacing(selectedBeadType);
 
         if (currentTotal - oldDiameter + newDiameter > wristCircumference + 2) {
           console.warn(`Thay thế hạt này làm vòng tay vượt quá giới hạn độ dài cho cổ tay ${wristCircumference}mm`);
@@ -186,7 +187,7 @@ export const useBraceletStore = create<BraceletStore>()(
         const { selectedBeadType, wristCircumference } = get();
         if (!selectedBeadType) return;
         
-        const beadDiameter = selectedBeadType.diameter ?? 8;
+        const beadDiameter = beadSpacing(selectedBeadType);
         const count = Math.min(Math.floor(wristCircumference / beadDiameter), selectedBeadType.stock ?? Number.MAX_SAFE_INTEGER);
         if (count < 1) return;
         const newSlots = Array.from({ length: count }, (_, i) => ({

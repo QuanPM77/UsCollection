@@ -1,6 +1,8 @@
 import { requireApiRole } from "@/lib/guard";
 import { prisma } from "@/lib/prisma";
 import { validateDesignInput } from "@/lib/saved-design";
+import { readBeadModel } from "@/lib/bead-model";
+import { resolveModelVersions } from "@/lib/model-versions";
 
 const fail = (message: string, status: number) => Response.json({ message }, { status });
 async function handle(request: Request) {
@@ -39,15 +41,17 @@ async function handle(request: Request) {
   const input = validateDesignInput(body);
   if (!input) return fail("Nhập tên từ 1–80 ký tự và thêm ít nhất một hạt vào vòng.", 400);
   const products = await prisma.products.findMany({ where: { sku: { in: input.config.slots.map(s => s.beadTypeId!) }, type: "bead" }, include: { bead_product_details: true } });
+  const versions = await resolveModelVersions(products, body.config?.modelVersions);
   const beads = products.flatMap(p => p.bead_product_details ? [{
     id: p.sku, name: p.name, description: p.description ?? "", price: p.price,
     material: p.bead_product_details.material, color: p.bead_product_details.color,
     emissive: p.bead_product_details.emissive_color ?? undefined,
     diameter: p.bead_product_details.diameter, metalness: p.bead_product_details.metalness,
     roughness: p.bead_product_details.roughness, is_active: false, stock: 0,
+    model: versions.has(p.sku) ? versions.get(p.sku) ?? undefined : readBeadModel(p.bead_product_details.model_3d),
   }] : []);
   if (input.config.slots.some(s => !beads.some(b => b.id === s.beadTypeId))) return fail("Một số hạt không còn tồn tại. Vui lòng thay hạt trước khi lưu.", 400);
-  const data = { name: input.name, config: JSON.parse(JSON.stringify({ ...input.config, beads })) };
+  const data = { name: input.name, config: JSON.parse(JSON.stringify({ ...input.config, beads, modelVersions: Object.fromEntries(beads.map(b => [b.id, b.model?.assetId ?? null])) })) };
   return writeDesign(userId, request.method === "PATCH" ? id : null, body.updatedAt, data);
 }
 
@@ -56,10 +60,11 @@ async function writeDesign(userId: string, id: string | null, updatedAt: unknown
     // Serialize writes for this owner, including concurrent POST retries from other tabs.
     await tx.$queryRaw`SELECT true AS locked FROM pg_advisory_xact_lock(hashtextextended(${userId}, 0))`;
     if (data.config) {
-      const config = data.config as { slots: import("@prisma/client").Prisma.InputJsonValue; wristCircumference: number };
+      const config = data.config as { slots: import("@prisma/client").Prisma.InputJsonValue; wristCircumference: number; modelVersions: import("@prisma/client").Prisma.InputJsonValue };
       const existing = await tx.savedDesign.findFirst({ where: { userId, ...(id ? { id: { not: id } } : {}), AND: [
         { config: { path: ["wristCircumference"], equals: config.wristCircumference } },
         { config: { path: ["slots"], equals: config.slots } },
+        { config: { path: ["modelVersions"], equals: config.modelVersions } },
       ] } });
       if (existing) return id ? fail("Thiết kế này đã có trong bộ sưu tập. Hãy mở mẫu đã lưu.", 409) : Response.json({ data: existing, reused: true });
     }

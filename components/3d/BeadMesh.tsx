@@ -6,17 +6,19 @@
  */
 
 import { useRef, useState } from "react";
-import { Mesh, Vector3 } from "three";
+import { Group, Vector3 } from "three";
 import { useFrame, ThreeEvent } from "@react-three/fiber";
 import { Sphere, Html } from "@react-three/drei";
 import { BeadType } from "@/types";
 import { useBraceletStore } from "@/lib/store";
+import GlbBead from "./GlbBead";
 
 interface BeadMeshProps {
   position: [number, number, number];
   slotIndex: number;
   beadType: BeadType | null;
   beadRadius?: number;
+  angle?: number;
 }
 
 const EMPTY_COLOR = "#F5D0DE";
@@ -30,8 +32,9 @@ export default function BeadMesh({
   slotIndex,
   beadType,
   beadRadius = 0.4,
+  angle = -Math.PI / 2,
 }: BeadMeshProps) {
-  const meshRef = useRef<Mesh>(null);
+  const meshRef = useRef<Group>(null);
   const [hovered, setHovered] = useState(false);
 
   const fillSlot = useBraceletStore(s => s.fillSlot);
@@ -68,9 +71,8 @@ export default function BeadMesh({
 
   return (
     <group position={position}>
-      <Sphere
+      <group
         ref={meshRef}
-        args={[beadRadius, 32, 32]}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
         onPointerOver={(e: ThreeEvent<PointerEvent>) => {
@@ -85,15 +87,15 @@ export default function BeadMesh({
           document.body.style.cursor = "auto";
         }}
       >
-        <meshStandardMaterial
+        {beadType?.model ? <GlbBead model={beadType.model} angle={angle} fallback={<Sphere args={[beadRadius, 16, 16]}><meshStandardMaterial color={color} /></Sphere>} /> : <Sphere args={[beadRadius, 32, 32]}><meshStandardMaterial
           color={color}
           emissive={emissive}
           emissiveIntensity={hovered ? 0.4 : 0.1}
           metalness={metalness}
           roughness={roughness}
           envMapIntensity={1.2}
-        />
-      </Sphere>
+        /></Sphere>}
+      </group>
 
       {/* Floating Trash Can Button on Hover */}
       {hovered && (

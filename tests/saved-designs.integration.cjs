@@ -19,7 +19,9 @@ function load(file, deps = {}) {
     user = await prisma.user.create({data:{email:`codex-verification-${randomUUID()}@example.invalid`,phone:`0${randomInt(100000000, 1000000000)}`,fullName:'Integration test',profileCompletedAt:new Date(),emailVerifiedAt:new Date()},select:{id:true}});
     const helpers=load('lib/saved-design.ts');
     const guard=load('lib/guard.ts', {'next/navigation':{redirect:()=>assert.fail('API guard must return JSON')},'@/lib/auth-session':{getSession:async()=>({user:{id:user.id,role:'customer',destination:'/',isEmailVerified:true}})}});
-    const api=load('app/api/custom-designs/route.ts', {'@/lib/guard':guard,'@/lib/prisma':{prisma},'@/lib/saved-design':helpers});
+    const modelHelpers=load('lib/bead-model.ts');
+    const modelVersions=load('lib/model-versions.ts',{'@/lib/prisma':{prisma},'@/lib/bead-model':modelHelpers});
+    const api=load('app/api/custom-designs/route.ts', {'@/lib/guard':guard,'@/lib/prisma':{prisma},'@/lib/saved-design':helpers,'@/lib/bead-model':modelHelpers,'@/lib/model-versions':modelVersions});
     const body={name:'Temporary verification',config:{wristCircumference:160,slots:[{index:0,beadTypeId:bead.sku}]}};
     const call=async(method,data,url='http://localhost/api/custom-designs')=>api[method](new Request(url,{method,...(data?{body:JSON.stringify(data)}:{})}));
     const start=performance.now();

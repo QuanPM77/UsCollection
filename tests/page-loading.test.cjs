@@ -6,6 +6,7 @@ const vm = require("node:vm");
 const ts = require("typescript");
 
 function load(file, dependencies = {}, globals = {}) {
+  dependencies = { "@/lib/bead-model": { readBeadModel: () => undefined }, ...dependencies };
   const module = { exports: {} };
   const code = ts.transpileModule(fs.readFileSync(path.join(__dirname, "..", file), "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },

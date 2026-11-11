@@ -17,6 +17,7 @@ import {
 
 import BeadMesh from "./BeadMesh";
 import BraceletCord from "./BraceletCord";
+import { beadSpacing } from "@/lib/bead-model";
 
 function BraceletScene() {
   const { wristCircumference, slots, beadCatalog, isAutoRotating, canvasTheme } = useBraceletStore(useShallow(s => ({ wristCircumference: s.wristCircumference, slots: s.slots, beadCatalog: s.beadCatalog, isAutoRotating: s.isAutoRotating, canvasTheme: s.canvasTheme })));
@@ -24,7 +25,7 @@ function BraceletScene() {
   const { radius, positions } = useMemo(() => {
   const diameters = slots.map((s) => {
     const bead = s.beadTypeId ? beadCatalog.find((item) => item.id === s.beadTypeId) : null;
-    return bead?.diameter ?? 8;
+    return beadSpacing(bead);
   });
 
   const radius = calculateRadiusFromBeads(diameters, wristCircumference);
@@ -96,6 +97,7 @@ function BraceletScene() {
             slotIndex={slot.index}
             beadType={beadType}
             beadRadius={beadRadius}
+            angle={pos.angle}
           />
         );
       })}

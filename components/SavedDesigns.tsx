@@ -72,7 +72,8 @@ export default function SavedDesigns({ gallery = false }: { gallery?: boolean })
     event.preventDefault();
     if (saving.current || !name.trim()) return;
     saving.current = true; setBusy(true); setError("");
-    const config = target?.config ?? { wristCircumference: store.wristCircumference, slots: store.slots };
+    const config = target?.config ?? { wristCircumference: store.wristCircumference, slots: store.slots,
+      modelVersions: Object.fromEntries(store.beadCatalog.filter(b => store.slots.some(s => s.beadTypeId === b.id)).map(b => [b.id, b.model?.assetId ?? null])) };
     try {
       const id = mode === "rename" ? target?.id : mode === "update" ? store.savedDesignId : null;
       const { data, reused } = await request(id ? "PATCH" : "POST", { id, name: name.trim(), ...(mode === "rename" ? { renameOnly: true } : { config }), updatedAt: target?.updatedAt ?? store.savedUpdatedAt });
@@ -99,7 +100,7 @@ export default function SavedDesigns({ gallery = false }: { gallery?: boolean })
     const activeCatalog = current.beadCatalog.filter(b => b.is_active !== false);
     const currentIds = new Set(activeCatalog.map(b => b.id));
     useBraceletStore.setState({ slots: design.config.slots, wristCircumference: design.config.wristCircumference, savedBeads: design.config.beads,
-      beadCatalog: [...activeCatalog, ...design.config.beads.filter(b => !currentIds.has(b.id))],
+      beadCatalog: [...activeCatalog.map(b => { const saved = design.config.beads.find(s => s.id === b.id); return saved ? { ...b, model: saved.model } : b; }), ...design.config.beads.filter(b => !currentIds.has(b.id))],
       savedDesignId: design.id, savedDesignName: design.name, savedUpdatedAt: design.updatedAt, savedFingerprint: designFingerprint(design.config), selectedBeadType: null, hoveredSlotIndex: null });
     router.push("/customizer");
   }

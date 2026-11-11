@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { BeadMaterial } from "@/types";
+import dynamic from "next/dynamic";
+const BeadModelEditor = dynamic(() => import("@/components/admin/products/BeadModelEditor"), { ssr: false });
 
 type Bead = {
   id: string; name: string; description: string; price: number; costPrice: number | null; stock: number; status: "active" | "inactive" | "draft";
@@ -17,6 +19,7 @@ export default function BeadTypesPage() {
   const [beads, setBeads] = useState<Bead[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [modelBusy, setModelBusy] = useState(false);
   const [editing, setEditing] = useState<Bead | null>(null);
   const [values, setValues] = useState<FormValues>(blank);
   const [showForm, setShowForm] = useState(false);
@@ -49,7 +52,7 @@ export default function BeadTypesPage() {
   };
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setSaving(true); setMessage("");
+    event.preventDefault(); if (modelBusy) return; setSaving(true); setMessage("");
     const id = editing?.id ?? slugify(values.name);
     try {
       const response = await fetch(editing ? `/api/admin/bead-types/${encodeURIComponent(id)}` : "/api/admin/bead-types", {
@@ -105,7 +108,7 @@ export default function BeadTypesPage() {
       </table>
     </div>
 
-    {showForm && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowForm(false); }}>
+    {showForm && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" onMouseDown={(event) => { if (!modelBusy && event.target === event.currentTarget) setShowForm(false); }}>
       <form onSubmit={submit} className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
         <div><h2 className="text-lg font-bold text-gray-900">{editing ? "Chỉnh sửa loại hạt" : "Thêm loại hạt"}</h2><p className="mt-1 text-sm text-gray-500">Giá và thuộc tính 3D này sẽ được customer sử dụng khi thiết kế.</p></div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -122,7 +125,8 @@ export default function BeadTypesPage() {
           <label className="text-sm font-medium text-gray-700">Độ nhám ({values.roughness.toFixed(2)})<input type="range" min={0} max={1} step={0.05} value={values.roughness} onChange={(e) => setValues({ ...values, roughness: Number(e.target.value) })} className="mt-3 block w-full" /></label>
           <label className="text-sm font-medium text-gray-700 sm:col-span-2">Mô tả<input maxLength={500} value={values.description} onChange={(e) => setValues({ ...values, description: e.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label>
         </div>
-        <div className="flex justify-end gap-2 border-t border-gray-100 pt-4"><button type="button" onClick={() => setShowForm(false)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm">Hủy</button><button disabled={saving} className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Đang lưu..." : editing ? "Lưu thay đổi" : "Thêm hạt"}</button></div>
+        {editing ? <BeadModelEditor key={editing.id} sku={editing.id} onBusyChange={setModelBusy} /> : <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">Lưu hạt trước, sau đó chọn Sửa để tải mô hình GLB.</p>}
+        <div className="flex justify-end gap-2 border-t border-gray-100 pt-4"><button type="button" disabled={modelBusy} onClick={() => setShowForm(false)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm disabled:opacity-40">Đóng</button><button disabled={saving || modelBusy} className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Đang lưu..." : editing ? "Lưu thông tin hạt" : "Thêm hạt"}</button></div>
       </form>
     </div>}
   </div>;

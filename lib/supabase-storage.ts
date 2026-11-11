@@ -5,7 +5,7 @@ const AVATAR_BUCKET = "avatars";
 const PRODUCT_BUCKET = "product-images";
 let storageClient: SupabaseClient | undefined;
 
-function getStorageClient() {
+export function getStorageClient() {
   if (storageClient) return storageClient;
 
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;

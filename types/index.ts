@@ -3,6 +3,7 @@
 export type BeadMaterial = "glass" | "crystal" | "wood" | "stone" | "pearl";
 
 export interface BeadType {
+  model?: import("@/lib/bead-model").BeadModel;
   id: string;
   code?: string;
   name: string;
@@ -30,6 +31,7 @@ export interface BraceletSlot {
 }
 
 export interface BraceletConfig {
+  modelVersions?: Record<string, string | null>;
   wristCircumference: number;
   slots: BraceletSlot[];
 }

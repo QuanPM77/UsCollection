@@ -17,6 +17,12 @@ function load(file, dependencies = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
   }).outputText;
   const defaults = {
+    "@/lib/bead-model": { readBeadModel: () => undefined },
+    "@/lib/model-versions": { resolveModelVersions: forbidden },
+    "@/lib/glb-validation": { validateGlb: forbidden },
+    "@/lib/model-storage": { ensureModelBuckets: forbidden, signModelUpload: forbidden, downloadModel: forbidden, publishModel: forbidden },
+    "node:crypto": require("node:crypto"),
+    "@prisma/client": require("@prisma/client"),
     "next/server": { NextRequest, NextResponse },
     "next/navigation": { redirect },
     "next/cache": { revalidatePath: forbidden, revalidateTag: forbidden },
@@ -105,7 +111,7 @@ adminRoutes.push("app/api/db/backup/route.ts");
 for (const file of adminRoutes) {
   test(`${file} denies guests, customers and staff before accessing data`, async () => {
     for (const user of [null, customer, { id: "staff-id", role: "staff" }]) {
-      const route = load(file, { "@/auth": { auth: async () => sessionFor(user) } });
+      const route = load(file, { "@/auth": { auth: async () => sessionFor(user) }, "@/lib/guard": guardFor(user) });
       for (const method of ["GET", "POST", "PUT", "PATCH", "DELETE"].filter(method => route[method])) {
         const request = new NextRequest("https://usstory.vercel.app/api/admin/test", { method });
         const response = await route[method](request, { params: Promise.resolve({ id: "11111111-1111-1111-1111-111111111111" }) });

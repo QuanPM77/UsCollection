@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useBraceletStore } from "@/lib/store";
+import { beadSpacing } from "@/lib/bead-model";
 
 
 
@@ -17,7 +18,7 @@ export default function WristInput() {
   const beadCount = slots.length;
   const actualLength = slots.reduce((sum, s) => {
     const bead = s.beadTypeId ? beadCatalog.find((item) => item.id === s.beadTypeId) : null;
-    return sum + (bead?.diameter ?? 8);
+    return sum + beadSpacing(bead);
   }, 0);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -180,7 +180,7 @@ export default function CheckoutPage() {
       // The server calculates the price from the catalog and creates the order.
       const result = await paymentCtx.execute({
         customer: { name: form.name.trim(), phone: form.phone.replace(/\s/g, ""), address: [addressParts.street.trim(), addressParts.ward, addressParts.province].join(", ") },
-        braceletConfig: { wristCircumference, slots },
+        braceletConfig: { wristCircumference, slots, modelVersions: Object.fromEntries(beadCatalog.filter(b => slots.some(s => s.beadTypeId === b.id)).map(b => [b.id, b.model?.assetId ?? null])) },
       });
       if (result.success && result.payUrl) {
         if (result.orderId) setOrderId(result.orderId);
