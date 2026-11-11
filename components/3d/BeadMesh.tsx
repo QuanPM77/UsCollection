@@ -30,7 +30,7 @@ const _targetVec = new Vector3();
 
 /** Sphere material from a photo texture (+ optional normal map, AB sheen, transparency). */
 function TexturedBeadMaterial({ visual, hovered }: { visual: TexturedBeadVisual; hovered: boolean }) {
-  const urls = visual.normalMap ? { map: visual.map, normalMap: visual.normalMap } : { map: visual.map };
+  const urls: Record<string, string> = visual.normalMap ? { map: visual.map, normalMap: visual.normalMap } : { map: visual.map };
   const maps = useTexture(urls) as { map: Texture; normalMap?: Texture };
   maps.map.colorSpace = SRGBColorSpace; // only the color map is sRGB (idempotent)
 
