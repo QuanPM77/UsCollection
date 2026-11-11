@@ -38,3 +38,13 @@ Hạt có mã không nằm trong bảng vẫn hiển thị như cũ (khối cầ
 - Mặt trước hướng +Z; khi đặt lên vòng được xoay quay ra ngoài, trục X chạy dọc dây.
 - `mount: "bead"`: gốc toạ độ = tâm lỗ xỏ (lỗ theo trục X).
 - `mount: "charm"`: gốc toạ độ = đỉnh khoen móc, thân treo xuống theo −Y.
+
+## Hạt thuỷ tinh (trong suốt)
+
+- `transmission` (0–1) cho ánh sáng xuyên qua hạt; texture màu khi đó là lớp nhuộm ánh sáng.
+  `attenuationColor` / `attenuationDistance` nhuộm màu theo độ dày thân hạt (hạt trong một màu).
+- Hạt rạn có `cracksMap` (`*-cracks.webp`, RGBA, alpha = vết nứt): `BeadMesh` vẽ 2 lớp cầu
+  nhỏ hơn bên trong (cắt bằng `alphaTest`), nhìn qua vỏ thuỷ tinh thấy vết rạn có chiều sâu.
+- Hạt nhựa đục (vd. `ab-xanh-duong`) không đặt `transmission`.
+- three.js gộp mọi hạt trong suốt vào một lượt vẽ thêm mỗi khung hình — nhiều hạt vẫn ổn,
+  nhưng nếu máy yếu bị giật thì hạ `transmission` hoặc bỏ ở vài màu.

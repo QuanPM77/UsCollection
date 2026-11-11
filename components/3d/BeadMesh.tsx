@@ -8,7 +8,7 @@
  */
 
 import { Suspense, useMemo, useRef, useState } from "react";
-import { Group, SRGBColorSpace, Texture, Vector3 } from "three";
+import { DoubleSide, Group, SRGBColorSpace, Texture, Vector3 } from "three";
 import { useFrame, ThreeEvent } from "@react-three/fiber";
 import { Sphere, Html, useGLTF, useTexture } from "@react-three/drei";
 import { BeadType } from "@/types";
@@ -41,7 +41,7 @@ function TexturedBeadMaterial({ visual, hovered }: { visual: TexturedBeadVisual;
       emissive="#ffffff"
       emissiveIntensity={hovered ? 0.08 : 0}
       metalness={0}
-      roughness={visual.transmission ? 0.04 : 0.12}
+      roughness={visual.roughness ?? 0.12}
       clearcoat={visual.clearcoat ?? 0}
       clearcoatRoughness={visual.clearcoatRoughness ?? 0.05}
       iridescence={visual.iridescence ?? 0}
@@ -50,8 +50,39 @@ function TexturedBeadMaterial({ visual, hovered }: { visual: TexturedBeadVisual;
       transmission={visual.transmission ?? 0}
       thickness={visual.thickness ?? 0}
       ior={visual.ior ?? 1.5}
+      attenuationColor={visual.attenuationColor ?? "#ffffff"}
+      attenuationDistance={visual.attenuationDistance ?? Infinity}
       envMapIntensity={1.2}
     />
+  );
+}
+
+/** Two cut-out shells inside a glass bead: cracks seen through (and refracted by) the outer glass. */
+const CRACK_SHELLS = [
+  { scale: 0.86, rotation: [0.4, 0.9, 0] as const, glow: 0.9 },
+  { scale: 0.62, rotation: [1.7, 2.6, 0.5] as const, glow: 0.6 },
+];
+
+function InnerCracks({ url, radius }: { url: string; radius: number }) {
+  const texture = useTexture(url) as Texture;
+  texture.colorSpace = SRGBColorSpace;
+  return (
+    <>
+      {CRACK_SHELLS.map((shell, i) => (
+        <Sphere key={i} args={[radius * shell.scale, 48, 32]} rotation={[...shell.rotation]}>
+          <meshStandardMaterial
+            map={texture}
+            emissiveMap={texture}
+            emissive="#ffffff"
+            emissiveIntensity={shell.glow}
+            alphaTest={0.2}
+            side={DoubleSide}
+            roughness={0.15}
+            metalness={0.2}
+          />
+        </Sphere>
+      ))}
+    </>
   );
 }
 
@@ -143,11 +174,18 @@ export default function BeadMesh({
             <BeadModel url={visual.url} />
           </Suspense>
         ) : visual?.kind === "texture" ? (
-          <Sphere args={[beadRadius, 48, 32]}>
-            <Suspense fallback={plainMaterial}>
-              <TexturedBeadMaterial visual={visual} hovered={hovered} />
-            </Suspense>
-          </Sphere>
+          <>
+            <Sphere args={[beadRadius, 48, 32]}>
+              <Suspense fallback={plainMaterial}>
+                <TexturedBeadMaterial visual={visual} hovered={hovered} />
+              </Suspense>
+            </Sphere>
+            {visual.cracksMap && (
+              <Suspense fallback={null}>
+                <InnerCracks url={visual.cracksMap} radius={beadRadius} />
+              </Suspense>
+            )}
+          </>
         ) : (
           plainSphere
         )}
