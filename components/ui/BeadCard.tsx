@@ -3,6 +3,7 @@
 import { BeadType } from "@/types";
 import { formatPrice } from "@/lib/beadData";
 import { useBraceletStore } from "@/lib/store";
+import BeadSwatch from "@/components/ui/BeadSwatch";
 
 interface BeadCardProps {
   bead: BeadType;
@@ -36,11 +37,8 @@ export default function BeadCard({ bead }: BeadCardProps) {
       `}
       title={bead.description}
     >
-      {/* Color swatch circle */}
-      <div
-        className="w-9 h-9 rounded-full shadow-sm ring-2 ring-white"
-        style={{ backgroundColor: bead.color }}
-      />
+      {/* Bead swatch (thumbnail or color circle) */}
+      <BeadSwatch beadId={bead.id} color={bead.color} className="w-9 h-9 rounded-full shadow-sm ring-2 ring-white" />
 
       {/* Bead name */}
       <span className="text-xs font-medium text-pink-text leading-tight text-center">

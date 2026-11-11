@@ -6,6 +6,7 @@ import { Gem, PackageCheck, Truck } from "lucide-react";
 import CheckoutShell, { checkoutGridClass, checkoutPanelClass, PaymentMethod, paymentButtonClass } from "@/components/checkout/CheckoutShell";
 import { useBraceletStore } from "@/lib/store";
 import { formatPrice } from "@/lib/beadData";
+import BeadSwatch from "@/components/ui/BeadSwatch";
 import { calculateTotalPrice } from "@/lib/braceletMath";
 import { useBeadCatalog } from "@/lib/useBeadCatalog";
 import { PaymentContext, PayOSStrategy } from "@/lib/payment";
@@ -259,10 +260,7 @@ export default function CheckoutPage() {
               {beadRows.map(({ bead, count }) => {
                 return (
                   <div key={bead.id} className="flex items-center gap-3 border-b border-pink-mid/15 py-2 last:border-0">
-                    <div
-                      className="w-5 h-5 rounded-full shrink-0 ring-1 ring-white shadow-sm"
-                      style={{ backgroundColor: bead.color }}
-                    />
+                    <BeadSwatch beadId={bead.id} color={bead.color} className="w-5 h-5 rounded-full shrink-0 ring-1 ring-white shadow-sm" />
                     <span className="flex-1 text-sm text-pink-text">{bead.name}<span className="mt-1 block text-xs text-pink-text/60">{count} × {formatPrice(bead.price)}</span></span>
                     <span className="text-sm font-semibold text-pink-text">{formatPrice(bead.price * count)}</span>
                   </div>

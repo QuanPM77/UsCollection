@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { useBraceletStore } from "@/lib/store";
 import { formatPrice } from "@/lib/beadData";
+import BeadSwatch from "@/components/ui/BeadSwatch";
 import Link from "next/link";
 import { useLoginPrompt } from "@/components/LoginPromptProvider";
 
@@ -73,10 +74,7 @@ export default function BraceletControls() {
                   key={`${slot.index}-${idx}`}
                   className="flex items-center gap-2 bg-white/80 px-2.5 py-1.5 rounded-lg border border-pink-mid/20 hover:border-pink-mid transition-all"
                 >
-                  <div
-                    className="w-4 h-4 rounded-full shrink-0 shadow-sm border border-white"
-                    style={{ backgroundColor: bead.color }}
-                  />
+                  <BeadSwatch beadId={bead.id} color={bead.color} className="w-4 h-4 rounded-full shrink-0 shadow-sm border border-white" />
                   <span className="text-xs font-medium text-pink-text flex-1 truncate">
                     #{idx + 1} {bead.name}
                   </span>
