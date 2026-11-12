@@ -74,7 +74,7 @@ export default function MainMenu({ tone = "pink" }: { tone?: "pink" | "champagne
                   setOpen(false);
                   if (item.requiresLogin && !isAuthenticated) {
                     event.preventDefault();
-                    requestLogin();
+                    requestLogin(item.href);
                   }
                 }}
                 className={`block rounded-xl px-4 py-3 text-sm font-medium transition ${champagne

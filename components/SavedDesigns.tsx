@@ -31,6 +31,7 @@ export default function SavedDesigns({ gallery = false, compact: _compact = fals
   const router = useRouter();
   const dialog = useRef<HTMLDialogElement>(null);
   const unsavedDialog = useRef<HTMLDialogElement>(null);
+  const loginPrompted = useRef(false);
   const [pendingDesign, setPendingDesign] = useState<SavedDesign | null>(null);
   const saving = useRef(false);
   const listRequest = useRef(0);
@@ -62,6 +63,12 @@ export default function SavedDesigns({ gallery = false, compact: _compact = fals
     else { setItems([]); setLoading(false); }
     return invalidateList;
   }, [gallery, isAuthenticated, refresh, invalidateList]);
+  useEffect(() => {
+    if (gallery && !isAuthenticated && !loginPrompted.current) {
+      loginPrompted.current = true;
+      requestLogin("/my-designs");
+    }
+  }, [gallery, isAuthenticated, requestLogin]);
   function show(nextMode: typeof mode, design: SavedDesign | null = null) {
     if (!isAuthenticated) { requestLogin(); return; }
     setMode(nextMode); setTarget(design); setError("");
@@ -127,13 +134,20 @@ export default function SavedDesigns({ gallery = false, compact: _compact = fals
           <Bookmark aria-hidden="true" className="h-4 w-4 shrink-0" />
           <span>{store.savedDesignId ? "Lưu thay đổi" : "Lưu thiết kế"}</span>
         </button>
-        <Link
+        {isAuthenticated ? <Link
           className="flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-xl border border-pink-deep bg-pink-light/60 px-2 py-3 text-center text-xs font-bold leading-4 text-pink-text shadow-sm transition-colors hover:bg-pink-blush focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-text sm:text-[13px]"
           href="/my-designs"
         >
           <FolderHeart aria-hidden="true" className="h-4 w-4 shrink-0" />
           <span>Thiết kế của tôi</span>
-        </Link>
+        </Link> : <button
+          type="button"
+          onClick={() => requestLogin("/my-designs")}
+          className="flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-xl border border-pink-deep bg-pink-light/60 px-2 py-3 text-center text-xs font-bold leading-4 text-pink-text shadow-sm transition-colors hover:bg-pink-blush focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-text sm:text-[13px]"
+        >
+          <FolderHeart aria-hidden="true" className="h-4 w-4 shrink-0" />
+          <span>Thiết kế của tôi</span>
+        </button>}
       </div>
       {store.savedDesignId && designFingerprint(store) !== store.savedFingerprint && <button className={`${button} w-full`} disabled={!store.slots.length} onClick={() => show("new")}>Lưu thành mẫu mới</button>}
     </> : !isAuthenticated ? <button className={button} onClick={() => requestLogin()}>Đăng nhập để xem thiết kế của tôi</button> : <>

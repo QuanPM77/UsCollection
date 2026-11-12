@@ -20,7 +20,7 @@ export default function CustomizerView() {
       </SiteHeader>
 
       <div className="relative z-0 flex flex-col lg:min-h-0 lg:flex-1 lg:flex-row lg:overflow-hidden">
-        <div className="relative h-[35dvh] min-h-[220px] max-h-[360px] shrink-0 bg-gradient-to-br from-pink-blush/40 to-cream/60 lg:h-auto lg:min-h-0 lg:flex-1">
+        <div className="relative h-[42dvh] min-h-[260px] shrink-0 bg-gradient-to-br from-pink-blush/40 to-cream/60 lg:h-auto lg:min-h-0 lg:flex-1">
           <BraceletCanvas />
           <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 sm:bottom-4">
             <span className="whitespace-nowrap rounded-full bg-white/50 px-3 py-1.5 text-[10px] text-pink-text/50 backdrop-blur-sm sm:text-xs">
