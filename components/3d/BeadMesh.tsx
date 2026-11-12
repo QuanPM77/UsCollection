@@ -64,7 +64,7 @@ function InnerCracks({ url, radius }: { url: string; radius: number }) {
   return (
     <>
       {CRACK_SHELLS.map((shell, i) => (
-        <Sphere key={i} args={[radius * shell.scale, 48, 32]} rotation={[...shell.rotation]}>
+        <Sphere key={i} args={[radius * shell.scale, 32, 24]} rotation={[...shell.rotation]}>
           <meshStandardMaterial
             map={texture}
             emissiveMap={texture}
@@ -144,7 +144,7 @@ export default function BeadMesh({
       envMapIntensity={1.2}
     />
   );
-  const plainSphere = <Sphere args={[beadRadius, 32, 32]}>{plainMaterial}</Sphere>;
+  const plainSphere = <Sphere args={[beadRadius, 24, 20]}>{plainMaterial}</Sphere>;
 
   return (
     <group position={position}>
@@ -173,7 +173,7 @@ export default function BeadMesh({
           </Suspense>
         ) : visual?.kind === "texture" ? (
           <>
-            <Sphere args={[beadRadius, 48, 32]}>
+            <Sphere args={[beadRadius, 32, 24]}>
               <Suspense fallback={plainMaterial}>
                 <TexturedBeadMaterial visual={visual} hovered={hovered} />
               </Suspense>

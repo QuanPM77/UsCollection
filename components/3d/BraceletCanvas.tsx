@@ -28,10 +28,11 @@ function BraceletScene({ dropPlacementRef }: {
 }) {
   const { wristCircumference, slots, beadCatalog, isAutoRotating, canvasTheme } = useBraceletStore(useShallow(s => ({ wristCircumference: s.wristCircumference, slots: s.slots, beadCatalog: s.beadCatalog, isAutoRotating: s.isAutoRotating, canvasTheme: s.canvasTheme })));
   const { camera, gl, raycaster } = useThree();
+  const beadsById = useMemo(() => new Map(beadCatalog.map((bead) => [bead.id, bead])), [beadCatalog]);
 
   const { radius, positions } = useMemo(() => {
   const diameters = slots.map((s) => {
-    const bead = s.beadTypeId ? beadCatalog.find((item) => item.id === s.beadTypeId) : null;
+    const bead = s.beadTypeId ? beadsById.get(s.beadTypeId) : null;
     return beadSpacing(bead);
   });
 
@@ -44,7 +45,7 @@ function BraceletScene({ dropPlacementRef }: {
   });
 
   return { radius, positions };
-  }, [slots, beadCatalog, wristCircumference]);
+  }, [slots, beadsById, wristCircumference]);
 
   const placeBeadAtAngle = useCallback((beadId: string, angle: number) => {
     const state = useBraceletStore.getState();
@@ -79,28 +80,30 @@ function BraceletScene({ dropPlacementRef }: {
       {canvasTheme === "dark" ? (
         <>
           <ambientLight intensity={0.4} color="#CBD5E1" />
-          <directionalLight position={[5, 10, 5]} intensity={2.2} color="#F8FAFC" castShadow />
+          <directionalLight position={[5, 10, 5]} intensity={2.2} color="#F8FAFC" />
           <pointLight position={[-5, 4, -5]} intensity={1.5} color="#38BDF8" /> {/* Cyan Rim Light */}
           <pointLight position={[5, -3, 5]} intensity={1.2} color="#C084FC" /> {/* Purple Glow */}
         </>
       ) : canvasTheme === "white" ? (
         <>
           <ambientLight intensity={0.75} color="#FFFFFF" />
-          <directionalLight position={[6, 9, 4]} intensity={1.6} color="#FFFDF0" castShadow />
+          <directionalLight position={[6, 9, 4]} intensity={1.6} color="#FFFDF0" />
           <pointLight position={[-4, 4, -4]} intensity={0.6} color="#E0F2FE" />
           <pointLight position={[4, -2, 4]} intensity={0.5} color="#FEF3C7" /> {/* Warm Studio Fill */}
         </>
       ) : (
         <>
           <ambientLight intensity={0.6} />
-          <directionalLight position={[5, 8, 5]} intensity={1.4} castShadow />
+          <directionalLight position={[5, 8, 5]} intensity={1.4} />
           <pointLight position={[-4, 3, -4]} intensity={0.8} color="#FFB6C8" />
           <pointLight position={[4, -2, 4]} intensity={0.4} color="#FFF0F5" />
         </>
       )}
 
       {/* Dynamic Environment Reflections */}
-      <Environment preset={envPreset} />
+      <Suspense fallback={null}>
+        <Environment preset={envPreset} />
+      </Suspense>
 
       {/* Camera controls */}
       <OrbitControls
@@ -122,7 +125,7 @@ function BraceletScene({ dropPlacementRef }: {
         if (!pos) return null;
 
         const beadType = slot.beadTypeId
-          ? beadCatalog.find((item) => item.id === slot.beadTypeId) ?? null
+          ? beadsById.get(slot.beadTypeId) ?? null
           : null;
         const beadRadius = beadType ? beadType.diameter / 20 : 0.4;
 
@@ -221,7 +224,7 @@ export default function BraceletCanvas() {
       <Canvas
         frameloop={isAutoRotating ? "always" : "demand"}
         camera={{ position: [0, 3, 7], fov: 45 }}
-        dpr={[1, 1.5]}
+        dpr={[1, 1.25]}
         gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
         style={{ background: "transparent" }}
       >
