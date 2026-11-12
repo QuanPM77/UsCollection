@@ -18,7 +18,7 @@ type Bead = {
 type FormValues = Omit<Bead, "id" | "status" | "price" | "stock"> & { price: string; stock: string };
 const blank: FormValues = { name: "", description: "", price: "15000", costPrice: null, stock: "0", material: "crystal", color: "#F4A7B9", emissive: "", metalness: 0.1, roughness: 0.3, diameter: 8, thumbnail: "" };
 const currency = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 });
-const materialLabels: Record<BeadMaterial, string> = { glass: "Thủy tinh", crystal: "Pha lê", wood: "Gỗ", stone: "Đá", pearl: "Ngọc trai" };
+const materialLabels: Record<BeadMaterial, string> = { glass: "Thủy tinh", crystal: "Pha lê", wood: "Gỗ", stone: "Đá", pearl: "Ngọc trai", metal: "Kim loại" };
 const slugify = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/đ/g, "d").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
 export default function BeadTypesPage() {
@@ -178,12 +178,12 @@ export default function BeadTypesPage() {
     </div>
 
     {pendingDelete && <div className="fixed inset-0 z-[110] flex items-center justify-center bg-gray-950/50 p-4 backdrop-blur-[2px]" onMouseDown={(event) => { if (!deleting && event.target === event.currentTarget) setPendingDelete(null); }}>
-      <section role="alertdialog" aria-modal="true" aria-labelledby="delete-bead-title" aria-describedby="delete-bead-description" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-black/5">
-        <div className="flex items-start gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12m-10 0 .7 12h6.6L16 7M9 7V4h6v3m-5 4v5m4-5v5" /></svg></div>
-          <div><h2 id="delete-bead-title" className="text-lg font-bold text-gray-900">Xóa loại hạt?</h2><p id="delete-bead-description" className="mt-2 text-sm leading-6 text-gray-600">Bạn có chắc muốn xóa <span className="font-semibold text-gray-900">“{pendingDelete.name}”</span> khỏi danh mục không?</p></div>
+      <section role="alertdialog" aria-modal="true" aria-labelledby="delete-bead-title" aria-describedby="delete-bead-description" className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-black/5 sm:p-7">
+        <div className="flex flex-col items-center text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12m-10 0 .7 12h6.6L16 7M9 7V4h6v3m-5 4v5m4-5v5" /></svg></div>
+          <h2 id="delete-bead-title" className="mt-4 text-lg font-bold text-gray-900">Xóa loại hạt?</h2><p id="delete-bead-description" className="mt-2 text-sm leading-6 text-gray-600">Bạn có chắc muốn xóa <span className="font-semibold text-gray-900">“{pendingDelete.name}”</span> khỏi danh mục không?</p>
         </div>
-        <div className="mt-7 flex justify-end gap-3"><button type="button" disabled={deleting} onClick={() => setPendingDelete(null)} className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">Hủy</button><button type="button" disabled={deleting} onClick={() => void confirmDelete()} className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:cursor-wait disabled:opacity-60">{deleting ? "Đang xóa..." : "Xóa"}</button></div>
+        <div className="mt-6 grid grid-cols-2 gap-3"><button type="button" disabled={deleting} onClick={() => setPendingDelete(null)} className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">Hủy</button><button type="button" disabled={deleting} onClick={() => void confirmDelete()} className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:cursor-wait disabled:opacity-60">{deleting ? "Đang xóa..." : "Xóa"}</button></div>
       </section>
     </div>}
 

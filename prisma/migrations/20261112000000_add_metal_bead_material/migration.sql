@@ -1,0 +1,1 @@
+ALTER TYPE "bead_material" ADD VALUE 'metal';

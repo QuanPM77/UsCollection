@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 import { readBeadModel } from "@/lib/bead-model";
 import { prisma } from "@/lib/prisma";
 
-type BeadInput = { name?: string; material?: "glass" | "crystal" | "wood" | "stone" | "pearl"; color?: string; emissive?: string; metalness?: number; roughness?: number; price?: number; costPrice?: number; stock?: number; description?: string; diameter?: number; thumbnail?: string };
+type BeadInput = { name?: string; material?: "glass" | "crystal" | "wood" | "stone" | "pearl" | "metal"; color?: string; emissive?: string; metalness?: number; roughness?: number; price?: number; costPrice?: number; stock?: number; description?: string; diameter?: number; thumbnail?: string };
 async function getAdminId() {
   const session = await auth();
   return session?.user?.id && session.user.role === "admin" ? session.user.id : null;
@@ -12,7 +12,7 @@ async function getAdminId() {
 function isValid(input: BeadInput) {
   return (input.thumbnail === undefined || input.thumbnail === "" || (typeof input.thumbnail === "string" && input.thumbnail.length <= 200000 && /^data:image\/(webp|png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/.test(input.thumbnail))) &&
     typeof input.name === "string" && input.name.trim().length >= 2 && input.name.trim().length <= 100 &&
-    ["glass", "crystal", "wood", "stone", "pearl"].includes(input.material ?? "") &&
+    ["glass", "crystal", "wood", "stone", "pearl", "metal"].includes(input.material ?? "") &&
     typeof input.color === "string" && /^#[0-9a-f]{6}$/i.test(input.color) &&
     (input.emissive === undefined || input.emissive === "" || (typeof input.emissive === "string" && /^#[0-9a-f]{6}$/i.test(input.emissive))) &&
     typeof input.metalness === "number" && Number.isFinite(input.metalness) && input.metalness >= 0 && input.metalness <= 1 &&

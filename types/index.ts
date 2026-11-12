@@ -1,6 +1,6 @@
 // ─── Bead & Slot Base Interfaces ──────────────────────────────────────────────
 
-export type BeadMaterial = "glass" | "crystal" | "wood" | "stone" | "pearl";
+export type BeadMaterial = "glass" | "crystal" | "wood" | "stone" | "pearl" | "metal";
 
 export interface BeadType {
   model?: import("@/lib/bead-model").BeadModel;

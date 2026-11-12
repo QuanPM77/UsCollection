@@ -80,6 +80,7 @@ export const MATERIAL_LABELS: Record<BeadMaterial, string> = {
   wood: 'Gỗ',
   stone: 'Đá',
   pearl: 'Ngọc trai',
+  metal: 'Kim loại',
 };
 
 export const STATUS_LABELS: Record<ProductStatus, string> = {

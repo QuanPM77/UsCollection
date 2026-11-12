@@ -326,6 +326,7 @@ enum bead_material {
   wood
   stone
   pearl
+  metal
 }
 
 enum fulfillment_status {

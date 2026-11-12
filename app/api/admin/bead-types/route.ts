@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { readBeadModel, readBeadPhotoThumbnail } from "@/lib/bead-model";
 import { prisma } from "@/lib/prisma";
 
-const materials = ["glass", "crystal", "wood", "stone", "pearl"] as const;
+const materials = ["glass", "crystal", "wood", "stone", "pearl", "metal"] as const;
 type BeadInput = { draft?: boolean; id?: string; name?: string; material?: string; color?: string; emissive?: string; metalness?: number; roughness?: number; price?: number; costPrice?: number; stock?: number; description?: string; diameter?: number; thumbnail?: string };
 
 async function getAdminId() {

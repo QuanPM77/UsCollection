@@ -20,7 +20,7 @@ export async function GET(request: Request) {
   if (type === "bead" || type === "bracelet") conditions.push({ type });
   if (status === "active" || status === "inactive" || status === "draft") conditions.push({ status });
   else if (stockStatus) conditions.push({ status: "active" });
-  if (material && ["glass", "crystal", "wood", "stone", "pearl"].includes(material)) conditions.push({ bead_product_details: { is: { material: material as "glass" | "crystal" | "wood" | "stone" | "pearl" } } });
+  if (material && ["glass", "crystal", "wood", "stone", "pearl", "metal"].includes(material)) conditions.push({ bead_product_details: { is: { material: material as "glass" | "crystal" | "wood" | "stone" | "pearl" | "metal" } } });
   if (stockStatus === "attention") conditions.push({ OR: [{ stock: 0 }, { stock: { gt: 0, lte: threshold } }] });
   else if (stockStatus === "out_of_stock") conditions.push({ stock: 0 });
   else if (stockStatus === "low_stock") conditions.push({ stock: { gt: 0, lte: threshold } });

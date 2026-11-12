@@ -1,6 +1,6 @@
 // Existing store types - these represent the customer-facing data model
 
-export type BeadMaterial = 'glass' | 'crystal' | 'wood' | 'stone' | 'pearl';
+export type BeadMaterial = 'glass' | 'crystal' | 'wood' | 'stone' | 'pearl' | 'metal';
 
 export interface BeadType {
   model?: import("@/lib/bead-model").BeadModel;

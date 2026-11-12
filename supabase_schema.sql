@@ -19,7 +19,7 @@ CREATE TYPE "user_role" AS ENUM ('customer', 'staff', 'admin');
 CREATE TYPE "user_status" AS ENUM ('active', 'locked');
 
 -- CreateEnum
-CREATE TYPE "bead_material" AS ENUM ('glass', 'crystal', 'wood', 'stone', 'pearl');
+CREATE TYPE "bead_material" AS ENUM ('glass', 'crystal', 'wood', 'stone', 'pearl', 'metal');
 
 -- CreateEnum
 CREATE TYPE "fulfillment_status" AS ENUM ('pending', 'processing', 'completed', 'cancelled');
