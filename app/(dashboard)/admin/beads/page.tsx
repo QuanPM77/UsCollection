@@ -30,6 +30,7 @@ export default function BeadTypesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [modelBusy, setModelBusy] = useState(false);
+  const [modelReady, setModelReady] = useState(false);
   const [editing, setEditing] = useState<Bead | null>(null);
   const [values, setValues] = useState<FormValues>(blank);
   const [thumbnailChanged, setThumbnailChanged] = useState(false);
@@ -57,9 +58,9 @@ export default function BeadTypesPage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const startCreate = () => { savedDraftSku.current = null; setFormKey(k => k + 1); setError(""); setEditing(null); setValues(blank); setThumbnailChanged(false); setShowForm(true); setMessage(""); };
+  const startCreate = () => { savedDraftSku.current = null; setFormKey(k => k + 1); setModelReady(false); setError(""); setEditing(null); setValues(blank); setThumbnailChanged(false); setShowForm(true); setMessage(""); };
   const startEdit = (bead: Bead) => {
-    savedDraftSku.current = null; setFormKey(k => k + 1); setError("");
+    savedDraftSku.current = null; setFormKey(k => k + 1); setModelReady(false); setError("");
     setEditing(bead);
     setValues({ name: bead.name, description: bead.description, price: String(bead.price), costPrice: bead.costPrice, stock: String(bead.stock), material: bead.material, color: bead.color, emissive: bead.emissive, metalness: bead.metalness, roughness: bead.roughness, diameter: bead.diameter, thumbnail: bead.thumbnail ?? "" });
     setThumbnailChanged(false);
@@ -207,8 +208,8 @@ export default function BeadTypesPage() {
           <label className="text-sm font-medium text-gray-700">Ảnh hạt / charm<input type="file" accept="image/png,image/jpeg,image/webp" disabled={saving || modelBusy} onChange={(e) => { void selectThumbnail(e.target.files?.[0]); e.target.value = ""; }} className="mt-1 block max-w-full text-xs" /></label>
           {values.thumbnail && <button type="button" disabled={saving || modelBusy} onClick={() => { setValues({ ...values, thumbnail: "" }); setThumbnailChanged(true); }} className="text-xs text-rose-700 underline">Xóa ảnh</button>}
         </div>
-        <BeadModelEditor key={formKey} sku={editing?.id} controllerRef={modelEditor} disabled={saving} onBusyChange={setModelBusy} />
-        <div className="flex justify-end gap-2 border-t border-gray-100 pt-4"><button type="button" disabled={saving || modelBusy} onClick={closeForm} className="rounded-lg border border-gray-300 px-4 py-2 text-sm disabled:opacity-40">Đóng</button><button disabled={saving || modelBusy} className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Đang lưu..." : editing ? "Lưu hạt" : "Lưu hạt"}</button></div>
+        <BeadModelEditor key={formKey} sku={editing?.id} controllerRef={modelEditor} disabled={saving} onBusyChange={setModelBusy} onReadyChange={setModelReady} />
+        <div className="flex justify-end gap-2 border-t border-gray-100 pt-4"><button type="button" disabled={saving || modelBusy} onClick={closeForm} className="rounded-lg border border-gray-300 px-4 py-2 text-sm disabled:opacity-40">Đóng</button><button disabled={saving || modelBusy || !modelReady} className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Đang lưu..." : !modelReady ? "Đang tải trình chỉnh 3D..." : "Lưu hạt"}</button></div>
       </form>
     </div>}
   </div>;

@@ -8,8 +8,8 @@ const ModelPreview = dynamic(() => import("./ModelPreview"), { ssr: false, loadi
 
 type Version = { id: string; createdAt: string; model: BeadModel };
 export type ModelEditorHandle = { validate: () => void; hasModel: () => boolean; save: (sku: string) => Promise<void> };
-export default function BeadModelEditor({ sku, controllerRef, disabled = false, onBusyChange }: {
-  sku?: string; controllerRef: MutableRefObject<ModelEditorHandle | null>; disabled?: boolean; onBusyChange?: (busy: boolean) => void;
+export default function BeadModelEditor({ sku, controllerRef, disabled = false, onBusyChange, onReadyChange }: {
+  sku?: string; controllerRef: MutableRefObject<ModelEditorHandle | null>; disabled?: boolean; onBusyChange?: (busy: boolean) => void; onReadyChange?: (ready: boolean) => void;
 }) {
   const [model, setModel] = useState<BeadModel | null>(null);
   const [versions, setVersions] = useState<Version[]>([]);
@@ -32,6 +32,7 @@ export default function BeadModelEditor({ sku, controllerRef, disabled = false, 
   const onPreviewReady = useCallback(() => setPreviewReady(true), []);
   const onPreviewError = useCallback(() => { setPreviewReady(false); setError("Không đọc được mô hình. Hãy kiểm tra hoặc chọn lại file."); }, []);
   useEffect(() => { onBusyChange?.(busy); return () => onBusyChange?.(false); }, [busy, onBusyChange]);
+  useEffect(() => { onReadyChange?.(ready); }, [ready, onReadyChange]);
   useEffect(() => {
     if (!sku) return;
     let cancelled = false;
@@ -42,7 +43,7 @@ export default function BeadModelEditor({ sku, controllerRef, disabled = false, 
         const value = validateModelSettings(data.model ?? DEFAULT_MODEL_SETTINGS);
         setSettings(value); initialSettings.current = value; setReady(true);
       }
-    }).catch(e => { if (!cancelled) setError(e.message); });
+    }).catch(e => { if (!cancelled) { setError(e.message); setReady(true); } });
     return () => { cancelled = true; };
   }, [sku]);
   useEffect(() => {
@@ -171,7 +172,7 @@ export default function BeadModelEditor({ sku, controllerRef, disabled = false, 
         </div>
         <details className="text-sm"><summary className="cursor-pointer font-medium">Thông số nâng cao</summary>
           <label className="mt-3 block">Đặt hướng lỗ theo trục<select value={settings.anchorRotation ? "custom" : settings.holeAxis} onChange={e => change({ ...settings, holeAxis: e.target.value as ModelSettings["holeAxis"], anchorRotation: undefined })} className="ml-2 rounded border p-2"><option disabled value="custom">Hướng tự do (đã kéo xoay)</option><option value="x">X</option><option value="y">Y</option><option value="z">Z</option></select></label>
-          <p className="mt-3">Tâm lỗ so với tâm model (mm)</p><div className="grid grid-cols-3 gap-2">{["X", "Y", "Z"].map((axis, i) => <label key={axis}>{axis}<input type="number" min={-80} max={80} step={.1} value={Number(settings.holeCenter[i].toFixed(3))} onChange={e => { const holeCenter = [...settings.holeCenter] as [number, number, number]; holeCenter[i] = Number(e.target.value); change({ ...settings, holeCenter }); }} className="w-full rounded border p-2" /></label>)}</div>
+          <p className="mt-3">Tâm lỗ so với tâm model (mm)</p><div className="grid grid-cols-3 gap-2">{["X", "Y", "Z"].map((axis, i) => <label key={axis}>{axis}<input type="number" min={-80} max={80} step={0.001} value={Number(settings.holeCenter[i].toFixed(3))} onChange={e => { const holeCenter = [...settings.holeCenter] as [number, number, number]; holeCenter[i] = Number(e.target.value); change({ ...settings, holeCenter }); }} className="w-full rounded border p-2" /></label>)}</div>
           <label className="mt-3 block">Xoay quanh dây (độ)<input type="number" min={-360} max={360} value={settings.rollDegrees} onChange={e => change({ ...settings, rollDegrees: Number(e.target.value) })} className="ml-2 rounded border p-2" /></label>
         </details>
         <details className="text-sm"><summary className="cursor-pointer font-medium">Ảnh đại diện</summary>
