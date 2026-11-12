@@ -37,6 +37,8 @@ export default function BeadTypesPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [attentionOnly, setAttentionOnly] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Bead | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -121,14 +123,29 @@ export default function BeadTypesPage() {
 
   async function setActive(bead: Bead, active: boolean) {
     setMessage("");
-    if (!active && !window.confirm(`Xóa vĩnh viễn "${bead.name}" khỏi danh mục? Thao tác này không thể hoàn tác.`)) return;
+    if (!active) { setPendingDelete(bead); return; }
     try {
       const response = await fetch(`/api/admin/bead-types/${encodeURIComponent(bead.id)}`, { method: active ? "PUT" : "DELETE" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Không thể cập nhật loại hạt.");
-      setMessage(active ? "Đã bật lại loại hạt." : "Đã xóa vĩnh viễn loại hạt.");
+      setMessage("Đã bật lại loại hạt.");
       await load();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể cập nhật loại hạt."); }
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete || deleting) return;
+    setDeleting(true); setError("");
+    try {
+      const response = await fetch(`/api/admin/bead-types/${encodeURIComponent(pendingDelete.id)}`, { method: "DELETE" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Không thể xóa loại hạt.");
+      setPendingDelete(null);
+      setMessage("Đã xóa loại hạt.");
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Không thể xóa loại hạt.");
+    } finally { setDeleting(false); }
   }
 
   return <div className="space-y-5">
@@ -154,11 +171,21 @@ export default function BeadTypesPage() {
             <td className="p-4 text-right text-gray-600">{bead.stock}</td>
             <td className="p-4 text-gray-600">{bead.diameter} mm</td>
             <td className="p-4"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${bead.status === "active" ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-600"}`}>{bead.status === "active" ? "Đang dùng" : bead.status === "draft" ? "Bản nháp" : "Đã ẩn"}</span></td>
-            <td className="p-4 text-right"><div className="inline-flex gap-3"><button onClick={() => startEdit(bead)} className="font-semibold text-rose-600 hover:underline">{bead.status === "draft" ? "Tiếp tục" : "Sửa"}</button>{bead.status === "inactive" && <button onClick={() => void setActive(bead, true)} className="font-semibold text-emerald-700 hover:underline">Bật lại</button>}<button onClick={() => void setActive(bead, false)} className="font-semibold text-red-600 hover:underline">Xóa vĩnh viễn</button></div></td>
+            <td className="p-4 text-right"><div className="inline-flex gap-3"><button onClick={() => startEdit(bead)} className="font-semibold text-rose-600 hover:underline">{bead.status === "draft" ? "Tiếp tục" : "Sửa"}</button>{bead.status === "inactive" && <button onClick={() => void setActive(bead, true)} className="font-semibold text-emerald-700 hover:underline">Bật lại</button>}<button onClick={() => void setActive(bead, false)} className="font-semibold text-red-600 hover:underline">Xóa</button></div></td>
           </tr>)}
         </tbody>
       </table>
     </div>
+
+    {pendingDelete && <div className="fixed inset-0 z-[110] flex items-center justify-center bg-gray-950/50 p-4 backdrop-blur-[2px]" onMouseDown={(event) => { if (!deleting && event.target === event.currentTarget) setPendingDelete(null); }}>
+      <section role="alertdialog" aria-modal="true" aria-labelledby="delete-bead-title" aria-describedby="delete-bead-description" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-black/5">
+        <div className="flex items-start gap-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12m-10 0 .7 12h6.6L16 7M9 7V4h6v3m-5 4v5m4-5v5" /></svg></div>
+          <div><h2 id="delete-bead-title" className="text-lg font-bold text-gray-900">Xóa loại hạt?</h2><p id="delete-bead-description" className="mt-2 text-sm leading-6 text-gray-600">Bạn có chắc muốn xóa <span className="font-semibold text-gray-900">“{pendingDelete.name}”</span> khỏi danh mục không?</p></div>
+        </div>
+        <div className="mt-7 flex justify-end gap-3"><button type="button" disabled={deleting} onClick={() => setPendingDelete(null)} className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">Hủy</button><button type="button" disabled={deleting} onClick={() => void confirmDelete()} className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:cursor-wait disabled:opacity-60">{deleting ? "Đang xóa..." : "Xóa"}</button></div>
+      </section>
+    </div>}
 
     {showForm && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" onMouseDown={(event) => { if (!saving && !modelBusy && event.target === event.currentTarget) closeForm(); }}>
       <form onSubmit={submit} className="max-h-[90vh] w-full max-w-5xl space-y-4 overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
