@@ -5,9 +5,15 @@ import Link from "next/link";
 import { Bookmark, FolderHeart, TriangleAlert, X } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { useLoginPrompt } from "@/components/LoginPromptProvider";
 import { useBraceletStore } from "@/lib/store";
 import { designFingerprint, type SavedDesign } from "@/lib/saved-design";
+
+const SavedDesignPreview = dynamic(() => import("@/components/SavedDesignPreview"), {
+  ssr: false,
+  loading: () => <div className="h-48 w-full rounded-2xl bg-pink-light/50" />,
+});
 
 const button = "rounded-xl border border-pink-mid/40 bg-white px-4 py-2 text-sm font-semibold text-pink-text hover:bg-pink-light disabled:opacity-40";
 async function request(method: string, body?: unknown, cursor?: string) {
@@ -156,10 +162,7 @@ export default function SavedDesigns({ gallery = false, compact: _compact = fals
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {items.map(design => <article key={design.id} className="rounded-3xl border border-pink-mid/30 bg-white p-5 shadow-sm" style={{ contentVisibility: "auto", containIntrinsicSize: "auto 360px" }}>
           <button className="w-full rounded-2xl bg-pink-light/50" onClick={() => open(design)} aria-label={`Xem ${design.name} trong 3D`}>
-            <svg viewBox="0 0 240 200" role="img" aria-label={`Ảnh xem trước ${design.name}`} className="mx-auto h-48 w-full">
-              <ellipse cx="120" cy="100" rx="70" ry="60" fill="none" stroke="#d8bfa1" strokeWidth="2" />
-              {design.config.slots.map((slot, i) => { const bead = design.config.beads.find(b => b.id === slot.beadTypeId); const angle = slot.angle ?? i / design.config.slots.length * Math.PI * 2; return <circle key={i} cx={120 + 70 * Math.cos(angle)} cy={100 + 60 * Math.sin(angle)} r={Math.min(13, Math.max(4, (bead?.diameter ?? 8)))} fill={bead?.color ?? "#ddd"} stroke="#ffffff" strokeWidth="1.5" />; })}
-            </svg>
+            <SavedDesignPreview design={design} />
           </button>
           <h2 className="mt-3 break-words text-lg font-bold">{design.name}</h2>
           <p className="mb-4 text-xs opacity-60">{design.config.slots.length} hạt · {design.config.wristCircumference} mm · {new Date(design.updatedAt).toLocaleDateString("vi-VN")}</p>
