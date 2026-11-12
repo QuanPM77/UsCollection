@@ -9,7 +9,7 @@ export default function CustomizerPanel() {
   return (
     <div
       className="
-        h-full min-h-0 flex flex-col justify-between gap-2 overflow-hidden lg:justify-start lg:gap-3 lg:overflow-y-auto
+        flex flex-col justify-start gap-3 overflow-visible lg:h-full lg:min-h-0 lg:gap-3 lg:overflow-y-auto
         bg-cream/80 backdrop-blur-md
         border-l border-pink-mid/30
         p-2 sm:p-3 lg:p-4
