@@ -25,7 +25,7 @@ async function request(method: string, body?: unknown, cursor?: string) {
   } finally { clearTimeout(timeout); }
 }
 
-export default function SavedDesigns({ gallery = false }: { gallery?: boolean }) {
+export default function SavedDesigns({ gallery = false, compact: _compact = false }: { gallery?: boolean; compact?: boolean }) {
   const store = useBraceletStore(useShallow(s => ({ slots: s.slots, wristCircumference: s.wristCircumference, beadCatalog: s.beadCatalog, savedDesignId: s.savedDesignId, savedDesignName: s.savedDesignName, savedFingerprint: s.savedFingerprint, savedUpdatedAt: s.savedUpdatedAt })));
   const { isAuthenticated, requestLogin } = useLoginPrompt();
   const router = useRouter();
@@ -144,7 +144,7 @@ export default function SavedDesigns({ gallery = false }: { gallery?: boolean })
           <button className="w-full rounded-2xl bg-pink-light/50" onClick={() => open(design)} aria-label={`Xem ${design.name} trong 3D`}>
             <svg viewBox="0 0 240 200" role="img" aria-label={`Ảnh xem trước ${design.name}`} className="mx-auto h-48 w-full">
               <ellipse cx="120" cy="100" rx="70" ry="60" fill="none" stroke="#d8bfa1" strokeWidth="2" />
-              {design.config.slots.map((slot, i) => { const bead = design.config.beads.find(b => b.id === slot.beadTypeId); const angle = i / design.config.slots.length * Math.PI * 2; return <circle key={i} cx={120 + 70 * Math.cos(angle)} cy={100 + 60 * Math.sin(angle)} r={Math.min(13, Math.max(4, (bead?.diameter ?? 8)))} fill={bead?.color ?? "#ddd"} stroke="#ffffff" strokeWidth="1.5" />; })}
+              {design.config.slots.map((slot, i) => { const bead = design.config.beads.find(b => b.id === slot.beadTypeId); const angle = slot.angle ?? i / design.config.slots.length * Math.PI * 2; return <circle key={i} cx={120 + 70 * Math.cos(angle)} cy={100 + 60 * Math.sin(angle)} r={Math.min(13, Math.max(4, (bead?.diameter ?? 8)))} fill={bead?.color ?? "#ddd"} stroke="#ffffff" strokeWidth="1.5" />; })}
             </svg>
           </button>
           <h2 className="mt-3 break-words text-lg font-bold">{design.name}</h2>

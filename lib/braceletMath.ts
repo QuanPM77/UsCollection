@@ -29,8 +29,31 @@ export const calculateRadiusFromBeads = (
   diametersMm: number[],
   defaultCircumferenceMm = 160
 ): number => {
-  return defaultCircumferenceMm / (2 * Math.PI * 10);
+  return fittedRadiusMm(diametersMm, defaultCircumferenceMm) / 10;
 };
+
+function fittedRadiusMm(diametersMm: number[], circumferenceMm: number) {
+  let radius = circumferenceMm / (2 * Math.PI);
+  if (diametersMm.length < 2) return radius;
+  const requiredAngle = (candidate: number) => diametersMm.reduce((sum, current, i) => {
+    const next = diametersMm[(i + 1) % diametersMm.length];
+    return sum + 2 * Math.asin(Math.min((current + next) / (4 * candidate), 0.999999));
+  }, 0);
+  if (requiredAngle(radius) <= Math.PI * 2) return radius;
+
+  // Keep every bead's minimum chord spacing. If a nearly full bracelet needs
+  // a little more room because of curvature, expand the ring instead of
+  // shrinking bead gaps until neighboring meshes overlap.
+  let low = radius;
+  let high = radius * 2;
+  while (requiredAngle(high) > Math.PI * 2) high *= 2;
+  for (let i = 0; i < 32; i++) {
+    const mid = (low + high) / 2;
+    if (requiredAngle(mid) > Math.PI * 2) low = mid;
+    else high = mid;
+  }
+  return high;
+}
 
 /**
  * Calculate how many beads fit on a bracelet given:
@@ -50,12 +73,13 @@ export const calculateBeadCount = (
  */
 export const generateVariableBeadPositions = (
   diametersMm: number[],
-  targetCircumferenceMm = 160
+  targetCircumferenceMm = 160,
+  spreadSlack = false
 ): BeadPosition[] => {
   const count = diametersMm.length;
   if (count === 0) return [];
 
-  const radiusMm = targetCircumferenceMm / (2 * Math.PI);
+  const radiusMm = fittedRadiusMm(diametersMm, targetCircumferenceMm);
   const radius = radiusMm / 10; // Three.js units
 
   // 1. Calculate required angular steps using exact 3D sphere chord distance
@@ -73,9 +97,9 @@ export const generateVariableBeadPositions = (
     totalAngleNeeded += inc;
   }
 
-  // 2. If the beads fill or nearly fill the circle (totalAngleNeeded >= 1.8 * PI),
-  // scale increments uniformly so they form a beautiful closed loop without gaps or overlapping.
-  const scale = totalAngleNeeded > Math.PI * 1.8 ? (Math.PI * 2) / totalAngleNeeded : 1.0;
+  // Keep unused cord as one open section by default. The editor can opt in to
+  // spreading that slack evenly when the customer asks to fill the bracelet.
+  const gapAngle = spreadSlack ? Math.max(0, (Math.PI * 2 - totalAngleNeeded) / count) : 0;
 
   const positions: BeadPosition[] = [];
   let currentAngle = -Math.PI / 2;
@@ -88,7 +112,7 @@ export const generateVariableBeadPositions = (
       angle: currentAngle,
     });
 
-    currentAngle += angleIncrements[i] * scale;
+    currentAngle += angleIncrements[i] + gapAngle;
   }
 
   return positions;

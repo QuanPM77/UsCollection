@@ -1,10 +1,5 @@
 "use client";
 
-/**
- * BeadMesh — renders a single bead in the 3D scene.
- * Uses the model saved on the bead, otherwise a color sphere.
- * Handles hover highlight and click-to-fill interactions.
- */
 
 import { Suspense, useMemo, useRef, useState } from "react";
 import { DoubleSide, Group, SRGBColorSpace, Texture, Vector3 } from "three";
@@ -12,8 +7,8 @@ import { useFrame, ThreeEvent } from "@react-three/fiber";
 import { Sphere, Html, useGLTF, useTexture } from "@react-three/drei";
 import { BeadType } from "@/types";
 import { useBraceletStore } from "@/lib/store";
-import { getBeadVisual, GLB_TO_SCENE, type TexturedBeadVisual } from "@/lib/beadVisuals";
 import GlbBead from "./GlbBead";
+import { getBeadVisual, GLB_TO_SCENE, type TexturedBeadVisual } from "@/lib/beadVisuals";
 
 interface BeadMeshProps {
   position: [number, number, number];
@@ -22,17 +17,17 @@ interface BeadMeshProps {
   beadRadius?: number;
   angle?: number;
 }
-
 const EMPTY_COLOR = "#F5D0DE";
 const EMPTY_EMISSIVE = "#FFB6C8";
 const HOVER_SCALE = 1.15;
 
 const _targetVec = new Vector3();
 
+/** Sphere material from a photo texture (+ optional normal map, AB sheen, transparency). */
 function TexturedBeadMaterial({ visual, hovered }: { visual: TexturedBeadVisual; hovered: boolean }) {
   const urls: Record<string, string> = visual.normalMap ? { map: visual.map, normalMap: visual.normalMap } : { map: visual.map };
   const maps = useTexture(urls) as { map: Texture; normalMap?: Texture };
-  maps.map.colorSpace = SRGBColorSpace;
+  maps.map.colorSpace = SRGBColorSpace; // only the color map is sRGB (idempotent)
 
   return (
     <meshPhysicalMaterial
@@ -57,6 +52,7 @@ function TexturedBeadMaterial({ visual, hovered }: { visual: TexturedBeadVisual;
   );
 }
 
+/** Two cut-out shells inside a glass bead: cracks seen through (and refracted by) the outer glass. */
 const CRACK_SHELLS = [
   { scale: 0.86, rotation: [0.4, 0.9, 0] as const, glow: 0.9 },
   { scale: 0.62, rotation: [1.7, 2.6, 0.5] as const, glow: 0.6 },
@@ -85,7 +81,8 @@ function InnerCracks({ url, radius }: { url: string; radius: number }) {
   );
 }
 
-function StaticBeadModel({ url }: { url: string }) {
+/** GLB bead/charm; files are in metres, the scene uses 1 unit = 10 mm. */
+function BeadModel({ url }: { url: string }) {
   const { scene } = useGLTF(url);
   const model = useMemo(() => scene.clone(true), [scene]);
   return <primitive object={model} scale={GLB_TO_SCENE} />;
@@ -132,7 +129,9 @@ export default function BeadMesh({
   const emissive = beadType?.emissive ?? (hovered ? EMPTY_EMISSIVE : "#FFD1DC");
   const metalness = beadType?.metalness ?? 0.05;
   const roughness = beadType?.roughness ?? 0.6;
+
   const visual = getBeadVisual(beadType?.id);
+  // Models face +Z: turn that toward the outside of the ring (X then follows the cord).
   const facing = Math.atan2(position[0], position[2]);
 
   const plainMaterial = (
@@ -151,6 +150,7 @@ export default function BeadMesh({
     <group position={position}>
       <group
         ref={meshRef}
+        rotation={[0, beadType?.model ? 0 : facing, 0]}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
         onPointerOver={(e: ThreeEvent<PointerEvent>) => {
@@ -167,26 +167,26 @@ export default function BeadMesh({
       >
         {beadType?.model ? (
           <GlbBead model={beadType.model} angle={angle} fallback={plainSphere} />
-          ) : visual?.kind === "model" ? (
-            <group rotation={[0, facing, 0]}>
-              <Suspense fallback={plainSphere}>
-                <StaticBeadModel url={visual.url} />
+        ) : visual?.kind === "model" ? (
+          <Suspense fallback={plainSphere}>
+            <BeadModel url={visual.url} />
+          </Suspense>
+        ) : visual?.kind === "texture" ? (
+          <>
+            <Sphere args={[beadRadius, 48, 32]}>
+              <Suspense fallback={plainMaterial}>
+                <TexturedBeadMaterial visual={visual} hovered={hovered} />
               </Suspense>
-            </group>
-          ) : visual?.kind === "texture" ? (
-            <group rotation={[0, facing, 0]}>
-              <Sphere args={[beadRadius, 48, 32]}>
-                <Suspense fallback={plainMaterial}>
-                  <TexturedBeadMaterial visual={visual} hovered={hovered} />
-                </Suspense>
-              </Sphere>
-              {visual.cracksMap && (
-                <Suspense fallback={null}>
-                  <InnerCracks url={visual.cracksMap} radius={beadRadius} />
-                </Suspense>
-              )}
-            </group>
-          ) : plainSphere}
+            </Sphere>
+            {visual.cracksMap && (
+              <Suspense fallback={null}>
+                <InnerCracks url={visual.cracksMap} radius={beadRadius} />
+              </Suspense>
+            )}
+          </>
+        ) : (
+          plainSphere
+        )}
       </group>
 
       {/* Floating Trash Can Button on Hover */}

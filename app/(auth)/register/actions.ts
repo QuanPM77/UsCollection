@@ -26,9 +26,8 @@ export async function registerUser(_: FormState, fd: FormData): Promise<FormStat
   const exists = await prisma.user.findFirst({ where: { phone }, select: { id: true } });
   if (exists) return { error: "Số điện thoại này đã được đăng ký. Hãy đăng nhập." };
 
-  let user;
   try {
-    user = await prisma.user.create({
+    await prisma.user.create({
       data: { phone, passwordHash: await bcrypt.hash(password, 10) }, // role mặc định: customer
     });
   } catch (e: unknown) {

@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { Prisma } from "@prisma/client";
+import { readBeadModel } from "@/lib/bead-model";
 import { prisma } from "@/lib/prisma";
 
-type BeadInput = { name?: string; material?: "glass" | "crystal" | "wood" | "stone" | "pearl"; color?: string; emissive?: string; metalness?: number; roughness?: number; price?: number; costPrice?: number; stock?: number; description?: string; diameter?: number };
+type BeadInput = { name?: string; material?: "glass" | "crystal" | "wood" | "stone" | "pearl"; color?: string; emissive?: string; metalness?: number; roughness?: number; price?: number; costPrice?: number; stock?: number; description?: string; diameter?: number; thumbnail?: string };
 async function getAdminId() {
   const session = await auth();
   return session?.user?.id && session.user.role === "admin" ? session.user.id : null;
 }
 function isValid(input: BeadInput) {
-  return typeof input.name === "string" && input.name.trim().length >= 2 && input.name.trim().length <= 100 &&
+  return (input.thumbnail === undefined || input.thumbnail === "" || (typeof input.thumbnail === "string" && input.thumbnail.length <= 200000 && /^data:image\/(webp|png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/.test(input.thumbnail))) &&
+    typeof input.name === "string" && input.name.trim().length >= 2 && input.name.trim().length <= 100 &&
     ["glass", "crystal", "wood", "stone", "pearl"].includes(input.material ?? "") &&
     typeof input.color === "string" && /^#[0-9a-f]{6}$/i.test(input.color) &&
     (input.emissive === undefined || input.emissive === "" || (typeof input.emissive === "string" && /^#[0-9a-f]{6}$/i.test(input.emissive))) &&
@@ -27,8 +30,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { id } = await params;
   const body = await request.json().catch(() => null) as BeadInput | null;
   if (!body || !isValid(body)) return NextResponse.json({ message: "Thông tin hạt không hợp lệ." }, { status: 400 });
-  const current = await prisma.products.findFirst({ where: { sku: id, type: "bead" }, select: { id: true } });
+  const current = await prisma.products.findFirst({ where: { sku: id, type: "bead" }, include: { bead_product_details: true } });
   if (!current) return NextResponse.json({ message: "Không tìm thấy loại hạt." }, { status: 404 });
+  let modelData = current.bead_product_details?.model_3d as Prisma.InputJsonValue | null | undefined;
+  if (body.thumbnail !== undefined) {
+    const nextModelData = modelData && typeof modelData === "object" && !Array.isArray(modelData)
+      ? { ...(modelData as Record<string, unknown>) }
+      : {};
+    if (body.thumbnail) { nextModelData.thumbnail = body.thumbnail; nextModelData.thumbnailSource = "photo"; }
+    else { delete nextModelData.thumbnail; delete nextModelData.thumbnailSource; }
+    modelData = Object.keys(nextModelData).length ? nextModelData as Prisma.InputJsonValue : null;
+  }
   const updated = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM products WHERE id = ${current.id}::uuid FOR UPDATE`;
     const locked = await tx.products.findUnique({ where: { id: current.id }, select: { stock: true } });
@@ -45,8 +57,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const product = await tx.products.update({ where: { id: current.id }, data: {
       name: body.name!.trim(), description: body.description!.trim(), price: body.price!, cost_price: body.costPrice!, stock: body.stock!,
       bead_product_details: { upsert: {
-        create: { material: body.material!, color: body.color!, emissive_color: body.emissive || null, metalness: body.metalness!, roughness: body.roughness!, diameter: body.diameter! },
-        update: { material: body.material!, color: body.color!, emissive_color: body.emissive || null, metalness: body.metalness!, roughness: body.roughness!, diameter: body.diameter! },
+        create: { material: body.material!, color: body.color!, emissive_color: body.emissive || null, metalness: body.metalness!, roughness: body.roughness!, diameter: body.diameter!, model_3d: modelData ? modelData as Prisma.InputJsonValue : Prisma.DbNull },
+        update: { material: body.material!, color: body.color!, emissive_color: body.emissive || null, metalness: body.metalness!, roughness: body.roughness!, diameter: body.diameter!, ...(body.thumbnail !== undefined ? { model_3d: modelData ? modelData as Prisma.InputJsonValue : Prisma.DbNull } : {}) },
       } },
     }, include: { bead_product_details: true } });
     const stockDelta = body.stock! - locked.stock;
@@ -58,17 +70,47 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     metalness: updated.bead_product_details?.metalness ?? 0, roughness: updated.bead_product_details?.roughness ?? 0.5, diameter: updated.bead_product_details?.diameter ?? 8 } });
 }
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!(await getAdminId())) return NextResponse.json({ message: "Không có quyền truy cập." }, { status: 403 });
+  const origin = request.headers.get("origin");
+  if (origin && origin !== new URL(request.url).origin) return NextResponse.json({ message: "Yêu cầu không hợp lệ." }, { status: 403 });
   const { id } = await params;
-  const result = await prisma.products.updateMany({ where: { sku: id, type: "bead" }, data: { status: "inactive" } });
-  if (!result.count) return NextResponse.json({ message: "Không tìm thấy loại hạt." }, { status: 404 });
-  return NextResponse.json({ success: true });
+  try {
+    const result = await prisma.$transaction(async tx => {
+      const current = await tx.products.findFirst({ where: { sku: id, type: "bead" }, select: { id: true } });
+      if (!current) return { status: 404, message: "Không tìm thấy loại hạt." };
+      await tx.$queryRaw`SELECT id FROM products WHERE id = ${current.id}::uuid FOR UPDATE`;
+      const [orders, bracelets] = await Promise.all([
+        tx.order_items.count({ where: { product_id: current.id } }),
+        tx.bracelet_product_beads.count({ where: { bead_product_id: current.id } }),
+      ]);
+      if (orders || bracelets) return { status: 409, message: orders
+        ? "Không thể xóa vĩnh viễn: hạt đang được tham chiếu trong đơn hàng. Hạt chưa bị xóa hoặc ẩn."
+        : "Không thể xóa vĩnh viễn: hạt đang nằm trong mẫu vòng. Hãy bỏ hạt khỏi mẫu vòng trước. Hạt chưa bị xóa hoặc ẩn." };
+      // Stock movements cannot outlive their required product FK. Order-linked
+      // products are rejected above; product details/model version rows cascade.
+      await tx.inventory_movements.deleteMany({ where: { product_id: current.id } });
+      await tx.products.delete({ where: { id: current.id } });
+      return { status: 200, message: "Đã xóa vĩnh viễn loại hạt." };
+    });
+    return NextResponse.json({ success: result.status === 200, message: result.message }, { status: result.status });
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code === "P2003") return NextResponse.json({ message: "Hạt đang được dữ liệu khác tham chiếu nên chưa thể xóa. Hạt chưa bị xóa hoặc ẩn." }, { status: 409 });
+    if (code === "P2025") return NextResponse.json({ message: "Hạt đã được xóa ở nơi khác. Hãy tải lại danh sách." }, { status: 404 });
+    console.error("Bead deletion failed", error);
+    return NextResponse.json({ message: "Không xóa được hạt. Vui lòng thử lại." }, { status: 503 });
+  }
 }
 
 export async function PUT(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!(await getAdminId())) return NextResponse.json({ message: "Không có quyền truy cập." }, { status: 403 });
   const { id } = await params;
+  const current = await prisma.products.findFirst({ where: { sku: id, type: "bead" }, include: { bead_product_details: true } });
+  if (!current) return NextResponse.json({ message: "Không tìm thấy hạt." }, { status: 404 });
+  if (current.status === "draft" && !readBeadModel(current.bead_product_details?.model_3d)) {
+    return NextResponse.json({ message: "Cần lưu model thành công trước khi hoàn tất bản nháp." }, { status: 409 });
+  }
   const result = await prisma.products.updateMany({ where: { sku: id, type: "bead" }, data: { status: "active" } });
   if (!result.count) return NextResponse.json({ message: "Không tìm thấy loại hạt." }, { status: 404 });
   return NextResponse.json({ success: true });

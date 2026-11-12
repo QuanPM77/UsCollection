@@ -1,38 +1,47 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { readBeadModel } from "@/lib/bead-model";
+import { readBeadModel, readBeadPhotoThumbnail } from "@/lib/bead-model";
 
 export async function GET() {
   const reservedUntil = new Date(Date.now() - 15 * 60 * 1000);
-  const [beads, reservations] = await Promise.all([prisma.products.findMany({
-    where: { type: "bead", status: "active", bead_product_details: { isNot: null } },
-    include: { bead_product_details: true },
-    orderBy: { name: "asc" },
-  }), prisma.$queryRaw<Array<{ product_id: string; reserved: number }>>`
-    SELECT oi.product_id, COALESCE(SUM(oi.quantity), 0)::int AS reserved
-    FROM order_items oi
-    JOIN orders o ON o.id = oi.order_id
-    JOIN products p ON p.id = oi.product_id
-    WHERE p.type = 'bead' AND p.status = 'active'
-      AND o.payment_status = 'pending'
-      AND o.created_at > ${reservedUntil}
-    GROUP BY oi.product_id
-  `]);
-  const reservedByProduct = new Map(reservations.map((row) => [row.product_id, Number(row.reserved)]));
+  const beads = await prisma.$queryRaw<Array<{
+    id: string; sku: string; name: string; description: string | null; price: number;
+    stock: number; reserved: number; material: string; color: string; emissive_color: string | null;
+    metalness: number; roughness: number; diameter: number; model_3d: unknown;
+  }>>`
+    SELECT p.id, p.sku, p.name, p.description, p.price, p.stock,
+      COALESCE(reservations.reserved, 0)::int AS reserved,
+      details.material::text AS material, details.color, details.emissive_color,
+      details.metalness, details.roughness, details.diameter, details.model_3d
+    FROM products p
+    JOIN bead_product_details details ON details.product_id = p.id
+    LEFT JOIN (
+      SELECT oi.product_id, SUM(oi.quantity)::int AS reserved
+      FROM order_items oi
+      JOIN orders o ON o.id = oi.order_id
+      JOIN products active_bead ON active_bead.id = oi.product_id
+        AND active_bead.type::text = 'bead' AND active_bead.status::text = 'active'
+      WHERE o.payment_status = 'pending' AND o.created_at > ${reservedUntil}
+      GROUP BY oi.product_id
+    ) reservations ON reservations.product_id = p.id
+    WHERE p.type::text = 'bead' AND p.status::text = 'active'
+    ORDER BY p.name ASC
+  `;
   return NextResponse.json({ success: true, data: beads.map((product) => ({
     id: product.sku,
     code: product.sku,
     name: product.name,
-    material: product.bead_product_details!.material,
-    color: product.bead_product_details!.color,
-    emissive: product.bead_product_details!.emissive_color ?? undefined,
-    metalness: product.bead_product_details!.metalness,
-    roughness: product.bead_product_details!.roughness,
+    material: product.material,
+    color: product.color,
+    emissive: product.emissive_color ?? undefined,
+    metalness: product.metalness,
+    roughness: product.roughness,
     price: product.price,
-    stock: Math.max(0, product.stock - (reservedByProduct.get(product.id) ?? 0)),
+    stock: Math.max(0, product.stock - product.reserved),
     description: product.description ?? "",
-    diameter: product.bead_product_details!.diameter,
-    model: readBeadModel(product.bead_product_details!.model_3d),
-    is_active: product.status === "active",
+    diameter: product.diameter,
+    model: readBeadModel(product.model_3d),
+    thumbnail: readBeadPhotoThumbnail(product.model_3d),
+    is_active: true,
   })) });
 }

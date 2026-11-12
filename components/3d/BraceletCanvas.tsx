@@ -4,10 +4,12 @@
  * BraceletCanvas — the main 3D scene.
  */
 
-import { Suspense, useMemo } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, type MutableRefObject } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Environment } from "@react-three/drei";
+import { Plane, Vector2, Vector3 } from "three";
+import { useThree } from "@react-three/fiber";
 
 import { useBraceletStore } from "@/lib/store";
 import {
@@ -19,8 +21,13 @@ import BeadMesh from "./BeadMesh";
 import BraceletCord from "./BraceletCord";
 import { beadSpacing } from "@/lib/bead-model";
 
-function BraceletScene() {
+type DropPlacement = (beadId: string, clientX: number, clientY: number) => boolean;
+
+function BraceletScene({ dropPlacementRef }: {
+  dropPlacementRef: MutableRefObject<DropPlacement | null>;
+}) {
   const { wristCircumference, slots, beadCatalog, isAutoRotating, canvasTheme } = useBraceletStore(useShallow(s => ({ wristCircumference: s.wristCircumference, slots: s.slots, beadCatalog: s.beadCatalog, isAutoRotating: s.isAutoRotating, canvasTheme: s.canvasTheme })));
+  const { camera, gl, raycaster } = useThree();
 
   const { radius, positions } = useMemo(() => {
   const diameters = slots.map((s) => {
@@ -29,10 +36,39 @@ function BraceletScene() {
   });
 
   const radius = calculateRadiusFromBeads(diameters, wristCircumference);
-  const positions = generateVariableBeadPositions(diameters, wristCircumference);
+  const basePositions = generateVariableBeadPositions(diameters, wristCircumference);
+  const positions = basePositions.map((position, index) => {
+    const fixedAngle = slots[index]?.angle;
+    if (fixedAngle === undefined || !Number.isFinite(fixedAngle)) return position;
+    return { ...position, x: Math.cos(fixedAngle) * radius, z: Math.sin(fixedAngle) * radius, angle: fixedAngle };
+  });
 
   return { radius, positions };
   }, [slots, beadCatalog, wristCircumference]);
+
+  const placeBeadAtAngle = useCallback((beadId: string, angle: number) => {
+    const state = useBraceletStore.getState();
+    const before = state.slots.length;
+    const existingAngles = state.slots.map((slot, index) => slot.angle ?? positions[index]?.angle ?? -Math.PI / 2);
+    state.stopAutoRotate();
+    state.addBead(beadId, { angle, existingAngles });
+    return useBraceletStore.getState().slots.length > before;
+  }, [positions]);
+
+  useEffect(() => {
+    dropPlacementRef.current = (beadId, clientX, clientY) => {
+      const rect = gl.domElement.getBoundingClientRect();
+      if (!rect.width || !rect.height) return false;
+      const pointer = new Vector2(
+        ((clientX - rect.left) / rect.width) * 2 - 1,
+        -((clientY - rect.top) / rect.height) * 2 + 1,
+      );
+      raycaster.setFromCamera(pointer, camera);
+      const point = raycaster.ray.intersectPlane(new Plane(new Vector3(0, 1, 0), 0), new Vector3());
+      return point ? placeBeadAtAngle(beadId, Math.atan2(point.z, point.x)) : false;
+    };
+    return () => { dropPlacementRef.current = null; };
+  }, [camera, gl, raycaster, dropPlacementRef, placeBeadAtAngle]);
 
   // Environment HDRI Preset per theme
   const envPreset = canvasTheme === "dark" ? "night" : canvasTheme === "white" ? "apartment" : "studio";
@@ -78,7 +114,7 @@ function BraceletScene() {
       />
 
       {/* Elastic cord ring */}
-      <BraceletCord radius={radius} />
+      <BraceletCord radius={radius} onPlaceBead={placeBeadAtAngle} />
 
       {/* Bead spheres */}
       {slots.map((slot, i) => {
@@ -107,6 +143,9 @@ function BraceletScene() {
 
 export default function BraceletCanvas() {
   const addBead = useBraceletStore((state) => state.addBead);
+  const stopAutoRotate = useBraceletStore((state) => state.stopAutoRotate);
+  const selectedBeadType = useBraceletStore((state) => state.selectedBeadType);
+  const dropPlacementRef = useRef<DropPlacement | null>(null);
   const canvasTheme = useBraceletStore(s => s.canvasTheme);
   const setCanvasTheme = useBraceletStore(s => s.setCanvasTheme);
   const isAutoRotating = useBraceletStore(s => s.isAutoRotating);
@@ -119,6 +158,8 @@ export default function BraceletCanvas() {
     e.preventDefault();
     const beadId = e.dataTransfer.getData("text/plain");
     if (beadId) {
+      stopAutoRotate();
+      if (dropPlacementRef.current?.(beadId, e.clientX, e.clientY)) return;
       addBead(beadId);
     }
   };
@@ -137,6 +178,9 @@ export default function BraceletCanvas() {
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
+      {selectedBeadType && <p className="absolute right-3 top-3 z-20 rounded-lg bg-white/90 px-3 py-2 text-xs font-medium text-pink-text shadow" aria-live="polite">
+        Rê chuột trên dây để canh, bấm để đặt {selectedBeadType.name}
+      </p>}
       {/* Floating Theme Switcher Overlay (Top Left) */}
       <div className="absolute top-3 left-3 z-20 flex items-center gap-1 bg-white/70 dark:bg-zinc-900/80 backdrop-blur-md p-1 rounded-full border border-pink-mid/30 shadow-md">
         <button
@@ -182,7 +226,7 @@ export default function BraceletCanvas() {
         style={{ background: "transparent" }}
       >
         <Suspense fallback={null}>
-          <BraceletScene />
+          <BraceletScene dropPlacementRef={dropPlacementRef} />
         </Suspense>
       </Canvas>
     </div>

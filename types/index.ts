@@ -4,6 +4,7 @@ export type BeadMaterial = "glass" | "crystal" | "wood" | "stone" | "pearl";
 
 export interface BeadType {
   model?: import("@/lib/bead-model").BeadModel;
+  thumbnail?: string;
   id: string;
   code?: string;
   name: string;
@@ -28,6 +29,8 @@ export interface BeadType {
 export interface BraceletSlot {
   index: number;
   beadTypeId: string | null;
+  /** Optional fixed angle in radians for user-placed beads. */
+  angle?: number;
 }
 
 export interface BraceletConfig {

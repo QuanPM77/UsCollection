@@ -6,7 +6,7 @@ import { beadSpacing } from "@/lib/bead-model";
 
 
 
-export default function WristInput() {
+export default function WristInput({ compact = false }: { compact?: boolean }) {
   const { wristCircumference, setWristCircumference, slots, beadCatalog } = useBraceletStore();
   const [inputValue, setInputValue] = useState(String(wristCircumference));
 
@@ -48,13 +48,13 @@ export default function WristInput() {
   ];
 
   return (
-    <div className="flex flex-col gap-2">
-      <h3 className="text-sm font-semibold text-pink-text uppercase tracking-wider">
+    <div className={`flex flex-col ${compact ? "gap-1" : "gap-2"}`}>
+      <h3 className={`${compact ? "text-xs" : "text-sm"} font-semibold text-pink-text uppercase tracking-wider`}>
         Chu vi cổ tay
       </h3>
 
       {/* Preset buttons */}
-      <div className="flex gap-2">
+      <div className={`flex ${compact ? "gap-1" : "gap-2"}`}>
         {presets.map((p) => (
           <button
             key={p.label}
@@ -63,7 +63,7 @@ export default function WristInput() {
               setInputValue(String(p.mm));
             }}
             className={`
-              flex-1 py-1.5 rounded-lg text-xs font-medium transition-all
+              flex-1 ${compact ? "py-1" : "py-1.5"} rounded-lg text-xs font-medium transition-all
               ${
                 wristCircumference === p.mm
                   ? "bg-pink-deep text-white shadow-pink"
@@ -72,13 +72,13 @@ export default function WristInput() {
             `}
           >
             <div>{p.label}</div>
-            <div className="text-[9px] opacity-70">{p.note}</div>
+            <div className={`${compact ? "text-[8px]" : "text-[9px]"} opacity-70`}>{p.note}</div>
           </button>
         ))}
       </div>
 
       {/* Custom input */}
-      <div className="flex items-center gap-2 bg-white/70 rounded-xl px-3 py-1.5 border border-pink-mid/40">
+      <div className={`flex items-center gap-2 bg-white/70 rounded-xl px-3 ${compact ? "py-1" : "py-1.5"} border border-pink-mid/40`}>
         <input
           aria-label="Chu vi cổ tay tính bằng milimét"
           type="number"
@@ -88,14 +88,14 @@ export default function WristInput() {
           onKeyDown={handleKeyDown}
           min={100}
           max={250}
-          className="flex-1 bg-transparent text-sm text-pink-text font-medium outline-none w-0"
+          className={`flex-1 bg-transparent text-sm text-pink-text font-medium outline-none w-0 ${compact ? "h-6" : ""}`}
           placeholder="160"
         />
         <span className="text-xs text-pink-text/50 shrink-0">mm</span>
       </div>
 
       {/* Info */}
-      <div className="flex justify-between text-xs text-pink-text/60">
+      <div className={`flex justify-between text-pink-text/60 ${compact ? "text-[10px]" : "text-xs"}`}>
         <span>
           Cổ tay: {wristCircumference / 10} cm
         </span>

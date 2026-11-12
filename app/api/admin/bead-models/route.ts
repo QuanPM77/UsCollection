@@ -2,7 +2,7 @@ import { randomUUID, createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { requireApiRole } from "@/lib/guard";
 import { prisma } from "@/lib/prisma";
-import { readBeadModel, validateModelSettings } from "@/lib/bead-model";
+import { readBeadModel, readBeadPhotoThumbnail, validateModelSettings } from "@/lib/bead-model";
 import { validateGlb, MAX_ORIGINAL_BYTES, MAX_WEB_BYTES } from "@/lib/glb-validation";
 import { ensureModelBuckets, signModelUpload, downloadModel, publishModel } from "@/lib/model-storage";
 
@@ -18,7 +18,7 @@ async function handle(request: Request) {
     if (origin && origin !== new URL(request.url).origin) return fail("Yêu cầu không hợp lệ.", 403);
   }
   const text = request.method === "GET" ? "{}" : await request.text();
-  if (text.length > 12000) return fail("Yêu cầu quá lớn.", 413);
+  if (text.length > 220000) return fail("Yêu cầu quá lớn.", 413);
   let body: { sku: string; originalBytes: number; webBytes: number; expectedAssetId?: string | null; assetId?: string; action?: string; settings?: unknown };
   try { body = JSON.parse(text); } catch { return fail("Dữ liệu không hợp lệ."); }
   if (!body || typeof body !== "object") return fail("Dữ liệu không hợp lệ.");
@@ -56,7 +56,9 @@ async function handle(request: Request) {
     const previous = readBeadModel(asset.config);
     if (asset.status !== "published" || !previous) return fail("Phiên bản chưa phát hành.");
     const id = randomUUID();
-    const model = { ...previous, ...validateModelSettings(body.settings), assetId: id };
+    const savedPhoto = product.bead_product_details?.model_3d;
+    const thumbnail = readBeadPhotoThumbnail(savedPhoto);
+    const model = { ...previous, ...validateModelSettings(body.settings), ...(thumbnail ? { thumbnail, thumbnailSource: "photo" as const } : {}), assetId: id };
     await prisma.$transaction(async tx => {
       await lockAndCheck(tx);
       await tx.product_model_assets.create({ data: {
@@ -84,7 +86,8 @@ async function handle(request: Request) {
   const hash = createHash("sha256").update(web).digest("hex");
   const path = `${product.id}/${asset.id}/${hash}.glb`;
   const url = await publishModel(path, web);
-  const model = { ...settings, assetId: asset.id, url, bytes: report.bytes, triangles: report.triangles };
+  const thumbnail = readBeadPhotoThumbnail(product.bead_product_details?.model_3d);
+  const model = { ...settings, ...(thumbnail ? { thumbnail, thumbnailSource: "photo" as const } : {}), assetId: asset.id, url, bytes: report.bytes, triangles: report.triangles };
   await prisma.$transaction(async tx => {
     await lockAndCheck(tx);
     await tx.product_model_assets.update({ where: { id: asset.id }, data: { status: "published", web_path: path, config: model } });

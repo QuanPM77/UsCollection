@@ -119,7 +119,7 @@ export default function AnalyticsCharts({ revenueData, statusDist, topProducts, 
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(val, name, props) => [
+                  formatter={(val, _name, props) => [
                     `${val} đơn (${Math.round((Number(val) / (kpis?.totalOrders || 1)) * 100)}%)`,
                     props.payload.label,
                   ]}

@@ -86,6 +86,7 @@ test("3D hover animation settles and stops requesting frames when auto-rotation 
   let frame, requests = 0;
   const component = load("components/3d/BeadMesh.tsx", {
     "./GlbBead": { default: () => null },
+    "@/lib/beadVisuals": load("lib/beadVisuals.ts", {}),
     three,
     react: { useRef: () => ({ current: mesh }), useState: () => [false, () => {}] },
     "react/jsx-runtime": { jsx: () => null, jsxs: () => null },

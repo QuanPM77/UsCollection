@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "beads:import": "node lib/seed-bundled-beads.cjs",
     "postinstall": "prisma generate",
     "dev": "next dev",
     "build": "next build",

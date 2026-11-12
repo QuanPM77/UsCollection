@@ -64,16 +64,16 @@ test('clear-all undo restores bead order and is discarded after a new design sta
   const original = [{ index: 0, beadTypeId: 'pink' }, { index: 1, beadTypeId: 'blue' }];
   const store = { slots: original, wristCircumference: 160, beadCatalog: [], totalPrice: () => 100, filledCount: () => store.slots.length, clearAll: () => { store.slots = []; } };
   const useStore = () => store; useStore.setState = value => Object.assign(store, value);
-  const render = renderer('components/ui/BraceletControls.tsx', { '@/lib/store': { useBraceletStore: useStore }, '@/lib/beadData': { formatPrice: String }, 'next/link': 'link', '@/components/LoginPromptProvider': { useLoginPrompt: () => ({ isAuthenticated: true }) } });
+  const render = renderer('components/ui/BraceletControls.tsx', { '@/components/ui/BeadSwatch': 'bead-swatch', '@/lib/store': { useBraceletStore: useStore }, '@/lib/beadData': { formatPrice: String }, '@/lib/braceletMath': { generateVariableBeadPositions: () => [] }, '@/lib/bead-model': { beadSpacing: () => 8 }, 'next/link': 'link', '@/components/LoginPromptProvider': { useLoginPrompt: () => ({ isAuthenticated: true }) } });
   const click = (tree, label) => nodes(tree).find(n => n.type === 'button' && text(n) === label).props.onClick();
-  render(); click(render(), 'Xóa tất cả');
+  render({}); click(render({}), 'Xóa tất cả');
   assert.equal(store.slots.length, 0);
-  click(render(), 'Hoàn tác');
+  click(render({}), 'Hoàn tác');
   assert.equal(JSON.stringify(store.slots), JSON.stringify(original));
-  click(render(), 'Xóa tất cả');
-  store.slots = [{ index: 0, beadTypeId: 'new' }]; render();
+  click(render({}), 'Xóa tất cả');
+  store.slots = [{ index: 0, beadTypeId: 'new' }]; render({});
   store.slots = [];
-  assert.ok(!text(render()).includes('Hoàn tác'));
+  assert.ok(!text(render({})).includes('Hoàn tác'));
 });
 
 test('registration preserves checkout through the success redirect', async () => {

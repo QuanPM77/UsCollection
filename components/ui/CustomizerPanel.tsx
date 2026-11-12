@@ -9,37 +9,36 @@ export default function CustomizerPanel() {
   return (
     <div
       className="
-        h-full flex flex-col gap-3 overflow-y-auto
+        h-full min-h-0 flex flex-col justify-between gap-2 overflow-hidden lg:justify-start lg:gap-3 lg:overflow-y-auto
         bg-cream/80 backdrop-blur-md
         border-l border-pink-mid/30
-        p-3 sm:p-4
+        p-2 sm:p-3 lg:p-4
       "
     >
       {/* Header */}
-      <div>
-        <h2 className="font-display text-xl font-bold text-pink-text">
+      <div className="shrink-0">
+        <h2 className="font-display text-lg font-bold text-pink-text lg:text-xl">
           Thiết kế vòng tay
         </h2>
-        <p className="text-xs text-pink-text/60 mt-0.5">
-          1. Chọn cỡ cổ tay → 2. Chọn hạt → 3. Kiểm tra và đặt hàng
-        </p>
       </div>
 
-      <hr className="border-pink-mid/30" />
+      <hr className="shrink-0 border-pink-mid/30" />
 
       {/* Wrist size */}
-      <WristInput />
+      <div className="shrink-0"><WristInput compact /></div>
 
-      <hr className="border-pink-mid/30" />
+      <hr className="shrink-0 border-pink-mid/30" />
 
       {/* Bead catalog */}
-      <BeadSelector />
+      <div className="shrink-0"><BeadSelector compact /></div>
 
-      <hr className="border-pink-mid/30" />
+      <hr className="shrink-0 border-pink-mid/30" />
 
       {/* Controls + checkout */}
-      <BraceletControls />
-      <SavedDesigns />
+      <div className="shrink-0 space-y-1.5 lg:space-y-3">
+        <BraceletControls compact />
+        <SavedDesigns compact />
+      </div>
     </div>
   );
 }

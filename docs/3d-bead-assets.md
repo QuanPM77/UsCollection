@@ -1,50 +1,34 @@
-# Hạt & charm 3D (texture / model GLB)
+# Thêm hạt và chỉnh model 3D
 
-Hình ảnh 3D riêng của từng hạt được tra theo **mã hạt (SKU)** trong `lib/beadVisuals.ts`.
-Không cần sửa database: chỉ cần tạo hạt trong **Admin → Hạt** với đúng "Mã hạt" dưới đây.
-Hạt có mã không nằm trong bảng vẫn hiển thị như cũ (khối cầu màu).
+## Luồng thao tác
 
-## Danh sách hạt đã có file
+1. Trong Admin → Các loại hạt, chọn Thêm hạt.
+2. Nhập thông tin sản phẩm và chọn GLB ngay trong form. File tối đa 8 MB dùng trực tiếp cho bản gốc và bản web. File gốc lớn hơn cần chọn thêm bản web tối ưu; giới hạn bản gốc 50 MB.
+3. Chọn Di chuyển lỗ để kéo mũi tên hoặc mặt phẳng; chọn Xoay hướng lỗ để kéo vòng xoay. Chọn trên bề mặt đặt tâm ban đầu, sau đó chỉnh độ sâu bằng tay nắm.
+4. Có góc nhìn Trước/Bên/Trên, chế độ trong suốt, căn bước 0,1 mm / 5°, Hoàn tác, Làm lại và Đặt lại tâm/hướng.
+5. Chọn Hạt xỏ dây hoặc Mặt treo. Xem thử trên vòng dùng cùng phép biến đổi với thiết kế của khách.
+6. Bấm Lưu hạt một lần. Hạt có model mới chỉ chuyển từ bản nháp sang hoạt động khi model đã được lưu. Nếu upload thất bại, giữ form và bấm Lưu hạt để thử lại; không tạo thêm hạt trong lần thử lại đã nhận được mã bản nháp.
 
-| Mã hạt | Loại | Đường kính (mm) nhập ở admin | Màu dự phòng | File |
-|---|---|---|---|---|
-| `crackle-do-den` | Hạt tròn, texture thuỷ tinh rạn đỏ – đen | 8 hoặc 10 | `#C8452E` | `public/textures/beads/crackle-do-den*.webp` |
-| `crackle-tim` | Hạt tròn, texture thuỷ tinh rạn tím | 8 hoặc 10 | `#8A4FCC` | `public/textures/beads/crackle-tim*.webp` |
-| `ab-xanh-duong` | Hạt tròn, nhựa xanh dương phủ AB | 8 hoặc 10 | `#2E9FD9` | `public/textures/beads/ab-xanh-duong.webp` |
-| `trong-xanh-bac-ha` | Hạt tròn, thuỷ tinh trong ánh bạc hà | 8 hoặc 10 | `#CDEBDD` | `public/textures/beads/trong-xanh-bac-ha.webp` |
-| `cupcake-hong` | Hạt xỏ ngang hình cupcake (model) | **13** | `#F3B8C6` | `public/models/beads/cupcake-hong.glb` |
-| `charm-meo-vang` | Charm treo mèo vàng (model) | **6** | `#F5D88A` | `public/models/charms/charm-meo-vang.glb` |
-| `charm-meo-hong` | Charm treo mèo hồng (model) | **6** | `#F29CB4` | `public/models/charms/charm-meo-hong.glb` |
+Điểm gắn là vị trí và hướng dây trong phần mềm, không thay đổi hình học hoặc đục lỗ trong GLB. Với mặt treo, đặt tâm tại khoen thực tế.
 
-- **Đường kính** quyết định khoảng chiếm trên dây. Hạt tròn: đúng cỡ thật.
-  Cupcake rộng 12.5 mm → nhập 13. Charm chỉ chiếm chỗ cái khoen (~4 mm) + khe hở → nhập 6.
-- **Màu dự phòng** dùng khi texture/model chưa tải xong và trong các bảng chưa có ảnh (đơn hàng admin).
-- **Phát sáng (emissive)**: để trống cho các hạt này, nếu không màu texture sẽ bị phủ mờ.
-- Kích thước model đã đúng mm thật trong file GLB, không phụ thuộc ô "đường kính".
-- Chất liệu: chọn gần nhất trong danh sách (charm/cupcake resin → `glass`).
+## Hình đại diện
 
-## Thêm hạt mới
+Ảnh nhỏ được tạo từ model lúc lưu, có thể thay bằng ảnh sản phẩm PNG/JPEG/WebP trong mục Ảnh đại diện. Ảnh được thu về 256 × 256 và lưu cùng phiên bản model. Ảnh sản phẩm đã chọn được giữ khi chỉnh hướng; chọn Dùng ảnh từ model để quay lại ảnh dựng tự động.
 
-1. Hạt tròn: thêm preset trong `Desktop/Texture_Bead/bead_texture.py`, chạy Blender, chép
-   `<tên>.webp` (+ `_normal.webp` nếu có) vào `public/textures/beads/`.
-   Model: dựng bằng script trong `Desktop/3D_Model`, chép `.glb` vào `public/models/...`.
-2. Tạo ảnh thu nhỏ ~160 px vào `public/thumbnails/beads/<mã-hạt>.webp`.
-3. Thêm một mục vào `BEAD_VISUALS` trong `lib/beadVisuals.ts` (thông số vật liệu lấy từ file `.json` của preset).
-4. Tạo hạt trong Admin với đúng mã.
+Danh sách Admin, bảng chọn hạt, chi tiết vòng và checkout đọc thumbnail từ model của chính hạt đó. Không tự tra model/texture theo SKU trong `lib/beadVisuals.ts` nữa. Những file mẫu cũ vẫn được giữ để người quản lý tự quyết định sử dụng hay xóa; không tự xóa hoặc ẩn dữ liệu sản phẩm.
 
-## Quy ước model
+## Dữ liệu và tương thích
 
-- Đơn vị GLB: mét (chuẩn glTF). Scene dùng 1 đơn vị = 10 mm → nhân `GLB_TO_SCENE = 100`.
-- Mặt trước hướng +Z; khi đặt lên vòng được xoay quay ra ngoài, trục X chạy dọc dây.
-- `mount: "bead"`: gốc toạ độ = tâm lỗ xỏ (lỗ theo trục X).
-- `mount: "charm"`: gốc toạ độ = đỉnh khoen móc, thân treo xuống theo −Y.
+- `model_3d.anchorRotation`: quaternion chuẩn hóa [x, y, z, w] mô tả hệ trục điểm gắn; X theo dây, Z là mặt trước.
+- `holeCenter`: tâm điểm gắn so với tâm bounding box, tính bằng mm sau khi đổi kích thước.
+- Model cũ thiếu quaternion vẫn dùng `holeAxis` và `rollDegrees`.
+- `attachment` quyết định mặt trước hướng lên (hạt) hoặc ra ngoài vòng (mặt treo).
+- `thumbnail` là ảnh raster data URL có giới hạn; `thumbnailSource` phân biệt ảnh dựng và ảnh sản phẩm.
+- Các trường mới nằm trong JSON hiện có, không cần thay đổi schema cho lần cập nhật này. Database vẫn cần các bảng model asset của tính năng upload trước đó.
 
-## Hạt thuỷ tinh (trong suốt)
+## Kiểm tra
 
-- `transmission` (0–1) cho ánh sáng xuyên qua hạt; texture màu khi đó là lớp nhuộm ánh sáng.
-  `attenuationColor` / `attenuationDistance` nhuộm màu theo độ dày thân hạt (hạt trong một màu).
-- Hạt rạn có `cracksMap` (`*-cracks.webp`, RGBA, alpha = vết nứt): `BeadMesh` vẽ 2 lớp cầu
-  nhỏ hơn bên trong (cắt bằng `alphaTest`), nhìn qua vỏ thuỷ tinh thấy vết rạn có chiều sâu.
-- Hạt nhựa đục (vd. `ab-xanh-duong`) không đặt `transmission`.
-- three.js gộp mọi hạt trong suốt vào một lượt vẽ thêm mỗi khung hình — nhiều hạt vẫn ổn,
-  nhưng nếu máy yếu bị giật thì hạ `transmission` hoặc bỏ ở vài màu.
+- `node node_modules/typescript/bin/tsc --noEmit --incremental false`
+- `npm run lint`
+- `node --test tests/*.test.cjs`
+- `node tests/bead-editor.browser.cjs`: kiểm tra giao diện/WebGL bằng Chrome headless với API giả lập cục bộ; không ghi vào database hay kho lưu trữ thật. Có thể đặt `QA_BROWSER` thành đường dẫn Edge/Chrome và `QA_TEMP` thành thư mục tạm không chứa dấu `!`.

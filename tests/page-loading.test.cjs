@@ -6,7 +6,7 @@ const vm = require("node:vm");
 const ts = require("typescript");
 
 function load(file, dependencies = {}, globals = {}) {
-  dependencies = { "@/lib/bead-model": { readBeadModel: () => undefined }, ...dependencies };
+  dependencies = { "@/lib/bead-model": { readBeadModel: () => undefined, readBeadPhotoThumbnail: () => undefined }, ...dependencies };
   const module = { exports: {} };
   const code = ts.transpileModule(fs.readFileSync(path.join(__dirname, "..", file), "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
@@ -93,17 +93,18 @@ test("role guard retains login, role and onboarding checks without another DB re
   assert.equal(await guard.requireRole("customer"), session);
 });
 
-test("bead catalog starts inventory reads together and subtracts reservations", async () => {
-  let finishProducts, inventoryStarted = false;
-  const details = {material:'stone',color:'#fff',diameter:8,metalness:0,roughness:0.5};
-  const products = [{id:'a',sku:'A',name:'A',price:1000,stock:5,status:'active',bead_product_details:details},{id:'b',sku:'B',name:'B',price:2000,stock:1,status:'active',bead_product_details:details}];
+test("bead catalog reads products and reservations in one query", async () => {
+  let finishQuery, queryStarted = false;
   const route=load('app/api/bead-types/route.ts', {
     'next/server':{NextResponse:{json:body=>body}},
-    '@/lib/prisma':{prisma:{products:{findMany:()=>new Promise(resolve=>{finishProducts=resolve;})},$queryRaw:async()=>{inventoryStarted=true;return [{product_id:'a',reserved:2},{product_id:'b',reserved:3}];}}},
+    '@/lib/prisma':{prisma:{$queryRaw:()=>{queryStarted=true;return new Promise(resolve=>{finishQuery=resolve;});}}},
   });
   const response=route.GET();
-  assert.equal(inventoryStarted,true);
-  finishProducts(products);
+  assert.equal(queryStarted,true);
+  finishQuery([
+    { id:'a',sku:'A',name:'A',price:1000,stock:5,reserved:2,material:'stone',color:'#fff',emissive_color:null,diameter:8,metalness:0,roughness:0.5,model_3d:null },
+    { id:'b',sku:'B',name:'B',price:2000,stock:1,reserved:3,material:'stone',color:'#fff',emissive_color:null,diameter:8,metalness:0,roughness:0.5,model_3d:null },
+  ]);
   const result=await response;
   assert.equal(result.data[0].stock,3);
   assert.equal(result.data[1].stock,0);

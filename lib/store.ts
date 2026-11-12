@@ -6,7 +6,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { BraceletSlot, BeadType } from "@/types";
-import { calculateTotalPrice } from "@/lib/braceletMath";
+import { calculateTotalPrice, generateVariableBeadPositions } from "@/lib/braceletMath";
 import { beadSpacing } from "@/lib/bead-model";
 
 export type CanvasTheme = "pink" | "white" | "dark";
@@ -34,13 +34,14 @@ interface BraceletStore {
   setBeadCatalog: (beads: BeadType[]) => void;
   setHoveredSlot: (index: number | null) => void;
   setCanvasTheme: (theme: CanvasTheme) => void;
-  addBead: (beadTypeId: string) => void;
+  addBead: (beadTypeId: string, placement?: { angle: number; existingAngles: number[] }) => void;
   removeBead: (index: number) => void;
   fillSlot: (index: number) => void;
   clearSlot: (index: number) => void;
   clearAll: () => void;
   fillAll: () => void;
   toggleAutoRotate: () => void;
+  stopAutoRotate: () => void;
 
   // Computed
   totalPrice: () => number;
@@ -110,7 +111,7 @@ export const useBraceletStore = create<BraceletStore>()(
 
       setHoveredSlot: (index) => set({ hoveredSlotIndex: index }),
 
-      addBead: (beadTypeId) => {
+      addBead: (beadTypeId, placement) => {
         const { slots, wristCircumference, beadCatalog } = get();
         const bead = beadCatalog.find((b) => b.id === beadTypeId && b.is_active !== false);
         if (!bead) return;
@@ -129,10 +130,11 @@ export const useBraceletStore = create<BraceletStore>()(
           return;
         }
 
-        const newSlots = [
-          ...slots,
-          { index: slots.length, beadTypeId },
-        ];
+        const newSlots = slots.map((slot, index) => ({
+          ...slot,
+          ...(placement && Number.isFinite(placement.existingAngles[index]) ? { angle: placement.existingAngles[index] } : {}),
+        }));
+        newSlots.push({ index: slots.length, beadTypeId, ...(placement ? { angle: placement.angle } : {}) });
         set({ slots: newSlots });
       },
 
@@ -184,22 +186,47 @@ export const useBraceletStore = create<BraceletStore>()(
       },
 
       fillAll: () => {
-        const { selectedBeadType, wristCircumference } = get();
+        const { selectedBeadType, wristCircumference, slots, beadCatalog } = get();
         if (!selectedBeadType) return;
-        
-        const beadDiameter = beadSpacing(selectedBeadType);
-        const count = Math.min(Math.floor(wristCircumference / beadDiameter), selectedBeadType.stock ?? Number.MAX_SAFE_INTEGER);
-        if (count < 1) return;
-        const newSlots = Array.from({ length: count }, (_, i) => ({
-          index: i,
-          beadTypeId: selectedBeadType.id,
-        }));
-        
-        set({ slots: newSlots });
+
+        const spacing = beadSpacing(selectedBeadType);
+        const usedStock = slots.filter((slot) => slot.beadTypeId === selectedBeadType.id).length;
+        const availableStock = selectedBeadType.stock === undefined
+          ? Number.MAX_SAFE_INTEGER
+          : Math.max(0, selectedBeadType.stock - usedStock);
+        const usedLength = slots.reduce((sum, slot) => {
+          const bead = beadCatalog.find((item) => item.id === slot.beadTypeId);
+          return sum + beadSpacing(bead);
+        }, 0);
+        const remainingLength = Math.max(0, wristCircumference + 2 - usedLength);
+        const countToAdd = Math.min(
+          Math.floor((remainingLength + 1e-6) / spacing),
+          availableStock,
+        );
+        const combinedSlots = [
+          ...slots,
+          ...Array.from({ length: countToAdd }, (_, offset) => ({
+            index: slots.length + offset,
+            beadTypeId: selectedBeadType.id,
+          })),
+        ];
+        const positions = generateVariableBeadPositions(
+          combinedSlots.map((slot) => beadSpacing(beadCatalog.find((bead) => bead.id === slot.beadTypeId))),
+          wristCircumference,
+          true,
+        );
+
+        set({ slots: combinedSlots.map((slot, index) => ({
+          ...slot,
+          index,
+          ...(positions[index] ? { angle: positions[index].angle } : {}),
+        })) });
       },
 
       toggleAutoRotate: () =>
         set((state) => ({ isAutoRotating: !state.isAutoRotating })),
+
+      stopAutoRotate: () => set({ isAutoRotating: false }),
 
       totalPrice: () => calculateTotalPrice(get().slots, get().beadCatalog),
 

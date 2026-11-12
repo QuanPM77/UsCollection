@@ -260,7 +260,7 @@ export default function CheckoutPage() {
               {beadRows.map(({ bead, count }) => {
                 return (
                   <div key={bead.id} className="flex items-center gap-3 border-b border-pink-mid/15 py-2 last:border-0">
-                    <BeadSwatch beadId={bead.id} color={bead.color} className="w-5 h-5 rounded-full shrink-0 ring-1 ring-white shadow-sm" />
+                    <BeadSwatch beadId={bead.id} model={bead.model} color={bead.color} className="w-5 h-5 rounded-full shrink-0 ring-1 ring-white shadow-sm" />
                     <span className="flex-1 text-sm text-pink-text">{bead.name}<span className="mt-1 block text-xs text-pink-text/60">{count} × {formatPrice(bead.price)}</span></span>
                     <span className="text-sm font-semibold text-pink-text">{formatPrice(bead.price * count)}</span>
                   </div>

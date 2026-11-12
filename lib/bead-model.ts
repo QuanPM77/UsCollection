@@ -5,6 +5,10 @@ export type ModelSettings = {
   holeCenter: [number, number, number]; // relative to bounding-box centre, in mm
   rollDegrees: number;
   attachment: "bead" | "pendant";
+  /** Local anchor frame: X follows the cord, Z is the model front. */
+  anchorRotation?: [number, number, number, number];
+  thumbnail?: string;
+  thumbnailSource?: "model" | "photo";
 };
 export type BeadModel = ModelSettings & {
   assetId: string;
@@ -17,6 +21,15 @@ export const DEFAULT_MODEL_SETTINGS: ModelSettings = {
 };
 export function validateModelSettings(input: unknown): ModelSettings {
   const s = input as ModelSettings | null;
+  if (s?.thumbnailSource !== undefined && !["model", "photo"].includes(s.thumbnailSource)) throw new Error("Nguồn ảnh không hợp lệ.");
+  if (s?.anchorRotation !== undefined && (!Array.isArray(s.anchorRotation) || s.anchorRotation.length !== 4 ||
+      s.anchorRotation.some(v => !Number.isFinite(v)) || Math.abs(Math.hypot(...s.anchorRotation) - 1) > 0.01)) {
+    throw new Error("Hướng điểm gắn không hợp lệ.");
+  }
+  if (s?.thumbnail !== undefined && (typeof s.thumbnail !== "string" || s.thumbnail.length > 200000 ||
+      !/^data:image\/(webp|png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/.test(s.thumbnail))) {
+    throw new Error("Ảnh xem trước không hợp lệ hoặc quá lớn.");
+  }
   if (!s || !Number.isFinite(s.widthMm) || s.widthMm < 2 || s.widthMm > 80 ||
       !Number.isFinite(s.spacingMm) || s.spacingMm < 2 || s.spacingMm > 80 ||
       !["x", "y", "z"].includes(s.holeAxis) || !["bead", "pendant"].includes(s.attachment) ||
@@ -26,7 +39,10 @@ export function validateModelSettings(input: unknown): ModelSettings {
     throw new Error("Kích thước hoặc hướng lỗ xỏ không hợp lệ.");
   }
   return { widthMm: s.widthMm, spacingMm: s.spacingMm, holeAxis: s.holeAxis,
-    holeCenter: [...s.holeCenter], rollDegrees: s.rollDegrees, attachment: s.attachment };
+    holeCenter: [...s.holeCenter], rollDegrees: s.rollDegrees, attachment: s.attachment,
+    ...(s.anchorRotation ? { anchorRotation: [...s.anchorRotation] as [number, number, number, number] } : {}),
+    ...(s.thumbnail ? { thumbnail: s.thumbnail } : {}),
+    ...(s.thumbnailSource ? { thumbnailSource: s.thumbnailSource } : {}) };
 }
 export function readBeadModel(value: unknown): BeadModel | undefined {
   if (!value || typeof value !== "object") return undefined;
@@ -35,8 +51,24 @@ export function readBeadModel(value: unknown): BeadModel | undefined {
   if (typeof m.assetId !== "string" || typeof m.url !== "string" || !/^https?:\/\//.test(m.url)) return undefined;
   return m;
 }
+export function readBeadThumbnail(value: unknown): string | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const thumbnail = (value as { thumbnail?: unknown }).thumbnail;
+  return typeof thumbnail === "string" && thumbnail.length <= 200000 &&
+    /^data:image\/(webp|png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/.test(thumbnail)
+    ? thumbnail
+    : undefined;
+}
+export function readBeadPhotoThumbnail(value: unknown): string | undefined {
+  if (!value || typeof value !== "object" || (value as { thumbnailSource?: unknown }).thumbnailSource !== "photo") return undefined;
+  return readBeadThumbnail(value);
+}
 export function beadSpacing(bead?: { diameter: number; model?: BeadModel } | null) {
-  return bead?.model?.spacingMm ?? bead?.diameter ?? 8;
+  if (!bead?.model) return bead?.diameter ?? 8;
+  // spacingMm is the configured footprint along the cord. widthMm only scales
+  // the rendered model; using it here made small-loop charms consume their full
+  // visual width (for example 15mm) even when their cord spacing was 2mm.
+  return bead.model.spacingMm;
 }
 export function modelVersionIds(beads: Array<{ id: string; model?: BeadModel }>) {
   return Object.fromEntries(beads.map(b => [b.id, b.model?.assetId ?? null]));

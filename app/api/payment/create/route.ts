@@ -190,7 +190,8 @@ export async function POST(req: NextRequest) {
         braceletConfig.wristCircumference < 100 || braceletConfig.wristCircumference > 250 ||
         !Array.isArray(braceletConfig.slots) ||
         braceletConfig.slots.some((slot, index) => slot.index !== index ||
-          (slot.beadTypeId !== null && (typeof slot.beadTypeId !== "string" || slot.beadTypeId.length > 64)))) {
+          (slot.beadTypeId !== null && (typeof slot.beadTypeId !== "string" || slot.beadTypeId.length > 64)) ||
+          (slot.angle !== undefined && (!Number.isFinite(slot.angle) || Math.abs(slot.angle) > Math.PI * 2)))) {
         return NextResponse.json({ success: false, message: "Thông tin đơn hàng không hợp lệ." }, { status: 400 });
       }
       const selectedIds = braceletConfig.slots.flatMap((slot) => slot.beadTypeId ? [slot.beadTypeId] : []);

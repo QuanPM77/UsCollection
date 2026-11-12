@@ -12,7 +12,7 @@ import { StatCard } from '@/components/admin/ui/StatCard';
 import { CardSkeleton } from '@/components/admin/ui/LoadingState';
 import { analyticsService } from '@/lib/admin/services';
 import { DashboardKPIs, RevenueDataPoint, TopProduct } from '@/lib/admin/types/analytics';
-import { formatCurrency, formatNumber } from '@/lib/admin/utils/formatters';
+import { formatCurrency } from '@/lib/admin/utils/formatters';
 import dynamic from 'next/dynamic';
 const AnalyticsCharts = dynamic(() => import('@/components/admin/AnalyticsCharts'), {
   loading: () => <div role="status" className="h-80 rounded-xl bg-white p-5 text-stone-500">Đang tải biểu đồ...</div>,

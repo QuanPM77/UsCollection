@@ -105,8 +105,7 @@ components/
 └── AuthShell.tsx                          # Khung dùng chung cho trang xác thực
 
 lib/
-├── admin/services/                        # Service quản trị (hiện phần lớn là mock/in-memory)
-├── admin/mock-data/                       # Dữ liệu mẫu admin
+├── admin/services/                        # Client gọi API quản trị
 ├── payment/                               # Payment strategy và PayOS strategy
 ├── store/                                 # Zustand store và dữ liệu hạt cho customizer
 ├── admin/types/                           # Kiểu dữ liệu quản trị
