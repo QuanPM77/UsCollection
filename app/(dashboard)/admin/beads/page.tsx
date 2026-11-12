@@ -1,11 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BeadMaterial } from "@/types";
 import dynamic from "next/dynamic";
+import type { ModelEditorHandle } from "@/components/admin/products/BeadModelEditor";
+import type { BeadModel } from "@/lib/bead-model";
+import BeadSwatch from "@/components/ui/BeadSwatch";
+
 const BeadModelEditor = dynamic(() => import("@/components/admin/products/BeadModelEditor"), { ssr: false });
 
 type Bead = {
+  model?: BeadModel;
   id: string; name: string; description: string; price: number; costPrice: number | null; stock: number; status: "active" | "inactive" | "draft";
   material: BeadMaterial; color: string; emissive: string; metalness: number; roughness: number; diameter: number;
 };
@@ -16,6 +21,10 @@ const materialLabels: Record<BeadMaterial, string> = { glass: "Thủy tinh", cry
 const slugify = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/đ/g, "d").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
 export default function BeadTypesPage() {
+  const modelEditor = useRef<ModelEditorHandle | null>(null);
+  const savedDraftSku = useRef<string | null>(null);
+  const submitLock = useRef(false);
+  const [formKey, setFormKey] = useState(0);
   const [beads, setBeads] = useState<Bead[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -44,27 +53,45 @@ export default function BeadTypesPage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const startCreate = () => { setEditing(null); setValues(blank); setShowForm(true); setMessage(""); };
+  const startCreate = () => { savedDraftSku.current = null; setFormKey(k => k + 1); setError(""); setEditing(null); setValues(blank); setShowForm(true); setMessage(""); };
   const startEdit = (bead: Bead) => {
+    savedDraftSku.current = null; setFormKey(k => k + 1); setError("");
     setEditing(bead);
     setValues({ name: bead.name, description: bead.description, price: String(bead.price), costPrice: bead.costPrice, stock: String(bead.stock), material: bead.material, color: bead.color, emissive: bead.emissive, metalness: bead.metalness, roughness: bead.roughness, diameter: bead.diameter });
     setShowForm(true); setMessage("");
   };
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (modelBusy) return; setSaving(true); setMessage("");
-    const id = editing?.id ?? slugify(values.name);
+    event.preventDefault();
+    if (submitLock.current || modelBusy) return;
+    submitLock.current = true; setSaving(true); setMessage(""); setError("");
+    const id = editing?.id ?? savedDraftSku.current ?? slugify(values.name);
     try {
-      const response = await fetch(editing ? `/api/admin/bead-types/${encodeURIComponent(id)}` : "/api/admin/bead-types", {
-        method: editing ? "PATCH" : "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...values, price: Number(values.price || "0"), stock: Number(values.stock || "0"), id }),
+      const editor = modelEditor.current;
+      if (!editor) throw new Error("Đang mở trình chỉnh 3D, vui lòng thử lại sau.");
+      editor.validate();
+      const hasModel = editor.hasModel();
+      if ((editing?.status === "draft" || savedDraftSku.current) && !hasModel) throw new Error("Bản nháp này cần model hợp lệ trước khi hoàn tất.");
+      const existing = Boolean(editing || savedDraftSku.current);
+      const response = await fetch(existing ? "/api/admin/bead-types/" + encodeURIComponent(id) : "/api/admin/bead-types", {
+        method: existing ? "PATCH" : "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...values, price: Number(values.price || "0"), stock: Number(values.stock || "0"), id, draft: hasModel }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Không thể lưu loại hạt.");
-      setShowForm(false); setMessage(editing ? "Đã cập nhật loại hạt." : "Đã thêm loại hạt vào thiết kế 3D.");
-      await load();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể lưu loại hạt."); }
-    finally { setSaving(false); }
+      if (!response.ok) throw new Error(data.message || "Không lưu được thông tin hạt.");
+      if (!existing && hasModel) savedDraftSku.current = id;
+      await editor.save(id);
+      if (savedDraftSku.current || editing?.status === "draft") {
+        const activated = await fetch("/api/admin/bead-types/" + encodeURIComponent(id), { method: "PUT" });
+        const result = await activated.json();
+        if (!activated.ok) throw new Error(result.message || "Chưa hoàn tất lưu hạt. Hãy thử lại.");
+      }
+      setShowForm(false); savedDraftSku.current = null;
+      setMessage("Đã lưu hạt, mô hình và ảnh đại diện."); await load();
+    } catch (cause) {
+      const detail = cause instanceof Error ? cause.message : "Không lưu được hạt.";
+      setError(savedDraftSku.current ? detail + " Hạt đang là bản nháp, chưa hiển thị cho khách. Giữ form và bấm Lưu hạt để thử lại." : detail);
+    } finally { submitLock.current = false; setSaving(false); }
   }
 
   async function setActive(bead: Bead, active: boolean) {
@@ -95,23 +122,23 @@ export default function BeadTypesPage() {
           {loading && <tr><td colSpan={8} className="p-10 text-center text-gray-500">Đang tải danh sách hạt...</td></tr>}
           {!loading && beads.length === 0 && <tr><td colSpan={8} className="p-10 text-center text-gray-500">Chưa có loại hạt nào.</td></tr>}
           {!loading && beads.map((bead) => <tr key={bead.id} className="border-t border-gray-100">
-            <td className="p-4"><div className="flex items-center gap-3"><span className="h-9 w-9 rounded-full border border-gray-200 shadow-inner" style={{ backgroundColor: bead.color, boxShadow: bead.emissive ? `0 0 12px ${bead.emissive}80` : undefined }} /><div><p className="font-semibold text-gray-900">{bead.name}</p><p className="text-xs text-gray-400">{bead.id}</p></div></div></td>
+            <td className="p-4"><div className="flex items-center gap-3"><BeadSwatch beadId={bead.id} model={bead.model} color={bead.color} className="h-9 w-9 shrink-0 rounded-full border border-gray-200 shadow-inner" style={{ boxShadow: bead.emissive ? `0 0 12px ${bead.emissive}80` : undefined }} /><div><p className="font-semibold text-gray-900">{bead.name}</p><p className="text-xs text-gray-400">{bead.id}</p></div></div></td>
             <td className="p-4 text-gray-600">{materialLabels[bead.material]}</td>
             <td className="p-4 text-right font-semibold text-gray-900">{currency.format(bead.price)}</td>
             <td className="p-4 text-right text-gray-600">{bead.costPrice === null ? <span className="text-amber-700">Chưa nhập</span> : currency.format(bead.costPrice)}</td>
             <td className="p-4 text-right text-gray-600">{bead.stock}</td>
             <td className="p-4 text-gray-600">{bead.diameter} mm</td>
-            <td className="p-4"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${bead.status === "active" ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-600"}`}>{bead.status === "active" ? "Đang dùng" : "Đã ẩn"}</span></td>
-            <td className="p-4 text-right"><div className="inline-flex gap-3"><button onClick={() => startEdit(bead)} className="font-semibold text-rose-600 hover:underline">Sửa</button>{bead.status === "active" ? <button onClick={() => void setActive(bead, false)} className="font-semibold text-red-600 hover:underline">Xóa</button> : <button onClick={() => void setActive(bead, true)} className="font-semibold text-emerald-700 hover:underline">Bật lại</button>}</div></td>
+            <td className="p-4"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${bead.status === "active" ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-600"}`}>{bead.status === "active" ? "Đang dùng" : bead.status === "draft" ? "Bản nháp" : "Đã ẩn"}</span></td>
+            <td className="p-4 text-right"><div className="inline-flex gap-3"><button onClick={() => startEdit(bead)} className="font-semibold text-rose-600 hover:underline">Sửa</button>{bead.status === "active" ? <button onClick={() => void setActive(bead, false)} className="font-semibold text-red-600 hover:underline">Xóa</button> : <button onClick={() => bead.status === "draft" ? startEdit(bead) : void setActive(bead, true)} className="font-semibold text-emerald-700 hover:underline">Bật lại</button>}</div></td>
           </tr>)}
         </tbody>
       </table>
     </div>
 
-    {showForm && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" onMouseDown={(event) => { if (!modelBusy && event.target === event.currentTarget) setShowForm(false); }}>
-      <form onSubmit={submit} className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+    {showForm && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" onMouseDown={(event) => { if (!saving && !modelBusy && event.target === event.currentTarget) setShowForm(false); }}>
+      <form onSubmit={submit} className="max-h-[90vh] w-full max-w-5xl space-y-4 overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
         <div><h2 className="text-lg font-bold text-gray-900">{editing ? "Chỉnh sửa loại hạt" : "Thêm loại hạt"}</h2><p className="mt-1 text-sm text-gray-500">Giá và thuộc tính 3D này sẽ được customer sử dụng khi thiết kế.</p></div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <fieldset disabled={saving || modelBusy} className="grid gap-4 sm:grid-cols-2 disabled:opacity-60">
           <label className="text-sm font-medium text-gray-700">Tên hạt<input required minLength={2} maxLength={100} value={values.name} onChange={(e) => setValues({ ...values, name: e.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label>
           <label className="text-sm font-medium text-gray-700">Mã hạt<input readOnly value={editing?.id ?? (slugify(values.name) || "tu-dong-tao-tu-ten")} className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-gray-500" /></label>
           <label className="text-sm font-medium text-gray-700">Chất liệu<select value={values.material} onChange={(e) => setValues({ ...values, material: e.target.value as BeadMaterial })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2">{Object.entries(materialLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
@@ -124,9 +151,9 @@ export default function BeadTypesPage() {
           <label className="text-sm font-medium text-gray-700">Độ kim loại ({values.metalness.toFixed(2)})<input type="range" min={0} max={1} step={0.05} value={values.metalness} onChange={(e) => setValues({ ...values, metalness: Number(e.target.value) })} className="mt-3 block w-full" /></label>
           <label className="text-sm font-medium text-gray-700">Độ nhám ({values.roughness.toFixed(2)})<input type="range" min={0} max={1} step={0.05} value={values.roughness} onChange={(e) => setValues({ ...values, roughness: Number(e.target.value) })} className="mt-3 block w-full" /></label>
           <label className="text-sm font-medium text-gray-700 sm:col-span-2">Mô tả<input maxLength={500} value={values.description} onChange={(e) => setValues({ ...values, description: e.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label>
-        </div>
-        {editing ? <BeadModelEditor key={editing.id} sku={editing.id} onBusyChange={setModelBusy} /> : <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">Lưu hạt trước, sau đó chọn Sửa để tải mô hình GLB.</p>}
-        <div className="flex justify-end gap-2 border-t border-gray-100 pt-4"><button type="button" disabled={modelBusy} onClick={() => setShowForm(false)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm disabled:opacity-40">Đóng</button><button disabled={saving || modelBusy} className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Đang lưu..." : editing ? "Lưu thông tin hạt" : "Thêm hạt"}</button></div>
+        </fieldset>
+        <BeadModelEditor key={formKey} sku={editing?.id} controllerRef={modelEditor} disabled={saving} onBusyChange={setModelBusy} />
+        <div className="flex justify-end gap-2 border-t border-gray-100 pt-4"><button type="button" disabled={saving || modelBusy} onClick={() => setShowForm(false)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm disabled:opacity-40">Đóng</button><button disabled={saving || modelBusy} className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Đang lưu..." : editing ? "Lưu hạt" : "Lưu hạt"}</button></div>
       </form>
     </div>}
   </div>;

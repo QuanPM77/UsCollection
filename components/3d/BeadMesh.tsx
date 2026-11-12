@@ -1,16 +1,18 @@
 "use client";
 
 /**
- * BeadMesh — renders a single bead sphere in the 3D scene.
+ * BeadMesh — renders a single bead in the 3D scene.
+ * Uses the model saved on the bead, otherwise a color sphere.
  * Handles hover highlight and click-to-fill interactions.
  */
 
-import { useRef, useState } from "react";
-import { Group, Vector3 } from "three";
+import { Suspense, useMemo, useRef, useState } from "react";
+import { DoubleSide, Group, SRGBColorSpace, Texture, Vector3 } from "three";
 import { useFrame, ThreeEvent } from "@react-three/fiber";
-import { Sphere, Html } from "@react-three/drei";
+import { Sphere, Html, useGLTF, useTexture } from "@react-three/drei";
 import { BeadType } from "@/types";
 import { useBraceletStore } from "@/lib/store";
+import { getBeadVisual, GLB_TO_SCENE, type TexturedBeadVisual } from "@/lib/beadVisuals";
 import GlbBead from "./GlbBead";
 
 interface BeadMeshProps {
@@ -26,6 +28,68 @@ const EMPTY_EMISSIVE = "#FFB6C8";
 const HOVER_SCALE = 1.15;
 
 const _targetVec = new Vector3();
+
+function TexturedBeadMaterial({ visual, hovered }: { visual: TexturedBeadVisual; hovered: boolean }) {
+  const urls: Record<string, string> = visual.normalMap ? { map: visual.map, normalMap: visual.normalMap } : { map: visual.map };
+  const maps = useTexture(urls) as { map: Texture; normalMap?: Texture };
+  maps.map.colorSpace = SRGBColorSpace;
+
+  return (
+    <meshPhysicalMaterial
+      {...maps}
+      color="#ffffff"
+      emissive="#ffffff"
+      emissiveIntensity={hovered ? 0.08 : 0}
+      metalness={0}
+      roughness={visual.roughness ?? 0.12}
+      clearcoat={visual.clearcoat ?? 0}
+      clearcoatRoughness={visual.clearcoatRoughness ?? 0.05}
+      iridescence={visual.iridescence ?? 0}
+      iridescenceIOR={visual.iridescenceIOR ?? 1.3}
+      iridescenceThicknessRange={visual.iridescenceThicknessRange ?? [100, 400]}
+      transmission={visual.transmission ?? 0}
+      thickness={visual.thickness ?? 0}
+      ior={visual.ior ?? 1.5}
+      attenuationColor={visual.attenuationColor ?? "#ffffff"}
+      attenuationDistance={visual.attenuationDistance ?? Infinity}
+      envMapIntensity={1.2}
+    />
+  );
+}
+
+const CRACK_SHELLS = [
+  { scale: 0.86, rotation: [0.4, 0.9, 0] as const, glow: 0.9 },
+  { scale: 0.62, rotation: [1.7, 2.6, 0.5] as const, glow: 0.6 },
+];
+
+function InnerCracks({ url, radius }: { url: string; radius: number }) {
+  const texture = useTexture(url) as Texture;
+  texture.colorSpace = SRGBColorSpace;
+  return (
+    <>
+      {CRACK_SHELLS.map((shell, i) => (
+        <Sphere key={i} args={[radius * shell.scale, 48, 32]} rotation={[...shell.rotation]}>
+          <meshStandardMaterial
+            map={texture}
+            emissiveMap={texture}
+            emissive="#ffffff"
+            emissiveIntensity={shell.glow}
+            alphaTest={0.2}
+            side={DoubleSide}
+            roughness={0.15}
+            metalness={0.2}
+          />
+        </Sphere>
+      ))}
+    </>
+  );
+}
+
+function StaticBeadModel({ url }: { url: string }) {
+  const { scene } = useGLTF(url);
+  const model = useMemo(() => scene.clone(true), [scene]);
+  return <primitive object={model} scale={GLB_TO_SCENE} />;
+}
 
 export default function BeadMesh({
   position,
@@ -68,6 +132,20 @@ export default function BeadMesh({
   const emissive = beadType?.emissive ?? (hovered ? EMPTY_EMISSIVE : "#FFD1DC");
   const metalness = beadType?.metalness ?? 0.05;
   const roughness = beadType?.roughness ?? 0.6;
+  const visual = getBeadVisual(beadType?.id);
+  const facing = Math.atan2(position[0], position[2]);
+
+  const plainMaterial = (
+    <meshStandardMaterial
+      color={color}
+      emissive={emissive}
+      emissiveIntensity={hovered ? 0.4 : 0.1}
+      metalness={metalness}
+      roughness={roughness}
+      envMapIntensity={1.2}
+    />
+  );
+  const plainSphere = <Sphere args={[beadRadius, 32, 32]}>{plainMaterial}</Sphere>;
 
   return (
     <group position={position}>
@@ -87,14 +165,28 @@ export default function BeadMesh({
           document.body.style.cursor = "auto";
         }}
       >
-        {beadType?.model ? <GlbBead model={beadType.model} angle={angle} fallback={<Sphere args={[beadRadius, 16, 16]}><meshStandardMaterial color={color} /></Sphere>} /> : <Sphere args={[beadRadius, 32, 32]}><meshStandardMaterial
-          color={color}
-          emissive={emissive}
-          emissiveIntensity={hovered ? 0.4 : 0.1}
-          metalness={metalness}
-          roughness={roughness}
-          envMapIntensity={1.2}
-        /></Sphere>}
+        {beadType?.model ? (
+          <GlbBead model={beadType.model} angle={angle} fallback={plainSphere} />
+          ) : visual?.kind === "model" ? (
+            <group rotation={[0, facing, 0]}>
+              <Suspense fallback={plainSphere}>
+                <StaticBeadModel url={visual.url} />
+              </Suspense>
+            </group>
+          ) : visual?.kind === "texture" ? (
+            <group rotation={[0, facing, 0]}>
+              <Sphere args={[beadRadius, 48, 32]}>
+                <Suspense fallback={plainMaterial}>
+                  <TexturedBeadMaterial visual={visual} hovered={hovered} />
+                </Suspense>
+              </Sphere>
+              {visual.cracksMap && (
+                <Suspense fallback={null}>
+                  <InnerCracks url={visual.cracksMap} radius={beadRadius} />
+                </Suspense>
+              )}
+            </group>
+          ) : plainSphere}
       </group>
 
       {/* Floating Trash Can Button on Hover */}
@@ -115,4 +207,3 @@ export default function BeadMesh({
     </group>
   );
 }
-
