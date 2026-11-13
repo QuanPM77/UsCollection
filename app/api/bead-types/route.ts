@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { readBeadModel, readBeadPhotoThumbnail } from "@/lib/bead-model";
+import { readBeadKind, readBeadModel, readBeadPhotoThumbnail } from "@/lib/bead-model";
 
 export async function GET() {
   const reservedUntil = new Date(Date.now() - 15 * 60 * 1000);
@@ -27,8 +27,12 @@ export async function GET() {
     WHERE p.type::text = 'bead' AND p.status::text = 'active'
     ORDER BY p.name ASC
   `;
-  return NextResponse.json({ success: true, data: beads.map((product) => ({
+  return NextResponse.json({ success: true, data: beads.map((product) => {
+    const kind = readBeadKind(product.model_3d);
+    const model = readBeadModel(product.model_3d);
+    return {
     id: product.sku,
+    kind,
     code: product.sku,
     name: product.name,
     material: product.material,
@@ -40,8 +44,8 @@ export async function GET() {
     stock: Math.max(0, product.stock - product.reserved),
     description: product.description ?? "",
     diameter: product.diameter,
-    model: readBeadModel(product.model_3d),
+    model: model ? { ...model, attachment: kind === "charm" ? "pendant" : "bead" } : undefined,
     thumbnail: readBeadPhotoThumbnail(product.model_3d),
     is_active: true,
-  })) });
+  }; }) });
 }

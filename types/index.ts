@@ -3,6 +3,7 @@
 export type BeadMaterial = "glass" | "crystal" | "wood" | "stone" | "pearl" | "metal";
 
 export interface BeadType {
+  kind?: "bead" | "charm";
   model?: import("@/lib/bead-model").BeadModel;
   thumbnail?: string;
   id: string;

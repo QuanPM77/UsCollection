@@ -7,9 +7,9 @@ import { uploadModelFile } from "@/lib/upload-model";
 const ModelPreview = dynamic(() => import("./ModelPreview"), { ssr: false, loading: () => <p>Đang mở khung xem trước…</p> });
 
 type Version = { id: string; createdAt: string; model: BeadModel };
-export type ModelEditorHandle = { validate: () => void; hasModel: () => boolean; save: (sku: string) => Promise<void> };
-export default function BeadModelEditor({ sku, controllerRef, disabled = false, onBusyChange, onReadyChange }: {
-  sku?: string; controllerRef: MutableRefObject<ModelEditorHandle | null>; disabled?: boolean; onBusyChange?: (busy: boolean) => void; onReadyChange?: (ready: boolean) => void;
+export type ModelEditorHandle = { setKind: (kind: "bead" | "charm") => void; validate: (kind?: "bead" | "charm") => void; hasModel: () => boolean; save: (sku: string, kind?: "bead" | "charm") => Promise<void> };
+export default function BeadModelEditor({ sku, kind = "bead", controllerRef, disabled = false, onBusyChange, onReadyChange }: {
+  sku?: string; kind?: "bead" | "charm"; controllerRef: MutableRefObject<ModelEditorHandle | null>; disabled?: boolean; onBusyChange?: (busy: boolean) => void; onReadyChange?: (ready: boolean) => void;
 }) {
   const [model, setModel] = useState<BeadModel | null>(null);
   const [versions, setVersions] = useState<Version[]>([]);
@@ -29,6 +29,8 @@ export default function BeadModelEditor({ sku, controllerRef, disabled = false, 
   const captureRef = useRef<(() => string) | null>(null);
   const initialSettings = useRef<ModelSettings>(DEFAULT_MODEL_SETTINGS);
   const pendingAsset = useRef<string | null>(null);
+  const kindRef = useRef(kind);
+  kindRef.current = kind;
   const onPreviewReady = useCallback(() => setPreviewReady(true), []);
   const onPreviewError = useCallback(() => { setPreviewReady(false); setError("Không đọc được mô hình. Hãy kiểm tra hoặc chọn lại file."); }, []);
   useEffect(() => { onBusyChange?.(busy); return () => onBusyChange?.(false); }, [busy, onBusyChange]);
@@ -40,7 +42,8 @@ export default function BeadModelEditor({ sku, controllerRef, disabled = false, 
       const data = await r.json(); if (!r.ok) throw new Error(data.message);
       if (!cancelled) {
         setModel(data.model); setVersions(data.versions.filter((v: Version) => v.model));
-        const value = validateModelSettings(data.model ?? DEFAULT_MODEL_SETTINGS);
+        const loadedSettings = validateModelSettings(data.model ?? DEFAULT_MODEL_SETTINGS);
+        const value = { ...loadedSettings, attachment: kindRef.current === "charm" ? "pendant" as const : "bead" as const };
         setSettings(value); initialSettings.current = value; setReady(true);
       }
     }).catch(e => { if (!cancelled) { setError(e.message); setReady(true); } });
@@ -87,9 +90,15 @@ export default function BeadModelEditor({ sku, controllerRef, disabled = false, 
     } catch (e) { setError(e instanceof Error ? e.message : "Không đọc được ảnh."); }
     finally { setBusy(false); }
   }
-  function validate() {
+  function settingsForKind(kind?: "bead" | "charm") {
+    return kind ? { ...settings, attachment: kind === "charm" ? "pendant" as const : "bead" as const } : settings;
+  }
+  function setKind(kind: "bead" | "charm") {
+    setSettings(current => ({ ...current, attachment: kind === "charm" ? "pendant" : "bead" }));
+  }
+  function validate(kind?: "bead" | "charm") {
     if (!ready || busy) throw new Error("Vui lòng chờ trình chỉnh 3D sẵn sàng.");
-    validateModelSettings(settings);
+    validateModelSettings(settingsForKind(kind));
     if (original && (!web || !previewReady)) throw new Error("Hãy chọn bản web hợp lệ và chờ model hiển thị trước khi lưu.");
     if (model && !original && !previewReady) throw new Error("Hãy chờ model hiển thị trước khi lưu.");
   }
@@ -97,14 +106,15 @@ export default function BeadModelEditor({ sku, controllerRef, disabled = false, 
     const response = await fetch("/api/admin/bead-models", { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sku: targetSku, expectedAssetId: model?.assetId ?? null, ...body }) });
     const data = await response.json(); if (!response.ok) throw new Error(data.message); return data;
   }
-  async function save(targetSku: string) {
-    validate();
+  async function save(targetSku: string, kind?: "bead" | "charm") {
+    validate(kind);
     if (!original && !model) return;
-    if (!original && !customThumbnail && model?.thumbnail && JSON.stringify(settings) === JSON.stringify(initialSettings.current)) return;
-    const savedPhoto = !original && settings.thumbnailSource === "photo" ? settings.thumbnail : undefined;
+    const nextSettings = settingsForKind(kind);
+    if (!original && !customThumbnail && model?.thumbnail && JSON.stringify(nextSettings) === JSON.stringify(initialSettings.current)) return;
+    const savedPhoto = !original && nextSettings.thumbnailSource === "photo" ? nextSettings.thumbnail : undefined;
     const thumbnail = customThumbnail ?? savedPhoto ?? captureRef.current?.();
     if (!thumbnail) throw new Error("Chưa tạo được ảnh xem trước. Hãy chờ model tải xong rồi thử lại.");
-    const config = validateModelSettings({ ...settings, thumbnail, thumbnailSource: customThumbnail || savedPhoto ? "photo" : "model" });
+    const config = validateModelSettings({ ...nextSettings, thumbnail, thumbnailSource: customThumbnail || savedPhoto ? "photo" : "model" });
     setBusy(true); setError("");
     try {
       // A lost publish response must not force a second upload or a stale-version error.
@@ -134,7 +144,7 @@ export default function BeadModelEditor({ sku, controllerRef, disabled = false, 
     } catch (e) { setError(e instanceof Error ? e.message : "Không lưu được mô hình."); throw e; }
     finally { setBusy(false); }
   }
-  useImperativeHandle(controllerRef, () => ({ validate, hasModel: () => Boolean(original || web || model), save }));
+  useImperativeHandle(controllerRef, () => ({ setKind, validate, hasModel: () => Boolean(original || web || model), save }));
   async function restore(assetId: string) {
     if (!sku) return;
     setBusy(true); setError("");
@@ -167,7 +177,6 @@ export default function BeadModelEditor({ sku, controllerRef, disabled = false, 
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm">Chiều rộng model (mm)<input type="number" min={2} max={80} step={.1} value={settings.widthMm} onChange={e => change({ ...settings, widthMm: Number(e.target.value) })} className="mt-1 w-full rounded border p-2" /></label>
           <label className="text-sm">Khoảng chiếm trên dây (mm)<input type="number" min={2} max={80} step={.1} value={settings.spacingMm} onChange={e => change({ ...settings, spacingMm: Number(e.target.value) })} className="mt-1 w-full rounded border p-2" /></label>
-          <label className="text-sm">Kiểu gắn<select value={settings.attachment} onChange={e => change({ ...settings, attachment: e.target.value as ModelSettings["attachment"] })} className="mt-1 w-full rounded border p-2"><option value="bead">Hạt xỏ dây</option><option value="pendant">Mặt treo — tâm ở khoen</option></select></label>
           <button type="button" onClick={() => change({ ...settings, rollDegrees: (settings.rollDegrees + 90) % 360 })} className="self-end rounded border p-2 text-sm">Xoay model 90° quanh dây</button>
         </div>
         <details className="text-sm"><summary className="cursor-pointer font-medium">Thông số nâng cao</summary>

@@ -14,6 +14,7 @@ export default function BeadCard({ bead, compact = false }: BeadCardProps) {
   const { selectedBeadType, setSelectedBeadType, stopAutoRotate, slots } = useBraceletStore();
   const isSelected = selectedBeadType?.id === bead.id;
   const remaining = Math.max(0, (bead.stock ?? 0) - slots.filter((slot) => slot.beadTypeId === bead.id).length);
+  const label = bead.kind === "charm" || bead.model?.attachment === "pendant" ? "charm" : "hạt";
 
   return (
     <button
@@ -51,7 +52,7 @@ export default function BeadCard({ bead, compact = false }: BeadCardProps) {
         {formatPrice(bead.price)}
       </span>
       <span className={`${compact ? "text-[9px]" : "text-[10px]"} font-medium ${remaining === 0 ? "text-red-600" : "text-emerald-700"}`}>
-        Còn {remaining} hạt
+        Còn {remaining} {label}
       </span>
 
       {/* Selected indicator */}

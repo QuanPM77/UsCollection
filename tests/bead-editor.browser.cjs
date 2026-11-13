@@ -51,7 +51,7 @@ async function main() {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       return res.end('<html><meta charset="utf-8"><style>body{font:14px Arial}form{position:fixed;inset:15px;background:white;overflow:auto;padding:20px}fieldset{border:1px solid #ddd;padding:12px}label{display:inline-block;margin:6px}button{padding:7px;margin:3px}canvas{display:block}div.h-80{height:320px}div.h-72{height:288px}section{border:1px solid #ccc;padding:12px}</style><div id="root"></div><script src="/app.js"></script></html>');
     }
-    const file = url.pathname === '/model.glb' ? path.join(root, 'public/models/beads/cupcake-hong.glb') : path.join(dir, 'dist', path.basename(url.pathname));
+    const file = url.pathname === '/model.glb' ? path.join(root, 'tests/fixtures/cupcake-hong.glb') : path.join(dir, 'dist', path.basename(url.pathname));
     if (fs.existsSync(file)) { res.setHeader('Content-Type', file.endsWith('.js') ? 'text/javascript' : 'model/gltf-binary'); return fs.createReadStream(file).pipe(res); }
     res.writeHead(404); res.end();
   });
@@ -81,7 +81,7 @@ async function main() {
     await until("document.querySelector('input[type=file]') !== null");
     await evaluate(`(()=>{const set=(label,value)=>{const el=[...document.querySelectorAll('label')].find(l=>l.textContent.startsWith(label)).querySelector('input');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,value);el.dispatchEvent(new Event('input',{bubbles:true}));};set('Tên hạt','QA cupcake');set('Giá vốn','100');set('Tồn kho','5');})()`);
     const doc = await send('DOM.getDocument'); const input = await send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: 'input[type=file]' });
-    await send('DOM.setFileInputFiles', { nodeId: input.nodeId, files: [path.join(root, 'public/models/beads/cupcake-hong.glb')] });
+    await send('DOM.setFileInputFiles', { nodeId: input.nodeId, files: [path.join(root, 'tests/fixtures/cupcake-hong.glb')] });
     await until("document.querySelectorAll('canvas').length === 2"); await pause(1500);
     await evaluate("[...document.querySelectorAll('button')].find(b=>b.textContent==='Xoay hướng lỗ').click()");
     await evaluate("[...document.querySelectorAll('button')].find(b=>b.textContent==='Xoay model 90° quanh dây').click()");

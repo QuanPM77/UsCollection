@@ -1,14 +1,14 @@
 "use client";
 
 
-import { Suspense, useMemo, useRef, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { DoubleSide, Group, SRGBColorSpace, Texture, Vector3 } from "three";
 import { useFrame, ThreeEvent } from "@react-three/fiber";
-import { Sphere, Html, useGLTF, useTexture } from "@react-three/drei";
+import { Sphere, Html, useTexture } from "@react-three/drei";
 import { BeadType } from "@/types";
 import { useBraceletStore } from "@/lib/store";
 import GlbBead from "./GlbBead";
-import { getBeadVisual, GLB_TO_SCENE, type TexturedBeadVisual } from "@/lib/beadVisuals";
+import { getBeadVisual, type TexturedBeadVisual } from "@/lib/beadVisuals";
 
 interface BeadMeshProps {
   position: [number, number, number];
@@ -79,13 +79,6 @@ function InnerCracks({ url, radius }: { url: string; radius: number }) {
       ))}
     </>
   );
-}
-
-/** GLB bead/charm; files are in metres, the scene uses 1 unit = 10 mm. */
-function BeadModel({ url }: { url: string }) {
-  const { scene } = useGLTF(url);
-  const model = useMemo(() => scene.clone(true), [scene]);
-  return <primitive object={model} scale={GLB_TO_SCENE} />;
 }
 
 export default function BeadMesh({
@@ -167,10 +160,6 @@ export default function BeadMesh({
       >
         {beadType?.model ? (
           <GlbBead model={beadType.model} angle={angle} fallback={plainSphere} />
-        ) : visual?.kind === "model" ? (
-          <Suspense fallback={plainSphere}>
-            <BeadModel url={visual.url} />
-          </Suspense>
         ) : visual?.kind === "texture" ? (
           <>
             <Sphere args={[beadRadius, 32, 24]}>

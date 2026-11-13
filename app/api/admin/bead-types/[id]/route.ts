@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { Prisma } from "@prisma/client";
-import { readBeadModel } from "@/lib/bead-model";
+import { readBeadKind, readBeadModel } from "@/lib/bead-model";
 import { prisma } from "@/lib/prisma";
 
-type BeadInput = { name?: string; material?: "glass" | "crystal" | "wood" | "stone" | "pearl" | "metal"; color?: string; emissive?: string; metalness?: number; roughness?: number; price?: number; costPrice?: number; stock?: number; description?: string; diameter?: number; thumbnail?: string };
+type BeadInput = { kind?: "bead" | "charm"; name?: string; material?: "glass" | "crystal" | "wood" | "stone" | "pearl" | "metal"; color?: string; emissive?: string; metalness?: number; roughness?: number; price?: number; costPrice?: number; stock?: number; description?: string; diameter?: number; thumbnail?: string };
 async function getAdminId() {
   const session = await auth();
   return session?.user?.id && session.user.role === "admin" ? session.user.id : null;
 }
 function isValid(input: BeadInput) {
   return (input.thumbnail === undefined || input.thumbnail === "" || (typeof input.thumbnail === "string" && input.thumbnail.length <= 200000 && /^data:image\/(webp|png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/.test(input.thumbnail))) &&
+    (input.kind === undefined || input.kind === "bead" || input.kind === "charm") &&
     typeof input.name === "string" && input.name.trim().length >= 2 && input.name.trim().length <= 100 &&
     ["glass", "crystal", "wood", "stone", "pearl", "metal"].includes(input.material ?? "") &&
     typeof input.color === "string" && /^#[0-9a-f]{6}$/i.test(input.color) &&
@@ -33,12 +34,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const current = await prisma.products.findFirst({ where: { sku: id, type: "bead" }, include: { bead_product_details: true } });
   if (!current) return NextResponse.json({ message: "Không tìm thấy loại hạt." }, { status: 404 });
   let modelData = current.bead_product_details?.model_3d as Prisma.InputJsonValue | null | undefined;
-  if (body.thumbnail !== undefined) {
+  {
     const nextModelData = modelData && typeof modelData === "object" && !Array.isArray(modelData)
       ? { ...(modelData as Record<string, unknown>) }
       : {};
-    if (body.thumbnail) { nextModelData.thumbnail = body.thumbnail; nextModelData.thumbnailSource = "photo"; }
-    else { delete nextModelData.thumbnail; delete nextModelData.thumbnailSource; }
+    nextModelData.kind = body.kind ?? readBeadKind(modelData);
+    if (body.thumbnail !== undefined) {
+      if (body.thumbnail) { nextModelData.thumbnail = body.thumbnail; nextModelData.thumbnailSource = "photo"; }
+      else { delete nextModelData.thumbnail; delete nextModelData.thumbnailSource; }
+    }
     modelData = Object.keys(nextModelData).length ? nextModelData as Prisma.InputJsonValue : null;
   }
   const updated = await prisma.$transaction(async (tx) => {
@@ -66,7 +70,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return product;
   });
   return NextResponse.json({ bead: { id: updated.sku, name: updated.name, description: updated.description ?? "", price: updated.price, costPrice: updated.cost_price, stock: updated.stock, status: updated.status,
-    material: updated.bead_product_details?.material ?? "crystal", color: updated.bead_product_details?.color ?? "#ffffff", emissive: updated.bead_product_details?.emissive_color ?? "",
+    kind: readBeadKind(updated.bead_product_details?.model_3d), material: updated.bead_product_details?.material ?? "crystal", color: updated.bead_product_details?.color ?? "#ffffff", emissive: updated.bead_product_details?.emissive_color ?? "",
     metalness: updated.bead_product_details?.metalness ?? 0, roughness: updated.bead_product_details?.roughness ?? 0.5, diameter: updated.bead_product_details?.diameter ?? 8 } });
 }
 

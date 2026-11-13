@@ -44,7 +44,7 @@ export default auth(async (request) => {
 export const config = {
   runtime: "nodejs",
   matcher: [
-    "/((?!api|images/|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)",
+    "/((?!api|images/|models/|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)",
     "/api/custom-designs/:path*",
     "/api/support/chat/:path*",
     "/api/payment/create",

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { readBeadModel, readBeadPhotoThumbnail } from "@/lib/bead-model";
+import { readBeadKind, readBeadModel, readBeadPhotoThumbnail } from "@/lib/bead-model";
 import { prisma } from "@/lib/prisma";
 
 const materials = ["glass", "crystal", "wood", "stone", "pearl", "metal"] as const;
-type BeadInput = { draft?: boolean; id?: string; name?: string; material?: string; color?: string; emissive?: string; metalness?: number; roughness?: number; price?: number; costPrice?: number; stock?: number; description?: string; diameter?: number; thumbnail?: string };
+type BeadInput = { kind?: "bead" | "charm"; draft?: boolean; id?: string; name?: string; material?: string; color?: string; emissive?: string; metalness?: number; roughness?: number; price?: number; costPrice?: number; stock?: number; description?: string; diameter?: number; thumbnail?: string };
 
 async function getAdminId() {
   const session = await auth();
@@ -13,6 +13,7 @@ async function getAdminId() {
 
 function validate(input: BeadInput) {
   return (input.thumbnail === undefined || input.thumbnail === "" || (typeof input.thumbnail === "string" && input.thumbnail.length <= 200000 && /^data:image\/(webp|png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/.test(input.thumbnail))) &&
+    (input.kind === undefined || input.kind === "bead" || input.kind === "charm") &&
     (input.draft === undefined || typeof input.draft === "boolean") && typeof input.name === "string" && input.name.trim().length >= 2 && input.name.trim().length <= 100 &&
     typeof input.material === "string" && materials.includes(input.material as typeof materials[number]) &&
     typeof input.color === "string" && /^#[0-9a-f]{6}$/i.test(input.color) &&
@@ -27,7 +28,9 @@ function validate(input: BeadInput) {
 }
 
 function toResponse(product: { sku: string; name: string; description: string | null; price: number; cost_price: number | null; stock: number; status: string; bead_product_details: { model_3d?: unknown; material: string; color: string; emissive_color: string | null; metalness: number; roughness: number; diameter: number } | null }) {
-  return { model: readBeadModel(product.bead_product_details?.model_3d), thumbnail: readBeadPhotoThumbnail(product.bead_product_details?.model_3d), id: product.sku, name: product.name, description: product.description ?? "", price: product.price, costPrice: product.cost_price, stock: product.stock, status: product.status,
+  const kind = readBeadKind(product.bead_product_details?.model_3d);
+  const model = readBeadModel(product.bead_product_details?.model_3d);
+  return { kind, model: model ? { ...model, attachment: kind === "charm" ? "pendant" as const : "bead" as const } : undefined, thumbnail: readBeadPhotoThumbnail(product.bead_product_details?.model_3d), id: product.sku, name: product.name, description: product.description ?? "", price: product.price, costPrice: product.cost_price, stock: product.stock, status: product.status,
     material: product.bead_product_details?.material ?? "crystal", color: product.bead_product_details?.color ?? "#ffffff",
     emissive: product.bead_product_details?.emissive_color ?? "", metalness: product.bead_product_details?.metalness ?? 0,
     roughness: product.bead_product_details?.roughness ?? 0.5, diameter: product.bead_product_details?.diameter ?? 8 };
@@ -53,7 +56,7 @@ export async function POST(request: Request) {
     const product = await prisma.products.create({ data: {
       sku: slug, type: "bead", name: body.name!.trim(), description: body.description!.trim(), price: body.price!, cost_price: body.costPrice!, stock: body.stock!, status: body.draft ? "draft" : "active",
       inventory_movements: body.stock! > 0 ? { create: { quantity_delta: body.stock!, reason: "initial_stock", changed_by: adminId } } : undefined,
-      bead_product_details: { create: { material: body.material as typeof materials[number], color: body.color!, emissive_color: body.emissive || null, metalness: body.metalness!, roughness: body.roughness!, diameter: body.diameter!, model_3d: body.thumbnail ? { thumbnail: body.thumbnail, thumbnailSource: "photo" } : undefined } },
+      bead_product_details: { create: { material: body.material as typeof materials[number], color: body.color!, emissive_color: body.emissive || null, metalness: body.metalness!, roughness: body.roughness!, diameter: body.diameter!, model_3d: { kind: body.kind ?? "bead", ...(body.thumbnail ? { thumbnail: body.thumbnail, thumbnailSource: "photo" } : {}) } } },
     }, include: { bead_product_details: true } });
     return NextResponse.json({ bead: toResponse(product) }, { status: 201 });
   } catch (error) {

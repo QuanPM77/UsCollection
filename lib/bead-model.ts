@@ -51,6 +51,15 @@ export function readBeadModel(value: unknown): BeadModel | undefined {
   if (typeof m.assetId !== "string" || typeof m.url !== "string" || !/^https?:\/\//.test(m.url)) return undefined;
   return m;
 }
+export type BeadKind = "bead" | "charm";
+export function readBeadKind(value: unknown): BeadKind {
+  if (value && typeof value === "object") {
+    const raw = value as { kind?: unknown; attachment?: unknown };
+    if (raw.kind === "bead" || raw.kind === "charm") return raw.kind;
+    if (raw.attachment === "pendant") return "charm";
+  }
+  return "bead";
+}
 export function readBeadThumbnail(value: unknown): string | undefined {
   if (!value || typeof value !== "object") return undefined;
   const thumbnail = (value as { thumbnail?: unknown }).thumbnail;
